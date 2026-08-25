@@ -581,19 +581,19 @@ java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version
 
 ## Documentation
 
-- [Product requirements](PRD.md)
-- [Research](RESEARCH.md)
-- [Technical design](TECH_DESIGN.md)
-- [Roadmap](ROADMAP.md)
-- [Contributing](CONTRIBUTING.md)
+- [Product requirements](../../PRD.md)
+- [Research](../../RESEARCH.md)
+- [Technical design](../../TECH_DESIGN.md)
+- [Roadmap](../../ROADMAP.md)
+- [Contributing](../../CONTRIBUTING.md)
 
 ## Security
 
-Never commit API keys or local XhlCLI state. See [SECURITY.md](SECURITY.md).
+Never commit API keys or local XhlCLI state. See [SECURITY.md](../../SECURITY.md).
 
 ## License
 
-See [LICENSE](LICENSE). Any required attribution is included in the repository's
+See [LICENSE](../../LICENSE). Any required attribution is included in the repository's
 license or notice files.
 ````
 

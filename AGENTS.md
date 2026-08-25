@@ -20,9 +20,9 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 00 文档与工程基线准备。
-- 当前已交付：总 PRD、Phase 00–18 子 PRD、需求研究、全局技术设计和授权参考实现采用地图。
-- 当前未交付：可编译 Java 工程、模型对话、Agent 和任何本地工具。
+- 当前阶段：Phase 00 工程基线已实现，正在完成发布验证。
+- 当前已交付：Java 21 Maven 工程、可执行 JAR、CLI 元信息命令、自动测试，以及总 PRD、Phase 00–18 子 PRD、需求研究和全局技术设计。
+- 当前未交付：模型对话、Agent、本地工具和其他 Phase 01–18 运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 
@@ -174,7 +174,7 @@ Research → PRD → Tech Design → Implementation Plan
 
 ### 11.2 分期验证
 
-当前 Phase 00 代码尚未创建，文档验证命令为：
+文档一致性验证命令为：
 
 ```bash
 find . -type f | sort
@@ -185,13 +185,13 @@ rg -n 'paicli|PaiCLI|com\.paicli|\.paicli' \
   --glob '!AGENTS.md' .
 ```
 
-Phase 00 工程骨架落地后必须使用：
+Phase 00 工程验证命令为：
 
 ```bash
-./mvnw test
-./mvnw package
-java -jar target/xhlcli-*.jar --help
-java -jar target/xhlcli-*.jar --version
+./mvnw clean verify
+java -jar target/xhlcli-0.1.0-SNAPSHOT.jar
+java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version
 ```
 
 后续每期把针对性测试和快速回归命令补充到本文件。
