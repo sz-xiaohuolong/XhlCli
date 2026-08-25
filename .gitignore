@@ -22,5 +22,6 @@ output/
 
 # Temporary files
 tmp/
+.worktrees/
 *.tmp
 *.swp
