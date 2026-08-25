@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a reproducible problem in a delivered XhlCLI capability.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve XhlCLI. Remove API keys, tokens, private code, and personal data from every field and log.
+  - type: input
+    id: version
+    attributes:
+      label: XhlCLI version
+      description: Run `java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version` when possible.
+      placeholder: XhlCLI 0.1.0-SNAPSHOT
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15.6, Ubuntu 24.04, or Windows 11
+    validations:
+      required: true
+  - type: input
+    id: java
+    attributes:
+      label: Java version
+      description: Paste the first line from `java -version`.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest deterministic sequence that reproduces the problem.
+      placeholder: |
+        1. Run ...
+        2. Pass ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Include relevant output only after removing secrets, private paths, and user data.
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed API keys, tokens, credentials, private code, and personal data.
+          required: true

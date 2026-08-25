@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose an outcome for a future XhlCLI phase.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Describe the user need and observable outcome. Implementation classes are not required before the requirement is accepted.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who encounters the problem, in which workflow, and why does it matter?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      description: Describe the externally observable result and a useful acceptance example.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Explain current workarounds or other product approaches.
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Target phase
+      description: Choose the most relevant roadmap phase; maintainers may reclassify it.
+      options:
+        - Not sure
+        - Phase 01–06 — core coding loop
+        - Phase 07–12 — advanced agent capabilities
+        - Phase 13–18 — productization and release
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Scope exclusions
+      description: State what this request should deliberately not include.
+    validations:
+      required: true

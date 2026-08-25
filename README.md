@@ -9,6 +9,7 @@ Phase 00 核心工程已实现并完成本地验证：
 - Java 21 Maven Wrapper 工程；
 - 可执行 JAR 与 `--help`、`--version` 命令；
 - JUnit 5 自动测试；
+- GitHub Actions Java 21 构建基线；
 - 路线图、贡献、安全和协作规范。
 
 当前版本不会调用模型，也不需要 API Key。
