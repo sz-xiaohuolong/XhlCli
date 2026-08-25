@@ -1,0 +1,26 @@
+# Build outputs
+target/
+*.class
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# XhlCLI local state
+.xhlcli/
+logs/
+output/
+
+# IDE and operating system
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Temporary files
+tmp/
+*.tmp
+*.swp
