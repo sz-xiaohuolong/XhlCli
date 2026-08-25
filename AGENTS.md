@@ -20,7 +20,7 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 00 工程基线已实现，正在完成发布验证。
+- 当前阶段：Phase 00 工程基线已于 2026-08-25 完成阶段验收；下一阶段尚未开始。
 - 当前已交付：Java 21 Maven 工程、可执行 JAR、CLI 元信息命令、自动测试，以及总 PRD、Phase 00–18 子 PRD、需求研究和全局技术设计。
 - 当前未交付：模型对话、Agent、本地工具和其他 Phase 01–18 运行能力。
 
@@ -193,6 +193,8 @@ java -jar target/xhlcli-0.1.0-SNAPSHOT.jar
 java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --help
 java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version
 ```
+
+Phase 00 于 2026-08-25 使用上述命令完成干净构建和 CLI 冒烟验证；未知参数退出码、Java 21 字节码、文档链接、阶段边界、敏感信息扫描和仅含已跟踪文件的临时目录构建也已通过。
 
 后续每期把针对性测试和快速回归命令补充到本文件。
 
