@@ -13,7 +13,7 @@ XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目
 - 鉴权、限流、网络、服务端、格式、超时与取消错误分类；
 - 连接、读取和整体请求超时，以及安全的一次重试；
 - Token 用量展示、配置来源展示、日志与错误脱敏；
-- Java 21 可执行 JAR、50 项离线自动测试和三操作系统 CI 配置。
+- Java 21 可执行 JAR、50 项离线自动测试和 macOS CI 配置。
 
 > Phase 01 只是终端聊天客户端，不能读取或修改本地文件，也没有 Agent、Tool、Git、MCP 或 RAG 能力。上述能力从后续阶段开始实现。
 
@@ -112,7 +112,7 @@ java -jar target/xhlcli-0.2.0.jar --version
 
 ## 当前验收状态
 
-Phase 01 已通过 50 项离线测试、MockWebServer 协议测试、可执行 JAR、无密钥失败路径、真实 DeepSeek 五轮会话、真实 Ctrl+C 取消与恢复，以及 Linux/macOS/Windows Java 21 CI 验收，并以 `v0.2.0` 发布。
+Phase 01 已通过 50 项离线测试、MockWebServer 协议测试、可执行 JAR、无密钥失败路径、真实 DeepSeek 五轮会话、真实 Ctrl+C 取消与恢复，以及 macOS Java 21 CI 验收，并以 `v0.2.0` 发布。
 
 ## License
 

@@ -10,11 +10,7 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -25,12 +21,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Verify on Unix
-        if: runner.os != 'Windows'
+      - name: Verify
         run: ./mvnw --batch-mode verify
-      - name: Verify on Windows
-        if: runner.os == 'Windows'
-        run: .\mvnw.cmd --batch-mode verify
       - name: Smoke test executable JAR
         run: |
           java -jar target/xhlcli-0.2.0.jar --help

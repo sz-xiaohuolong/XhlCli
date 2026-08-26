@@ -1,5 +1,7 @@
 # Phase 01 Terminal Chat Implementation Plan
 
+> 2026-08-26 范围修订：按用户最终决定，Phase 01 仅以 macOS Java 21 CI 作为发布门禁，不承诺 Windows/Linux 兼容性。本修订优先于下文早期计划中的三平台矩阵要求。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver a Java 21 XhlCLI that securely configures DeepSeek and supports cancellable, streaming, multi-turn terminal chat without Agent or local-tool capabilities.

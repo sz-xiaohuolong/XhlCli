@@ -12,7 +12,7 @@
 - `/help`、`/config`、`/clear`、`/exit` 与响应期间 Ctrl+C 取消。
 - `.env`、环境变量、用户 JSON 和命令行参数的安全配置分层。
 - OpenAI-compatible SSE 解析、错误分类、超时和受控一次重试。
-- 50 项离线自动测试、可执行 shaded JAR 和 Linux/macOS/Windows CI 矩阵。
+- 50 项离线自动测试、可执行 shaded JAR 和 macOS CI。
 
 ### Security
 
@@ -20,7 +20,7 @@
 
 ### Verification
 
-- Phase 01 通过真实 DeepSeek 五轮会话、Ctrl+C 取消恢复、演示脱敏和 Linux/macOS/Windows Java 21 CI 验收。
+- Phase 01 通过真实 DeepSeek 五轮会话、Ctrl+C 取消恢复、演示脱敏和 macOS Java 21 CI 验收。
 
 ## [0.1.0] - 2026-08-25
 

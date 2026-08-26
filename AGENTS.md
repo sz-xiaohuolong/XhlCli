@@ -197,7 +197,7 @@ javap -verbose -classpath target/classes com.xhlcli.cli.Main | rg 'major version
 
 Phase 00 于 2026-08-25 完成当期干净构建和 CLI 冒烟验证；未知参数退出码、Java 21 字节码、文档链接、阶段边界、敏感信息扫描和仅含已跟踪文件的临时目录构建也已通过。
 
-Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取消测试、可执行 JAR、无 Key 退出码 3、真实 Provider 五轮会话、真实 Ctrl+C 恢复、脱敏演示 GIF 和 Linux/macOS/Windows Java 21 CI 验证。
+Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取消测试、可执行 JAR、无 Key 退出码 3、真实 Provider 五轮会话、真实 Ctrl+C 恢复、脱敏演示 GIF 和 macOS Java 21 CI 验证。Phase 01 发布门禁不承诺 Windows/Linux 兼容性。
 
 后续每期把针对性测试和快速回归命令补充到本文件。
 

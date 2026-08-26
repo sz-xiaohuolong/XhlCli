@@ -160,7 +160,7 @@ Base URL 在创建客户端前校验 URI、scheme 和 host。生产默认使用 
 - 取消/超时测试：延迟 MockWebServer、Call 取消和可继续下一轮；
 - ChatSession 测试：多轮顺序、`/clear`、失败不提交历史；
 - CLI 测试：命令、空输入、脱敏输出、`--help`、`--version` 和未知参数。
-- 跨平台 CI：Ubuntu、macOS 和 Windows 均使用 Java 21 运行测试与 JAR 冒烟；JLine 取消逻辑通过可调用的信号处理边界做确定性测试。
+- 发布 CI：macOS 使用 Java 21 运行测试与 JAR 冒烟；JLine 取消逻辑通过可调用的信号处理边界做确定性测试。本期不承诺 Windows/Linux 兼容性。
 
 阶段门禁：
 
@@ -171,7 +171,7 @@ Base URL 在创建客户端前校验 URI、scheme 和 host。生产默认使用 
 5. 用户在本地 `.env` 填写 Key 后，真实 DeepSeek 完成五轮短对话；
 6. 真实请求期间 Ctrl+C 能取消并继续输入；
 7. 使用本地 Mock 流录制不包含真实 Key、用户路径和网络依赖的终端演示 GIF；
-8. GitHub Actions 的 Ubuntu、macOS 和 Windows Java 21 矩阵通过后才创建 `v0.2.0` 标签。
+8. GitHub Actions 的 macOS Java 21 验证通过后才创建 `v0.2.0` 标签；本期不以 Windows/Linux 兼容性作为发布门禁。
 
 真实验证不打印、回显、提交或上传 Key。测试完成后 `.env` 继续只保留在用户本机。
 
