@@ -1,0 +1,13 @@
+package com.xhlcli.llm;
+
+public enum LlmErrorType {
+    MISSING_CONFIGURATION,
+    AUTHENTICATION,
+    RATE_LIMIT,
+    NETWORK,
+    SERVER,
+    INVALID_RESPONSE,
+    TIMEOUT,
+    CANCELLED,
+    INVALID_CONFIGURATION
+}
