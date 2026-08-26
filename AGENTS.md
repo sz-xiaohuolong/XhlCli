@@ -20,9 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 00 工程基线已于 2026-08-25 完成阶段验收；下一阶段尚未开始。
-- 当前已交付：Java 21 Maven 工程、可执行 JAR、CLI 元信息命令、自动测试，以及总 PRD、Phase 00–18 子 PRD、需求研究和全局技术设计。
-- 当前未交付：模型对话、Agent、本地工具和其他 Phase 01–18 运行能力。
+- 当前阶段：Phase 01 已完成本地实现和离线门禁，处于发布验证中；真实 DeepSeek、远程三平台 CI、演示和 `v0.2.0` 尚未验收。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、Ctrl+C 取消、安全配置与脱敏、错误分类和 50 项离线测试。
+- 当前已发布：Phase 00 `v0.1.0` 工程基线。
+- 当前未交付：ReAct Agent、本地工具、Git 操作、MCP、RAG、长期记忆、Multi-Agent 和其他 Phase 02–18 运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 
@@ -185,16 +186,18 @@ rg -n 'paicli|PaiCLI|com\.paicli|\.paicli' \
   --glob '!AGENTS.md' .
 ```
 
-Phase 00 工程验证命令为：
+Phase 01 离线工程验证命令为：
 
 ```bash
 ./mvnw clean verify
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --version
+javap -verbose -classpath target/classes com.xhlcli.cli.Main | rg 'major version: 65'
 ```
 
-Phase 00 于 2026-08-25 使用上述命令完成干净构建和 CLI 冒烟验证；未知参数退出码、Java 21 字节码、文档链接、阶段边界、敏感信息扫描和仅含已跟踪文件的临时目录构建也已通过。
+Phase 00 于 2026-08-25 完成当期干净构建和 CLI 冒烟验证；未知参数退出码、Java 21 字节码、文档链接、阶段边界、敏感信息扫描和仅含已跟踪文件的临时目录构建也已通过。
+
+Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取消测试、可执行 JAR 冒烟和无 Key 退出码 3 验证。真实 Provider 五轮会话、真实 Ctrl+C 恢复、演示 GIF 和远程 CI 必须在发布前完成，不能用离线结果替代。
 
 后续每期把针对性测试和快速回归命令补充到本文件。
 

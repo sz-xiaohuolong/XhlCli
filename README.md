@@ -1,64 +1,116 @@
 # XhlCLI
 
-XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付；当前只提供 Phase 00 工程基线和 CLI 元信息命令，模型对话、Agent 与本地工具仍属于后续阶段。
+XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 01 已在本地完成实现和离线测试，目前等待真实 DeepSeek 账号验收后发布。
 
-## 当前已交付
+## 当前能力
 
-Phase 00 核心工程已实现并完成本地验证：
+- DeepSeek OpenAI-compatible Chat Completions 流式对话；
+- 当前进程内的多轮 `system/user/assistant` 会话历史；
+- `/help`、`/config`、`/clear`、`/exit`；
+- Ctrl+C 取消当前响应，取消后可继续对话；
+- 鉴权、限流、网络、服务端、格式、超时与取消错误分类；
+- 连接、读取和整体请求超时，以及安全的一次重试；
+- Token 用量展示、配置来源展示、日志与错误脱敏；
+- Java 21 可执行 JAR、50 项离线自动测试和三操作系统 CI 配置。
 
-- Java 21 Maven Wrapper 工程；
-- 可执行 JAR 与 `--help`、`--version` 命令；
-- JUnit 5 自动测试；
-- GitHub Actions Java 21 构建基线；
-- 路线图、贡献、安全和协作规范。
+> Phase 01 只是终端聊天客户端，不能读取或修改本地文件，也没有 Agent、Tool、Git、MCP 或 RAG 能力。上述能力从后续阶段开始实现。
 
-当前版本不会调用模型，也不需要 API Key。
+## 环境要求
 
-## 快速开始
+- JDK 21；
+- 可访问 DeepSeek API；
+- 一个 DeepSeek API Key，可在 [DeepSeek API Keys](https://platform.deepseek.com/api_keys) 创建。
 
-环境要求：JDK 21。仓库自带 Maven Wrapper，无需单独安装 Maven。
+仓库自带 Maven Wrapper，无需单独安装 Maven。
+
+## 配置 API Key
+
+在仓库根目录执行：
+
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+编辑 `.env`，只替换示例值：
+
+```dotenv
+DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
+```
+
+`.env` 已被 Git 忽略。不要把 Key 粘贴到 Issue、聊天记录、截图或终端录屏中，也不要使用 `--api-key` 参数。
+
+默认配置：
+
+| 配置 | 默认值 |
+|---|---|
+| Provider | DeepSeek |
+| Model | `deepseek-v4-flash` |
+| Base URL | `https://api.deepseek.com` |
+| Connect timeout | 30 秒 |
+| Read timeout | 300 秒 |
+| Request timeout | 600 秒 |
+| Log level | `WARN` |
+
+非敏感配置优先级：命令行参数 > 进程环境变量 > 项目 `.env` > `~/.xhlcli/config.json` > 默认值。API Key 只从进程环境变量或项目 `.env` 读取，环境变量优先；JSON 配置中的凭据字段会被拒绝。
+
+## 构建与运行
 
 ```bash
 ./mvnw clean verify
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.1.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.2.0-SNAPSHOT.jar
 ```
 
-预期版本输出：
-
-```text
-XhlCLI 0.1.0-SNAPSHOT
-```
-
-如果本机同时安装了多个 JDK，可显式选择 Java 21：
+如果 macOS 同时安装了多个 JDK：
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) # macOS
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 ./mvnw clean verify
 ```
+
+元信息命令：
+
+```bash
+java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --version
+```
+
+可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--log-level`。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
+
+## 对话命令
+
+| 命令 | 作用 |
+|---|---|
+| `/help` | 显示帮助 |
+| `/config` | 显示非敏感配置与来源 |
+| `/clear` | 清空当前进程内的会话历史 |
+| `/exit` | 安全退出 |
+| Ctrl+C | 取消正在生成的响应 |
+
+## 故障排查
+
+- `DeepSeek API Key is missing`：确认 `.env` 位于运行命令所在的仓库根目录，且键名为 `DEEPSEEK_API_KEY`。
+- `AUTHENTICATION`：在 DeepSeek 控制台检查 Key 状态和账户权限；如有泄漏可能，立即轮换。
+- `RATE_LIMIT`：等待后重试，并检查账户额度与限流状态。
+- `NETWORK` / `TIMEOUT`：检查网络和 Base URL，必要时提高对应 timeout。
+- `INVALID_RESPONSE`：重试；若持续出现，可临时设置 `XHLCLI_LOG_LEVEL=DEBUG` 查看已脱敏的协议元数据。
+
+普通错误不会打印堆栈；调试日志不会记录消息正文、Authorization 或完整 Key。
 
 ## 文档导航
 
 - [产品总 PRD](PRD.md)
+- [Phase 01 PRD](docs/prd/phase-01-terminal-chat.md)
+- [Phase 01 技术设计](docs/superpowers/specs/2026-08-26-phase-01-terminal-chat-design.md)
+- [Phase 01 实施计划](docs/plans/2026-08-26-phase-01-terminal-chat.md)
 - [路线图](ROADMAP.md)
-- [需求研究](RESEARCH.md)
 - [全局技术设计](TECH_DESIGN.md)
-- [AI 开发规则](AGENTS.md)
-- [贡献指南](CONTRIBUTING.md)
+- [授权源码采用地图](docs/engineering/source-adoption-map.md)
 - [安全策略](SECURITY.md)
-- [Phase 00 实施计划](docs/plans/2026-08-25-phase-00-project-foundation.md)
-- [Phase 00–18 分期 PRD](docs/prd/)
 
-## 开发原则
+## 当前验收状态
 
-- Java 21、终端优先、本地优先。
-- 每期都形成可运行、可测试、可演示的最小闭环。
-- 计划能力不等于已交付能力，以代码、测试和版本记录为准。
-- 高风险能力必须经过安全策略、人工审批和审计。
-- 不提交 API Key、用户数据、构建产物或本地运行状态。
-
-下一阶段是 [Phase 01：流式终端对话](docs/prd/phase-01-terminal-chat.md)。模型 Provider、配置变量和 API Key 获取方式会在该阶段实现时同步写入 README 与 `.env.example`；现在无需配置。
+本地 Java 21 离线门禁、MockWebServer 协议测试、可执行 JAR 和无密钥失败路径已经通过。真实 DeepSeek 五轮会话、真实 Ctrl+C 恢复、演示 GIF、远程三平台 CI 和 `v0.2.0` 标签将在用户本地配置 Key 后完成。
 
 ## License
 

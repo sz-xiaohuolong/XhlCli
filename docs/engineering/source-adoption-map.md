@@ -30,7 +30,7 @@
 | XhlCLI 阶段 | 首要参考提交 | 重点模块/文件 | 迁移说明 |
 |---|---|---|---|
 | 00 项目基线 | `e2b8df4` 的 `pom.xml` | Maven 构建、Shade 入口、`.gitignore` | 只采用构建思路，不迁移 Agent 业务；升级 Java 21 并增加测试/CI |
-| 01 终端对话 | `e2b8df4`、`530bb9c` | `cli/Main`、`llm/GLMClient` | 从早期同步对话提取最小模型接口，再吸收流式实现，不引入 Tool Call |
+| 01 终端对话 | `e2b8df4`、`530bb9c`、`f49d33c`、最终 `llm/DeepSeekClient` | `cli/Main`、`llm/AbstractOpenAiCompatibleClient`、`llm/DeepSeekClient` | 采用请求结构、SSE 累积、Bearer 鉴权与 DeepSeek HTTP/1.1 兼容点；新增安全配置、取消、错误分类、受控重试和测试边界，不引入 Tool Call |
 | 02 ReAct | `e2b8df4`、最终 `agent/Agent` | `Agent`、`LlmClient`、Tool Call 消息 | 保留循环骨架，补上最大迭代、取消、重复检测和事件模型 |
 | 03 本地工具 | `e2b8df4`、`72a7e90`、`c69be83` | `tool/ToolRegistry`、代码搜索工具 | 拆分最终巨型 Registry，按工具职责迁移，保留统一注册入口 |
 | 04 安全审批 | `75e6642`、`f90d9f5` | `hitl/*`、`policy/*` | 迁移审批和围栏，按 PRD 保持硬策略优先、非交互默认拒绝 |

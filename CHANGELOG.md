@@ -4,9 +4,21 @@
 
 ## [Unreleased]
 
-### Planned
+### Added
 
-- Phase 01 流式终端对话。
+- DeepSeek 流式终端对话、进程内多轮历史和 Token 用量展示。
+- `/help`、`/config`、`/clear`、`/exit` 与响应期间 Ctrl+C 取消。
+- `.env`、环境变量、用户 JSON 和命令行参数的安全配置分层。
+- OpenAI-compatible SSE 解析、错误分类、超时和受控一次重试。
+- 50 项离线自动测试、可执行 shaded JAR 和 Linux/macOS/Windows CI 矩阵。
+
+### Security
+
+- API Key 不接受命令行参数或用户 JSON 持久化；终端、错误和 DEBUG 元数据统一脱敏。
+
+### Verification
+
+- Phase 01 本地离线门禁已通过；真实 DeepSeek 会话、Ctrl+C 恢复和远程发布验证待完成。
 
 ## [0.1.0] - 2026-08-25
 
