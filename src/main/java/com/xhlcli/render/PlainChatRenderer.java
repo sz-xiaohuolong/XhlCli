@@ -1,6 +1,8 @@
 package com.xhlcli.render;
 
 import com.xhlcli.app.ChatEvent;
+import com.xhlcli.config.ChatConfig;
+import com.xhlcli.config.ConfigKey;
 import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.llm.LlmErrorType;
 
@@ -27,6 +29,46 @@ public final class PlainChatRenderer {
             case ChatEvent.Failed failed -> renderFailure(failed);
             case ChatEvent.Cancelled ignored -> renderCancelled();
         }
+    }
+
+    public synchronized void printWelcome(String model) {
+        out.printf("XhlCLI Phase 01 — DeepSeek streaming chat (%s)%n", redact(model));
+        out.println("Type /help for commands.");
+    }
+
+    public synchronized void printHelp() {
+        out.println("Commands:");
+        out.println("  /help     Show this help");
+        out.println("  /config   Show non-secret configuration");
+        out.println("  /clear    Clear conversation history");
+        out.println("  /exit     Exit XhlCLI");
+        out.println("  Ctrl+C    Cancel the active response");
+    }
+
+    public synchronized void printConfig(ChatConfig config) {
+        String keyState = config.hasApiKey()
+                ? "configured (" + config.source(ConfigKey.API_KEY) + ")"
+                : "missing";
+        out.println("apiKey=" + keyState);
+        out.printf("model=%s (%s)%n", redact(config.model()), config.source(ConfigKey.MODEL));
+        out.println("baseUrl=" + config.baseUrl());
+        out.println("connectTimeout=" + config.connectTimeout().toSeconds() + "s");
+        out.println("readTimeout=" + config.readTimeout().toSeconds() + "s");
+        out.println("requestTimeout=" + config.requestTimeout().toSeconds() + "s");
+        out.println("logLevel=" + config.logLevel());
+    }
+
+    public synchronized void printCleared() {
+        out.println("Conversation cleared.");
+    }
+
+    public synchronized void printGoodbye() {
+        out.println("Goodbye.");
+    }
+
+    public synchronized void printUnknownCommand(String command) {
+        err.println("Unknown command: " + redact(command));
+        err.println("Type /help for available commands.");
     }
 
     private void renderDelta(String text) {
