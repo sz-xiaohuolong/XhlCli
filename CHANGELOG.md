@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-26
+
 ### Added
 
 - DeepSeek 流式终端对话、进程内多轮历史和 Token 用量展示。
@@ -18,7 +20,7 @@
 
 ### Verification
 
-- Phase 01 本地离线门禁已通过；真实 DeepSeek 会话、Ctrl+C 恢复和远程发布验证待完成。
+- Phase 01 通过真实 DeepSeek 五轮会话、Ctrl+C 取消恢复、演示脱敏和 Linux/macOS/Windows Java 21 CI 验收。
 
 ## [0.1.0] - 2026-08-25
 
@@ -29,5 +31,6 @@
 - CLI 行为自动测试和 GitHub Actions Java 21 构建验证。
 - Phase 00–18 产品需求、全局技术设计、路线图和协作规范。
 
-[Unreleased]: https://github.com/sz-xiaohuolong/XhlCli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sz-xiaohuolong/XhlCli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sz-xiaohuolong/XhlCli/releases/tag/v0.2.0
 [0.1.0]: https://github.com/sz-xiaohuolong/XhlCli/releases/tag/v0.1.0

@@ -5,7 +5,7 @@
 | 优先级 | 阶段 | 状态 | 交付目标 |
 |---|---|---|---|
 | P0 | [Phase 00](docs/prd/phase-00-project-foundation.md) | 已交付（2026-08-25） | Java 21 工程、CLI 元信息、测试与 CI 基线 |
-| P0 | [Phase 01](docs/prd/phase-01-terminal-chat.md) | 发布验证中（本地实现与离线门禁完成） | 流式终端对话与首个模型 Provider |
+| P0 | [Phase 01](docs/prd/phase-01-terminal-chat.md) | 已交付（2026-08-26） | 流式终端对话与首个模型 Provider |
 | P0 | [Phase 02](docs/prd/phase-02-react-agent.md) | 规划中 | ReAct 执行循环与终止控制 |
 | P0 | [Phase 03](docs/prd/phase-03-local-tools.md) | 规划中 | 文件、搜索、命令与 Git 本地工具 |
 | P0 | [Phase 04](docs/prd/phase-04-safety-and-approval.md) | 规划中 | 风险策略、人工审批与审计 |

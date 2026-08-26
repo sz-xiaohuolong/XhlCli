@@ -1,6 +1,8 @@
 # XhlCLI
 
-XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 01 已在本地完成实现和离线测试，目前等待真实 DeepSeek 账号验收后发布。
+XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 01 已交付可用的 DeepSeek 流式终端对话基础。
+
+![XhlCLI Phase 01 真实 DeepSeek 会话演示](docs/assets/xhlcli-phase-01-demo.gif)
 
 ## 当前能力
 
@@ -58,7 +60,7 @@ DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 
 ```bash
 ./mvnw clean verify
-java -jar target/xhlcli-0.2.0-SNAPSHOT.jar
+java -jar target/xhlcli-0.2.0.jar
 ```
 
 如果 macOS 同时安装了多个 JDK：
@@ -71,8 +73,8 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.2.0.jar --help
+java -jar target/xhlcli-0.2.0.jar --version
 ```
 
 可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--log-level`。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
@@ -110,7 +112,7 @@ java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --version
 
 ## 当前验收状态
 
-本地 Java 21 离线门禁、MockWebServer 协议测试、可执行 JAR 和无密钥失败路径已经通过。真实 DeepSeek 五轮会话、真实 Ctrl+C 恢复、演示 GIF、远程三平台 CI 和 `v0.2.0` 标签将在用户本地配置 Key 后完成。
+Phase 01 已通过 50 项离线测试、MockWebServer 协议测试、可执行 JAR、无密钥失败路径、真实 DeepSeek 五轮会话、真实 Ctrl+C 取消与恢复，以及 Linux/macOS/Windows Java 21 CI 验收，并以 `v0.2.0` 发布。
 
 ## License
 

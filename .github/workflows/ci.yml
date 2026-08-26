@@ -33,5 +33,5 @@ jobs:
         run: .\mvnw.cmd --batch-mode verify
       - name: Smoke test executable JAR
         run: |
-          java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --help
-          java -jar target/xhlcli-0.2.0-SNAPSHOT.jar --version
+          java -jar target/xhlcli-0.2.0.jar --help
+          java -jar target/xhlcli-0.2.0.jar --version
