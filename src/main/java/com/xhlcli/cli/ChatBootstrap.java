@@ -1,18 +1,31 @@
 package com.xhlcli.cli;
 
-import com.xhlcli.app.ChatSession;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xhlcli.agent.ReactAgent;
+import com.xhlcli.agent.RunLimits;
+import com.xhlcli.agent.ScheduledTimeoutScheduler;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ChatConfigLoader;
 import com.xhlcli.config.ConfigurationException;
 import com.xhlcli.llm.DeepSeekClient;
-import com.xhlcli.render.PlainChatRenderer;
+import com.xhlcli.model.ChatMessage;
+import com.xhlcli.render.PlainRunRenderer;
 import com.xhlcli.render.PlainDiagnosticSink;
+import com.xhlcli.tool.DefaultToolExecutor;
+import com.xhlcli.tool.ToolRegistry;
+import com.xhlcli.tool.ToolResultBudget;
+import com.xhlcli.tool.ToolSchemaValidator;
+import com.xhlcli.tool.demo.CurrentTimeTool;
+import com.xhlcli.tool.demo.EchoTool;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 public final class ChatBootstrap implements ChatRunner {
     private final Map<String, String> environment;
@@ -51,10 +64,20 @@ public final class ChatBootstrap implements ChatRunner {
 
         PlainDiagnosticSink diagnostics = new PlainDiagnosticSink(config, err);
         try (DeepSeekClient client = new DeepSeekClient(config, diagnostics);
+             ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler();
              JLineTerminalSession terminal = new JLineTerminalSession()) {
-            ChatSession session = new ChatSession(client);
-            PlainChatRenderer renderer = new PlainChatRenderer(out, err, config.apiKey());
-            ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), session, renderer, config);
+            ObjectMapper mapper = new ObjectMapper();
+            ToolRegistry registry = new ToolRegistry(List.of(new EchoTool(), new CurrentTimeTool(Clock.systemUTC())));
+            DefaultToolExecutor executor = new DefaultToolExecutor(
+                    registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
+                    mapper, System::nanoTime);
+            ReactAgent agent = new ReactAgent(
+                    ChatMessage.system("You are XhlCLI, a helpful coding assistant. You may use only the provided demo tools."),
+                    client, executor, registry.definitions(),
+                    new RunLimits(config.agentSettings().maxIterations(), config.agentSettings().timeout()), scheduler,
+                    mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString());
+            PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
+            ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config);
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {

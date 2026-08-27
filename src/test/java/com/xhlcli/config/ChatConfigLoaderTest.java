@@ -84,6 +84,7 @@ class ChatConfigLoaderTest {
         assertEquals(Duration.ofSeconds(30), config.connectTimeout());
         assertEquals(Duration.ofSeconds(300), config.readTimeout());
         assertEquals(Duration.ofSeconds(600), config.requestTimeout());
+        assertEquals(new AgentSettings(10, Duration.ofSeconds(600)), config.agentSettings());
         assertEquals(LogLevel.WARN, config.logLevel());
         assertEquals(ConfigSource.MISSING, config.source(ConfigKey.API_KEY));
         assertEquals(ConfigSource.DEFAULT, config.source(ConfigKey.MODEL));
@@ -137,6 +138,58 @@ class ChatConfigLoaderTest {
 
         assertEquals(URI.create("http://localhost:18080/v1"), config.baseUrl());
         assertEquals(ConfigSource.CLI, config.source(ConfigKey.BASE_URL));
+    }
+
+    @Test
+    void resolvesAgentSettingsUsingExistingPrecedence() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home"));
+        Files.writeString(projectDir.resolve(".env"), """
+                XHLCLI_AGENT_MAX_ITERATIONS=6
+                XHLCLI_AGENT_TIMEOUT_SECONDS=240
+                """);
+        writeUserConfig(userHome, """
+                {"agentMaxIterations": 4, "agentTimeoutSeconds": 120}
+                """);
+
+        ChatConfig config = ChatConfigLoader.load(
+                new String[]{"--max-iterations", "8", "--agent-timeout", "180"},
+                Map.of("XHLCLI_AGENT_MAX_ITERATIONS", "7"),
+                projectDir,
+                userHome);
+
+        assertEquals(new AgentSettings(8, Duration.ofSeconds(180)), config.agentSettings());
+        assertEquals(ConfigSource.CLI, config.source(ConfigKey.AGENT_MAX_ITERATIONS));
+        assertEquals(ConfigSource.CLI, config.source(ConfigKey.AGENT_TIMEOUT));
+    }
+
+    @Test
+    void rejectsAgentSettingsOutsideTheirDocumentedRanges() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home"));
+
+        assertThrows(ConfigurationException.class,
+                () -> ChatConfigLoader.load(new String[]{"--max-iterations", "0"}, Map.of(), projectDir, userHome));
+        assertThrows(ConfigurationException.class,
+                () -> ChatConfigLoader.load(new String[]{"--max-iterations", "101"}, Map.of(), projectDir, userHome));
+        assertThrows(ConfigurationException.class,
+                () -> ChatConfigLoader.load(new String[]{"--agent-timeout", "3601"}, Map.of(), projectDir, userHome));
+        assertThrows(ConfigurationException.class,
+                () -> ChatConfigLoader.load(new String[]{"--agent-timeout", "0"}, Map.of(), projectDir, userHome));
+    }
+
+    @Test
+    void loadsAgentFieldsFromEnvironmentAndUserConfig() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home"));
+        writeUserConfig(userHome, "{\"agentMaxIterations\": 4}");
+
+        ChatConfig config = ChatConfigLoader.load(
+                new String[0], Map.of("XHLCLI_AGENT_TIMEOUT_SECONDS", "300"), projectDir, userHome);
+
+        assertEquals(new AgentSettings(4, Duration.ofSeconds(300)), config.agentSettings());
+        assertEquals(ConfigSource.USER_CONFIG, config.source(ConfigKey.AGENT_MAX_ITERATIONS));
+        assertEquals(ConfigSource.ENVIRONMENT, config.source(ConfigKey.AGENT_TIMEOUT));
     }
 
     private void writeUserConfig(Path userHome, String json) throws Exception {

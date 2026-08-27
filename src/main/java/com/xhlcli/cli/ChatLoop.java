@@ -1,9 +1,9 @@
 package com.xhlcli.cli;
 
-import com.xhlcli.app.ChatSession;
+import com.xhlcli.agent.AgentRunner;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.llm.CancellationToken;
-import com.xhlcli.render.PlainChatRenderer;
+import com.xhlcli.render.PlainRunRenderer;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -11,20 +11,20 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class ChatLoop {
     private final InputReader inputReader;
     private final ChatCommandParser commandParser;
-    private final ChatSession session;
-    private final PlainChatRenderer renderer;
+    private final AgentRunner agent;
+    private final PlainRunRenderer renderer;
     private final ChatConfig config;
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
             InputReader inputReader,
             ChatCommandParser commandParser,
-            ChatSession session,
-            PlainChatRenderer renderer,
+            AgentRunner agent,
+            PlainRunRenderer renderer,
             ChatConfig config) {
         this.inputReader = Objects.requireNonNull(inputReader, "inputReader");
         this.commandParser = Objects.requireNonNull(commandParser, "commandParser");
-        this.session = Objects.requireNonNull(session, "session");
+        this.agent = Objects.requireNonNull(agent, "agent");
         this.renderer = Objects.requireNonNull(renderer, "renderer");
         this.config = Objects.requireNonNull(config, "config");
     }
@@ -46,7 +46,7 @@ public final class ChatLoop {
                 case HELP -> renderer.printHelp();
                 case CONFIG -> renderer.printConfig(config);
                 case CLEAR -> {
-                    session.clear();
+                    agent.clearHistory();
                     renderer.printCleared();
                 }
                 case EXIT -> {
@@ -77,7 +77,7 @@ public final class ChatLoop {
             throw new IllegalStateException("A response is already active");
         }
         try {
-            session.send(input, renderer::accept, token);
+            agent.run(input, renderer::accept, token);
         } finally {
             activeResponse.compareAndSet(token, null);
         }

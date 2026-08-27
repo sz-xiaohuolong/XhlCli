@@ -39,7 +39,7 @@ public final class CliApplication {
     private boolean isChatOption(String option) {
         return switch (option) {
             case "--model", "--base-url", "--connect-timeout", "--read-timeout",
-                    "--request-timeout", "--log-level" -> true;
+                    "--request-timeout", "--max-iterations", "--agent-timeout", "--log-level" -> true;
             default -> false;
         };
     }
@@ -53,6 +53,8 @@ public final class CliApplication {
         out.println("  --connect-timeout <seconds>");
         out.println("  --read-timeout <seconds>");
         out.println("  --request-timeout <seconds>");
+        out.println("  --max-iterations <1-100>");
+        out.println("  --agent-timeout <1-3600 seconds>");
         out.println("  --log-level <ERROR|WARN|INFO|DEBUG>");
         out.println();
         out.println("Chat commands: /help /config /clear /exit");

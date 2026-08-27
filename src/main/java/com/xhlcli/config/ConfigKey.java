@@ -7,5 +7,7 @@ public enum ConfigKey {
     CONNECT_TIMEOUT,
     READ_TIMEOUT,
     REQUEST_TIMEOUT,
+    AGENT_MAX_ITERATIONS,
+    AGENT_TIMEOUT,
     LOG_LEVEL
 }

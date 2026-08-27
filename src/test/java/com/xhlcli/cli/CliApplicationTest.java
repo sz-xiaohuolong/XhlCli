@@ -41,11 +41,13 @@ class CliApplicationTest {
     }
 
     @Test
-    void helpShowsPhaseOneCommandsAndNonSecretOptions() {
+    void helpShowsAgentOptionsAndNeverAnApiKeyOption() {
         assertEquals(0, application.run(new String[] {"--help"}));
         assertTrue(out().contains("--help"));
         assertTrue(out().contains("--version"));
         assertTrue(out().contains("--model"));
+        assertTrue(out().contains("--max-iterations"));
+        assertTrue(out().contains("--agent-timeout"));
         assertTrue(out().contains("/clear"));
         assertFalse(out().contains("--api-key"));
         assertEquals(0, chatRuns.get());

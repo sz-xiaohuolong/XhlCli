@@ -96,6 +96,25 @@ public final class ChatConfigLoader {
         sources.put(ConfigKey.READ_TIMEOUT, readTimeout.source());
         sources.put(ConfigKey.REQUEST_TIMEOUT, requestTimeout.source());
 
+        Resolved<String> agentMaxIterations = resolveSetting(
+                ConfigKey.AGENT_MAX_ITERATIONS,
+                "XHLCLI_AGENT_MAX_ITERATIONS",
+                cli,
+                environment,
+                dotEnv,
+                userConfig.agentMaxIterations(),
+                AgentSettings.DEFAULT_MAX_ITERATIONS);
+        Resolved<String> agentTimeout = resolveSetting(
+                ConfigKey.AGENT_TIMEOUT,
+                "XHLCLI_AGENT_TIMEOUT_SECONDS",
+                cli,
+                environment,
+                dotEnv,
+                userConfig.agentTimeoutSeconds(),
+                AgentSettings.DEFAULT_TIMEOUT.toSeconds());
+        sources.put(ConfigKey.AGENT_MAX_ITERATIONS, agentMaxIterations.source());
+        sources.put(ConfigKey.AGENT_TIMEOUT, agentTimeout.source());
+
         Resolved<String> logLevel = firstNonBlank(
                 resolved(cli.get(ConfigKey.LOG_LEVEL), ConfigSource.CLI),
                 resolved(environment.get("XHLCLI_LOG_LEVEL"), ConfigSource.ENVIRONMENT),
@@ -112,6 +131,9 @@ public final class ChatConfigLoader {
                 parsePositiveDuration(readTimeout.value(), "Read timeout"),
                 parsePositiveDuration(requestTimeout.value(), "Request timeout"),
                 LogLevel.parse(logLevel.value()),
+                new AgentSettings(
+                        (int) parseRange(agentMaxIterations.value(), "Agent max iterations", 1, 100),
+                        Duration.ofSeconds(parseRange(agentTimeout.value(), "Agent timeout", 1, 3600))),
                 sources);
     }
 
@@ -124,6 +146,8 @@ public final class ChatConfigLoader {
                 case "--connect-timeout" -> ConfigKey.CONNECT_TIMEOUT;
                 case "--read-timeout" -> ConfigKey.READ_TIMEOUT;
                 case "--request-timeout" -> ConfigKey.REQUEST_TIMEOUT;
+                case "--max-iterations" -> ConfigKey.AGENT_MAX_ITERATIONS;
+                case "--agent-timeout" -> ConfigKey.AGENT_TIMEOUT;
                 case "--log-level" -> ConfigKey.LOG_LEVEL;
                 default -> throw new ConfigurationException("Unknown option: " + args[index]);
             };
@@ -281,6 +305,18 @@ public final class ChatConfigLoader {
         }
     }
 
+    private static long parseRange(String value, String label, long minimum, long maximum) throws ConfigurationException {
+        try {
+            long parsed = Long.parseLong(value.trim());
+            if (parsed < minimum || parsed > maximum) {
+                throw new NumberFormatException("outside range");
+            }
+            return parsed;
+        } catch (NumberFormatException failure) {
+            throw new ConfigurationException(label + " must be between " + minimum + " and " + maximum + ".");
+        }
+    }
+
     private record Resolved<T>(T value, ConfigSource source) {
         boolean hasValue() {
             return value != null && (!(value instanceof String string) || !string.isBlank());
@@ -293,9 +329,11 @@ public final class ChatConfigLoader {
             Long connectTimeoutSeconds,
             Long readTimeoutSeconds,
             Long requestTimeoutSeconds,
+            Long agentMaxIterations,
+            Long agentTimeoutSeconds,
             String logLevel) {
         static UserConfig empty() {
-            return new UserConfig(null, null, null, null, null, null);
+            return new UserConfig(null, null, null, null, null, null, null, null);
         }
     }
 }
