@@ -24,9 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /** Drives one serial structured-tool ReAct loop without committing partial protocol history. */
@@ -55,7 +53,7 @@ public final class ReactAgent implements AgentRunner {
             Clock clock,
             Supplier<String> runIdSupplier) {
         this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
-                runIdSupplier, point -> {});
+                runIdSupplier, GateHook.NOOP);
     }
 
     ReactAgent(
@@ -95,7 +93,6 @@ public final class ReactAgent implements AgentRunner {
         RunLifecycle lifecycle = new RunLifecycle();
         EventSequencer sequencer = new EventSequencer(runId, events, clock);
         CancellationToken operationCancellation = new CancellationToken();
-        AtomicReference<StopReason> stopReason = new AtomicReference<>(StopReason.NONE);
         StartStopGate gate = new StartStopGate(gateHook);
         List<ChatMessage> workingHistory = new ArrayList<>(committedHistory);
         TokenUsage usage = TokenUsage.unknown();
@@ -107,15 +104,15 @@ public final class ReactAgent implements AgentRunner {
         }
 
         try (CancellationToken.Registration userRegistration = userCancellation.onCancel(
-                () -> requestStop(stopReason, StopReason.USER, operationCancellation, gate));
+                () -> requestStop(StopReason.USER, operationCancellation, gate));
              TimeoutScheduler.Registration timeoutRegistration = timeoutScheduler.schedule(limits.timeout(),
-                     () -> requestStop(stopReason, StopReason.TIMEOUT, operationCancellation, gate))) {
+                     () -> requestStop(StopReason.TIMEOUT, operationCancellation, gate))) {
             sequencer.emit(new RunEvent.RunStarted(sequencer.metadata(0), summarize(input)));
             if (input.isBlank()) {
                 return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "INVALID_INPUT", "", iterations, usage);
             }
-            if (stopReason.get() != StopReason.NONE) {
-                return finishForStop(lifecycle, sequencer, runId, stopReason.get(), iterations, usage);
+            if (gate.stopReason() != StopReason.NONE) {
+                return finishForStop(lifecycle, sequencer, runId, gate.stopReason(), iterations, usage);
             }
             workingHistory.add(ChatMessage.user(input));
             RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);
@@ -123,7 +120,7 @@ public final class ReactAgent implements AgentRunner {
             int emptyResponses = 0;
 
             while (true) {
-                RunResult stopped = finishIfStopped(lifecycle, sequencer, runId, stopReason, iterations, usage);
+                RunResult stopped = finishIfStopped(lifecycle, sequencer, runId, gate, iterations, usage);
                 if (stopped != null) {
                     return stopped;
                 }
@@ -136,27 +133,26 @@ public final class ReactAgent implements AgentRunner {
                 int modelIteration = iterations;
                 ChatResponse response;
                 try {
-                    GateResult<ChatResponse> modelStart = gate.start(stopReason, GatePoint.MODEL_START, () -> {
-                        lifecycle.requireActive();
-                        sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
-                        return client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
-                            if (!delta.isEmpty() && stopReason.get() == StopReason.NONE) {
-                                lifecycle.requireActive();
-                                sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(modelIteration), delta));
-                            }
-                        }, operationCancellation);
-                    });
-                    if (!modelStart.started()) {
+                    gateHook.beforePermit(GatePoint.MODEL_START);
+                    if (!gate.permitStart()) {
                         RunResult stoppedBeforeModel = finishIfStopped(
-                                lifecycle, sequencer, runId, stopReason, iterations, usage);
+                                lifecycle, sequencer, runId, gate, iterations, usage);
                         return stoppedBeforeModel != null ? stoppedBeforeModel
                                 : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
                                 "INTERNAL_ERROR", "", iterations, usage);
                     }
-                    response = modelStart.value();
+                    gateHook.afterPermit(GatePoint.MODEL_START);
+                    lifecycle.requireActive();
+                    sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
+                    response = client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
+                        if (!delta.isEmpty() && gate.stopReason() == StopReason.NONE) {
+                            lifecycle.requireActive();
+                            sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(modelIteration), delta));
+                        }
+                    }, operationCancellation);
                 } catch (LlmException failure) {
                     RunResult stoppedAfterFailure = finishIfStopped(
-                            lifecycle, sequencer, runId, stopReason, iterations, usage);
+                            lifecycle, sequencer, runId, gate, iterations, usage);
                     if (stoppedAfterFailure != null) {
                         return stoppedAfterFailure;
                     }
@@ -166,7 +162,7 @@ public final class ReactAgent implements AgentRunner {
                     String reason = failure.type() == LlmErrorType.EMPTY_RESPONSE ? "EMPTY_RESPONSE" : failure.type().name();
                     return finish(lifecycle, sequencer, runId, RunStatus.FAILED, reason, "", iterations, usage);
                 }
-                RunResult stoppedAfterModel = finishIfStopped(lifecycle, sequencer, runId, stopReason, iterations, usage);
+                RunResult stoppedAfterModel = finishIfStopped(lifecycle, sequencer, runId, gate, iterations, usage);
                 if (stoppedAfterModel != null) {
                     return stoppedAfterModel;
                 }
@@ -186,19 +182,18 @@ public final class ReactAgent implements AgentRunner {
                     String finalText = response.content();
                     int completionIterations = iterations;
                     TokenUsage completionUsage = usage;
-                    GateResult<RunResult> completion = gate.startUnchecked(stopReason, GatePoint.COMPLETION, () -> {
-                        committedHistory = List.copyOf(workingHistory);
-                        return finish(lifecycle, sequencer, runId, RunStatus.COMPLETED,
-                                "", finalText, completionIterations, completionUsage);
-                    });
-                    if (completion.started()) {
-                        return completion.value();
+                    gateHook.beforePermit(GatePoint.COMPLETION);
+                    if (!gate.permitCompletion()) {
+                        RunResult stoppedAtCompletion = finishIfStopped(
+                                lifecycle, sequencer, runId, gate, iterations, usage);
+                        return stoppedAtCompletion != null ? stoppedAtCompletion
+                                : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
+                                "INTERNAL_ERROR", "", iterations, usage);
                     }
-                    RunResult stoppedAtCompletion = finishIfStopped(
-                            lifecycle, sequencer, runId, stopReason, iterations, usage);
-                    return stoppedAtCompletion != null ? stoppedAtCompletion
-                            : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
-                            "INTERNAL_ERROR", "", iterations, usage);
+                    gateHook.afterPermit(GatePoint.COMPLETION);
+                    committedHistory = List.copyOf(workingHistory);
+                    return finish(lifecycle, sequencer, runId, RunStatus.COMPLETED,
+                            "", finalText, completionIterations, completionUsage);
                 }
                 emptyResponses = 0;
                 String protocolFailure = validateCalls(response.toolCalls(), callIds);
@@ -211,27 +206,26 @@ public final class ReactAgent implements AgentRunner {
                 List<ToolResult> results = new ArrayList<>();
                 for (ToolCall call : response.toolCalls()) {
                     RunResult stoppedBeforeTool = finishIfStopped(
-                            lifecycle, sequencer, runId, stopReason, iterations, usage);
+                            lifecycle, sequencer, runId, gate, iterations, usage);
                     if (stoppedBeforeTool != null) {
                         return stoppedBeforeTool;
                     }
                     int toolIteration = iterations;
-                    GateResult<ToolResult> toolStart = gate.startUnchecked(stopReason, GatePoint.TOOL_START, () -> {
-                        lifecycle.requireActive();
-                        sequencer.emit(new RunEvent.ToolStarted(sequencer.metadata(toolIteration),
-                                call.name(), summarize(call.argumentsJson())));
-                        return executor.execute(call, operationCancellation);
-                    });
-                    if (!toolStart.started()) {
+                    gateHook.beforePermit(GatePoint.TOOL_START);
+                    if (!gate.permitStart()) {
                         RunResult stoppedAtToolStart = finishIfStopped(
-                                lifecycle, sequencer, runId, stopReason, iterations, usage);
+                                lifecycle, sequencer, runId, gate, iterations, usage);
                         return stoppedAtToolStart != null ? stoppedAtToolStart
                                 : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
                                 "INTERNAL_ERROR", "", iterations, usage);
                     }
-                    ToolResult result = toolStart.value();
+                    gateHook.afterPermit(GatePoint.TOOL_START);
+                    lifecycle.requireActive();
+                    sequencer.emit(new RunEvent.ToolStarted(sequencer.metadata(toolIteration),
+                            call.name(), summarize(call.argumentsJson())));
+                    ToolResult result = executor.execute(call, operationCancellation);
                     RunResult stoppedAfterTool = finishIfStopped(
-                            lifecycle, sequencer, runId, stopReason, iterations, usage);
+                            lifecycle, sequencer, runId, gate, iterations, usage);
                     if (stoppedAfterTool != null) {
                         return stoppedAfterTool;
                     }
@@ -269,13 +263,11 @@ public final class ReactAgent implements AgentRunner {
     }
 
     private static void requestStop(
-            AtomicReference<StopReason> stopReason,
             StopReason requested,
             CancellationToken operationCancellation,
             StartStopGate gate) {
-        if (stopReason.compareAndSet(StopReason.NONE, requested)) {
+        if (gate.stop(requested)) {
             operationCancellation.cancel();
-            gate.stop();
         }
     }
 
@@ -283,10 +275,10 @@ public final class ReactAgent implements AgentRunner {
             RunLifecycle lifecycle,
             EventSequencer sequencer,
             String runId,
-            AtomicReference<StopReason> stopReason,
+            StartStopGate gate,
             int iterations,
             TokenUsage usage) {
-        StopReason reason = stopReason.get();
+        StopReason reason = gate.stopReason();
         return reason == StopReason.NONE ? null : finishForStop(lifecycle, sequencer, runId, reason, iterations, usage);
     }
 
@@ -386,53 +378,53 @@ public final class ReactAgent implements AgentRunner {
         COMPLETION
     }
 
-    @FunctionalInterface
     interface GateHook {
-        void beforeGatePoint(GatePoint point);
+        GateHook NOOP = new GateHook() {};
+
+        default void beforePermit(GatePoint point) {}
+
+        default void afterPermit(GatePoint point) {}
     }
 
     private record RunIdResolution(String runId, boolean failed) {}
 
-    private record GateResult<T>(boolean started, T value) {
-        private static <T> GateResult<T> denied() {
-            return new GateResult<>(false, null);
-        }
-    }
-
-    @FunctionalInterface
-    private interface GateWork<T> {
-        T run() throws LlmException;
-    }
-
     private static final class StartStopGate {
-        private final GateHook hook;
-        private final AtomicBoolean stopped = new AtomicBoolean();
+        private GateState state = GateState.ACTIVE;
+        private StopReason stopReason = StopReason.NONE;
 
-        private StartStopGate(GateHook hook) {
-            this.hook = hook;
+        private StartStopGate(GateHook ignoredHook) {
         }
 
-        private void stop() {
-            stopped.set(true);
+        private synchronized boolean permitStart() {
+            return state == GateState.ACTIVE;
         }
 
-        private synchronized <T> GateResult<T> start(
-                AtomicReference<StopReason> stopReason, GatePoint point, GateWork<T> work) throws LlmException {
-            hook.beforeGatePoint(point);
-            if (stopped.get() || stopReason.get() != StopReason.NONE) {
-                return GateResult.denied();
+        private synchronized boolean permitCompletion() {
+            if (state != GateState.ACTIVE) {
+                return false;
             }
-            return new GateResult<>(true, work.run());
+            state = GateState.COMPLETING;
+            return true;
         }
 
-        private synchronized <T> GateResult<T> startUnchecked(
-                AtomicReference<StopReason> stopReason, GatePoint point, Supplier<T> work) {
-            hook.beforeGatePoint(point);
-            if (stopped.get() || stopReason.get() != StopReason.NONE) {
-                return GateResult.denied();
+        private synchronized boolean stop(StopReason requested) {
+            if (state != GateState.ACTIVE) {
+                return false;
             }
-            return new GateResult<>(true, work.get());
+            state = GateState.STOPPED;
+            stopReason = requested;
+            return true;
         }
+
+        private synchronized StopReason stopReason() {
+            return stopReason;
+        }
+    }
+
+    private enum GateState {
+        ACTIVE,
+        STOPPED,
+        COMPLETING
     }
 
     private static final class EventSequencer {

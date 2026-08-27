@@ -268,7 +268,7 @@ class ReactAgentTest {
     @Test
     void doesNotStartAModelRequestWhenUserCancellationWinsTheStartGate() throws Exception {
         RecordingClient client = new RecordingClient(List.of(response("never requested")));
-        WindowHook hook = new WindowHook(ReactAgent.GatePoint.MODEL_START);
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.MODEL_START, GatePhase.BEFORE_PERMIT);
         ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
                 new NoopTimeoutScheduler(), List.of(), hook);
         CancellationToken userCancellation = new CancellationToken();
@@ -288,7 +288,7 @@ class ReactAgentTest {
                 response("", new ToolCall("slow", "echo_text", "{}"))));
         RecordingExecutor executor = new RecordingExecutor(List.of());
         ManualTimeoutScheduler scheduler = new ManualTimeoutScheduler();
-        WindowHook hook = new WindowHook(ReactAgent.GatePoint.TOOL_START);
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.TOOL_START, GatePhase.BEFORE_PERMIT);
         ReactAgent agent = agent(client, executor, new RunLimits(5, java.time.Duration.ofMinutes(1)), scheduler,
                 List.of(definition("echo_text")), hook);
         List<RunEvent> events = new ArrayList<>();
@@ -305,7 +305,7 @@ class ReactAgentTest {
     @Test
     void doesNotCommitFinalHistoryWhenUserCancellationWinsTheCompletionGate() throws Exception {
         RecordingClient client = new RecordingClient(List.of(response("done")));
-        WindowHook hook = new WindowHook(ReactAgent.GatePoint.COMPLETION);
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.COMPLETION, GatePhase.BEFORE_PERMIT);
         ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
                 new NoopTimeoutScheduler(), List.of(), hook);
         CancellationToken userCancellation = new CancellationToken();
@@ -317,6 +317,41 @@ class ReactAgentTest {
         assertEquals(RunStatus.CANCELED, run.status());
         assertEquals(List.of(SYSTEM), agent.history());
         assertFalse(events.stream().anyMatch(RunEvent.RunCompleted.class::isInstance));
+        assertTerminalEventInvariants(events);
+    }
+
+    @Test
+    void startsAModelAfterItsPermitThenLetsCancellationProceedWithoutWaitingForExternalWork() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(response("ignored after cancellation")));
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.MODEL_START, GatePhase.AFTER_PERMIT);
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of(), hook);
+        CancellationToken userCancellation = new CancellationToken();
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult run = inWindow(() -> agent.run("permit wins", events::add, userCancellation), hook,
+                userCancellation::cancel);
+
+        assertEquals(RunStatus.CANCELED, run.status());
+        assertEquals(1, client.requests.size());
+        assertTrue(events.stream().anyMatch(RunEvent.ModelRequestStarted.class::isInstance));
+        assertTerminalEventInvariants(events);
+    }
+
+    @Test
+    void completesWhenCompletionPermitWinsBeforeLaterCancellation() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(response("done")));
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.COMPLETION, GatePhase.AFTER_PERMIT);
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of(), hook);
+        CancellationToken userCancellation = new CancellationToken();
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult run = inWindow(() -> agent.run("completion wins", events::add, userCancellation), hook,
+                userCancellation::cancel);
+
+        assertEquals(RunStatus.COMPLETED, run.status());
+        assertEquals(List.of(SYSTEM, ChatMessage.user("completion wins"), ChatMessage.assistant("done")), agent.history());
         assertTerminalEventInvariants(events);
     }
 
@@ -371,7 +406,7 @@ class ReactAgentTest {
     private ReactAgent agent(
             LlmClient client, ToolExecutor executor, RunLimits limits, TimeoutScheduler scheduler,
             List<ToolDefinition> definitions) {
-        return agent(client, executor, limits, scheduler, definitions, point -> {});
+        return agent(client, executor, limits, scheduler, definitions, ReactAgent.GateHook.NOOP);
     }
 
     private ReactAgent agent(
@@ -618,18 +653,34 @@ class ReactAgentTest {
         public void close() {}
     }
 
+    private enum GatePhase {
+        BEFORE_PERMIT,
+        AFTER_PERMIT
+    }
+
     private static final class WindowHook implements ReactAgent.GateHook {
         private final ReactAgent.GatePoint point;
+        private final GatePhase phase;
         private final CountDownLatch entered = new CountDownLatch(1);
         private final CountDownLatch release = new CountDownLatch(1);
 
-        private WindowHook(ReactAgent.GatePoint point) {
+        private WindowHook(ReactAgent.GatePoint point, GatePhase phase) {
             this.point = point;
+            this.phase = phase;
         }
 
         @Override
-        public void beforeGatePoint(ReactAgent.GatePoint candidate) {
-            if (candidate != point) {
+        public void beforePermit(ReactAgent.GatePoint candidate) {
+            waitAt(candidate, GatePhase.BEFORE_PERMIT);
+        }
+
+        @Override
+        public void afterPermit(ReactAgent.GatePoint candidate) {
+            waitAt(candidate, GatePhase.AFTER_PERMIT);
+        }
+
+        private void waitAt(ReactAgent.GatePoint candidate, GatePhase candidatePhase) {
+            if (candidate != point || candidatePhase != phase) {
                 return;
             }
             entered.countDown();
