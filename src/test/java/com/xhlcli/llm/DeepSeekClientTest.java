@@ -174,6 +174,21 @@ class DeepSeekClientTest {
     }
 
     @Test
+    void doneStreamWithOnlyBlankTextIsAnEmptyResponse() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"content":" \\t"}}]}
+
+                data: [DONE]
+
+                """));
+
+        LlmException failure = assertThrows(LlmException.class,
+                () -> stream(client(config(Duration.ofSeconds(2)))));
+
+        assertEquals(LlmErrorType.EMPTY_RESPONSE, failure.type());
+    }
+
+    @Test
     void authenticationFailureDoesNotRetryAndRedactsTheApiKey() throws Exception {
         server.enqueue(new MockResponse()
                 .setResponseCode(401)

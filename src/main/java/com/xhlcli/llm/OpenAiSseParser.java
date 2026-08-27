@@ -102,7 +102,7 @@ final class OpenAiSseParser {
         if (!done) {
             throw invalid("The provider stream ended before completion.", hasPartialResponse(content, toolCalls), null);
         }
-        if (content.isEmpty() && toolCalls.isEmpty()) {
+        if (content.toString().isBlank() && toolCalls.isEmpty()) {
             throw new LlmException(LlmErrorType.EMPTY_RESPONSE,
                     "The provider returned no assistant text or tool calls.", false, false);
         }
