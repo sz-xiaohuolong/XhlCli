@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlainRunRendererTest {
@@ -55,8 +56,42 @@ class PlainRunRendererTest {
         assertTrue(rendered.contains(RunStatus.LIMIT_REACHED.name()));
     }
 
+    @Test
+    void showsThinkingAndAssistantPrefixesOncePerRunAcrossToolAndFinalModelRounds() {
+        Streams streams = new Streams("top-secret-key");
+
+        streams.renderer.accept(new RunEvent.RunStarted(metadata("run-1", 1), "first"));
+        streams.renderer.accept(new RunEvent.ModelRequestStarted(metadata("run-1", 2)));
+        streams.renderer.accept(new RunEvent.TextDelta(metadata("run-1", 3), "planning"));
+        streams.renderer.accept(new RunEvent.ToolStarted(metadata("run-1", 4), "echo_text", "{}"));
+        streams.renderer.accept(new RunEvent.ToolCompleted(metadata("run-1", 5), "echo_text",
+                ToolResultStatus.SUCCESS, 1, "ok"));
+        streams.renderer.accept(new RunEvent.ModelRequestStarted(metadata("run-1", 6)));
+        streams.renderer.accept(new RunEvent.TextDelta(metadata("run-1", 7), "final"));
+        streams.renderer.accept(new RunEvent.RunCompleted(metadata("run-1", 8), "final", TokenUsage.unknown()));
+
+        streams.renderer.accept(new RunEvent.RunStarted(metadata("run-2", 1), "second"));
+        streams.renderer.accept(new RunEvent.ModelRequestStarted(metadata("run-2", 2)));
+        streams.renderer.accept(new RunEvent.TextDelta(metadata("run-2", 3), "new run"));
+        streams.renderer.accept(new RunEvent.RunCompleted(metadata("run-2", 4), "new run", TokenUsage.unknown()));
+
+        String rendered = streams.out();
+        assertEquals(2, occurrences(rendered, "Thinking..."));
+        assertEquals(2, occurrences(rendered, "Assistant: "));
+        assertTrue(rendered.contains("planning\nTool echo_text:"));
+        assertTrue(rendered.contains("final\n[tokens: unknown]"));
+    }
+
     private static RunEvent.Metadata metadata(long sequence) {
-        return new RunEvent.Metadata("run-1", sequence, Instant.parse("2026-08-27T00:00:00Z"), 0);
+        return metadata("run-1", sequence);
+    }
+
+    private static RunEvent.Metadata metadata(String runId, long sequence) {
+        return new RunEvent.Metadata(runId, sequence, Instant.parse("2026-08-27T00:00:00Z"), 0);
+    }
+
+    private static int occurrences(String text, String needle) {
+        return text.split(java.util.regex.Pattern.quote(needle), -1).length - 1;
     }
 
     private static final class Streams {

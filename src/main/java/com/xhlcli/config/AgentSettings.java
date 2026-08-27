@@ -13,7 +13,7 @@ public record AgentSettings(int maxIterations, Duration timeout) {
             throw new IllegalArgumentException("maxIterations must be between 1 and 100");
         }
         timeout = Objects.requireNonNull(timeout, "timeout");
-        if (timeout.isZero() || timeout.isNegative() || timeout.compareTo(Duration.ofHours(1)) > 0) {
+        if (timeout.compareTo(Duration.ofSeconds(1)) < 0 || timeout.compareTo(Duration.ofHours(1)) > 0) {
             throw new IllegalArgumentException("timeout must be between 1 and 3600 seconds");
         }
     }

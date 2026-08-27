@@ -17,7 +17,10 @@ public final class PlainRunRenderer {
     private final PrintStream out;
     private final PrintStream err;
     private final String apiKey;
-    private boolean assistantStarted;
+    private String activeRunId;
+    private boolean thinkingShown;
+    private boolean assistantPrefixShown;
+    private boolean assistantLineOpen;
 
     public PlainRunRenderer(PrintStream out, PrintStream err, String apiKey) {
         this.out = Objects.requireNonNull(out, "out");
@@ -26,9 +29,11 @@ public final class PlainRunRenderer {
     }
 
     public synchronized void accept(RunEvent event) {
-        switch (Objects.requireNonNull(event, "event")) {
+        RunEvent nonNullEvent = Objects.requireNonNull(event, "event");
+        resetForRunIfNeeded(nonNullEvent);
+        switch (nonNullEvent) {
             case RunEvent.RunStarted ignored -> { }
-            case RunEvent.ModelRequestStarted ignored -> out.println("Thinking...");
+            case RunEvent.ModelRequestStarted ignored -> renderThinking();
             case RunEvent.TextDelta delta -> renderDelta(delta.text());
             case RunEvent.ModelRequestCompleted ignored -> { }
             case RunEvent.ToolStarted started -> renderToolStarted(started);
@@ -77,11 +82,12 @@ public final class PlainRunRenderer {
     }
 
     private void renderDelta(String text) {
-        if (!assistantStarted) {
+        if (!assistantPrefixShown) {
             out.print("Assistant: ");
-            assistantStarted = true;
+            assistantPrefixShown = true;
         }
         out.print(safe(text));
+        assistantLineOpen = true;
         out.flush();
     }
 
@@ -107,17 +113,35 @@ public final class PlainRunRenderer {
     }
 
     private void renderTerminalError(String status, String reason) {
-        if (assistantStarted) {
+        if (assistantLineOpen) {
             err.println();
-            assistantStarted = false;
+            assistantLineOpen = false;
         }
         err.println("Run " + status + ": " + safeSummary(reason));
     }
 
     private void closeAssistantLine() {
-        if (assistantStarted) {
+        if (assistantLineOpen) {
             out.println();
-            assistantStarted = false;
+            assistantLineOpen = false;
+        }
+    }
+
+    private void renderThinking() {
+        if (!thinkingShown) {
+            out.println("Thinking...");
+            thinkingShown = true;
+        }
+    }
+
+    private void resetForRunIfNeeded(RunEvent event) {
+        String runId = event.metadata().runId();
+        if (event instanceof RunEvent.RunStarted || !runId.equals(activeRunId)) {
+            closeAssistantLine();
+            activeRunId = runId;
+            thinkingShown = false;
+            assistantPrefixShown = false;
+            assistantLineOpen = false;
         }
     }
 

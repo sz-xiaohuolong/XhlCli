@@ -192,6 +192,17 @@ class ChatConfigLoaderTest {
         assertEquals(ConfigSource.ENVIRONMENT, config.source(ConfigKey.AGENT_TIMEOUT));
     }
 
+    @Test
+    void agentSettingsRejectSubSecondAndOverHourTimeoutsAtConstruction() {
+        IllegalArgumentException subSecond = assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofMillis(999)));
+        IllegalArgumentException overHour = assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofSeconds(3601)));
+
+        assertEquals("timeout must be between 1 and 3600 seconds", subSecond.getMessage());
+        assertEquals("timeout must be between 1 and 3600 seconds", overHour.getMessage());
+    }
+
     private void writeUserConfig(Path userHome, String json) throws Exception {
         Path configDir = Files.createDirectories(userHome.resolve(".xhlcli"));
         Files.writeString(configDir.resolve("config.json"), json);

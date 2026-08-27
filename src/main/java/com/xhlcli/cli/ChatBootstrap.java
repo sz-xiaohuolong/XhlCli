@@ -7,6 +7,7 @@ import com.xhlcli.agent.ScheduledTimeoutScheduler;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ChatConfigLoader;
 import com.xhlcli.config.ConfigurationException;
+import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.llm.DeepSeekClient;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.render.PlainRunRenderer;
@@ -75,7 +76,8 @@ public final class ChatBootstrap implements ChatRunner {
                     ChatMessage.system("You are XhlCLI, a helpful coding assistant. You may use only the provided demo tools."),
                     client, executor, registry.definitions(),
                     new RunLimits(config.agentSettings().maxIterations(), config.agentSettings().timeout()), scheduler,
-                    mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString());
+                    mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString(),
+                    value -> SecretRedactor.redact(value, config.apiKey()));
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
             ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config);
             terminal.bind(loop);

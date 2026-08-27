@@ -5,6 +5,7 @@ import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.llm.LlmClient;
 import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.llm.LlmException;
+import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.RunEvent;
@@ -26,10 +27,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** Drives one serial structured-tool ReAct loop without committing partial protocol history. */
 public final class ReactAgent implements AgentRunner {
     private static final AtomicLong FALLBACK_RUN_SEQUENCE = new AtomicLong();
+    private static final Function<String, String> DEFAULT_EVENT_SANITIZER = value -> SecretRedactor.redact(value, null);
     private final ChatMessage systemMessage;
     private final LlmClient client;
     private final ToolExecutor executor;
@@ -39,6 +42,7 @@ public final class ReactAgent implements AgentRunner {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final Supplier<String> runIdSupplier;
+    private final Function<String, String> eventSanitizer;
     private final GateHook gateHook;
     private List<ChatMessage> committedHistory;
 
@@ -53,7 +57,22 @@ public final class ReactAgent implements AgentRunner {
             Clock clock,
             Supplier<String> runIdSupplier) {
         this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
-                runIdSupplier, GateHook.NOOP);
+                runIdSupplier, DEFAULT_EVENT_SANITIZER, GateHook.NOOP);
+    }
+
+    public ReactAgent(
+            ChatMessage systemMessage,
+            LlmClient client,
+            ToolExecutor executor,
+            List<ToolDefinition> toolDefinitions,
+            RunLimits limits,
+            TimeoutScheduler timeoutScheduler,
+            ObjectMapper mapper,
+            Clock clock,
+            Supplier<String> runIdSupplier,
+            Function<String, String> eventSanitizer) {
+        this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
+                runIdSupplier, eventSanitizer, GateHook.NOOP);
     }
 
     ReactAgent(
@@ -67,6 +86,22 @@ public final class ReactAgent implements AgentRunner {
             Clock clock,
             Supplier<String> runIdSupplier,
             GateHook gateHook) {
+        this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
+                runIdSupplier, DEFAULT_EVENT_SANITIZER, gateHook);
+    }
+
+    ReactAgent(
+            ChatMessage systemMessage,
+            LlmClient client,
+            ToolExecutor executor,
+            List<ToolDefinition> toolDefinitions,
+            RunLimits limits,
+            TimeoutScheduler timeoutScheduler,
+            ObjectMapper mapper,
+            Clock clock,
+            Supplier<String> runIdSupplier,
+            Function<String, String> eventSanitizer,
+            GateHook gateHook) {
         this.systemMessage = Objects.requireNonNull(systemMessage, "systemMessage");
         if (systemMessage.role() != ChatMessage.Role.SYSTEM) {
             throw new IllegalArgumentException("systemMessage must have the SYSTEM role");
@@ -79,6 +114,7 @@ public final class ReactAgent implements AgentRunner {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.runIdSupplier = Objects.requireNonNull(runIdSupplier, "runIdSupplier");
+        this.eventSanitizer = Objects.requireNonNull(eventSanitizer, "eventSanitizer");
         this.gateHook = Objects.requireNonNull(gateHook, "gateHook");
         this.committedHistory = List.of(systemMessage);
     }
@@ -91,7 +127,7 @@ public final class ReactAgent implements AgentRunner {
         RunIdResolution runIdResolution = resolveRunId();
         String runId = runIdResolution.runId();
         RunLifecycle lifecycle = new RunLifecycle();
-        EventSequencer sequencer = new EventSequencer(runId, events, clock);
+        EventSequencer sequencer = new EventSequencer(runId, events, clock, eventSanitizer);
         CancellationToken operationCancellation = new CancellationToken();
         StartStopGate gate = new StartStopGate(gateHook);
         List<ChatMessage> workingHistory = new ArrayList<>(committedHistory);
@@ -431,12 +467,14 @@ public final class ReactAgent implements AgentRunner {
         private final String runId;
         private final RunEventSink sink;
         private final Clock clock;
+        private final Function<String, String> sanitizer;
         private long sequence;
 
-        private EventSequencer(String runId, RunEventSink sink, Clock clock) {
+        private EventSequencer(String runId, RunEventSink sink, Clock clock, Function<String, String> sanitizer) {
             this.runId = runId;
             this.sink = sink;
             this.clock = clock;
+            this.sanitizer = sanitizer;
         }
 
         private RunEvent.Metadata metadata(int iteration) {
@@ -444,15 +482,40 @@ public final class ReactAgent implements AgentRunner {
         }
 
         private void emit(RunEvent event) {
-            sink.accept(event);
+            sink.accept(sanitize(event));
         }
 
         private void emitTerminal(RunEvent event) {
             try {
-                sink.accept(event);
+                sink.accept(sanitize(event));
             } catch (RuntimeException ignored) {
                 // A failed renderer must not make the agent throw or retry a terminal event.
             }
+        }
+
+        private RunEvent sanitize(RunEvent event) {
+            RunEvent.Metadata metadata = event.metadata();
+            return switch (event) {
+                case RunEvent.RunStarted started -> new RunEvent.RunStarted(metadata, sanitize(started.inputSummary()));
+                case RunEvent.ModelRequestStarted started -> started;
+                case RunEvent.TextDelta delta -> new RunEvent.TextDelta(metadata, sanitize(delta.text()));
+                case RunEvent.ModelRequestCompleted completed -> completed;
+                case RunEvent.ToolStarted started -> new RunEvent.ToolStarted(
+                        metadata, sanitize(started.toolName()), sanitize(started.argumentsSummary()));
+                case RunEvent.ToolCompleted completed -> new RunEvent.ToolCompleted(
+                        metadata, sanitize(completed.toolName()), completed.status(), completed.elapsedMillis(),
+                        sanitize(completed.summary()));
+                case RunEvent.IterationCompleted completed -> completed;
+                case RunEvent.RunCompleted completed -> new RunEvent.RunCompleted(
+                        metadata, sanitize(completed.finalAnswer()), completed.usage());
+                case RunEvent.RunFailed failed -> new RunEvent.RunFailed(metadata, sanitize(failed.reason()));
+                case RunEvent.RunCancelled cancelled -> new RunEvent.RunCancelled(metadata, sanitize(cancelled.reason()));
+                case RunEvent.RunLimitReached limit -> new RunEvent.RunLimitReached(metadata, sanitize(limit.reason()));
+            };
+        }
+
+        private String sanitize(String value) {
+            return Objects.requireNonNull(sanitizer.apply(value), "event sanitizer result");
         }
     }
 }

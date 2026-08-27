@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.llm.LlmClient;
 import com.xhlcli.llm.StreamListener;
+import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.RunEvent;
@@ -68,6 +69,36 @@ class ReactAgentTest {
         assertEquals(7, agent.history().size());
         assertEquals(ChatMessage.assistant("done"), agent.history().get(6));
         assertEquals(1, events.stream().filter(ReactAgentTest::isTerminal).count());
+    }
+
+    @Test
+    void publishesSanitizedEventsWithoutChangingCommittedProtocolHistory() throws Exception {
+        String knownKey = "known-secret";
+        String input = "input known-secret Bearer inbound-token token=known-secret password=known-secret";
+        String arguments = "{\"text\":\"known-secret\",\"token\":\"known-secret\",\"password\":\"known-secret\"}";
+        String finalAnswer = "final known-secret Bearer provider-token token=known-secret password=known-secret";
+        RecordingClient client = new RecordingClient(List.of(
+                response("tool intro known-secret", new ToolCall("call-1", "echo_text", arguments)),
+                response(finalAnswer)));
+        RecordingExecutor executor = new RecordingExecutor(List.of(
+                result("call-1", "echo_text", ToolResultStatus.SUCCESS,
+                        "summary known-secret Bearer tool-token token=known-secret password=known-secret", "{}")));
+        ReactAgent agent = agentWithEventSanitizer(client, executor,
+                value -> SecretRedactor.redact(value, knownKey));
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = agent.run(input, events::add, new CancellationToken());
+
+        assertEquals(RunStatus.COMPLETED, result.status());
+        String published = events.stream().map(ReactAgentTest::eventText).reduce("", String::concat);
+        assertFalse(published.contains("known-secret"));
+        assertFalse(published.contains("inbound-token"));
+        assertFalse(published.contains("provider-token"));
+        assertFalse(published.contains("tool-token"));
+        assertEquals(input, agent.history().get(1).content());
+        assertEquals(arguments, agent.history().get(2).toolCalls().getFirst().argumentsJson());
+        assertTrue(agent.history().get(3).content().contains("known-secret"));
+        assertEquals(finalAnswer, agent.history().get(4).content());
     }
 
     @Test
@@ -438,6 +469,21 @@ class ReactAgentTest {
                 runIdSupplier);
     }
 
+    private ReactAgent agentWithEventSanitizer(
+            LlmClient client, ToolExecutor executor, java.util.function.Function<String, String> sanitizer) {
+        return new ReactAgent(
+                SYSTEM,
+                client,
+                executor,
+                List.of(definition("echo_text")),
+                new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(),
+                mapper,
+                Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
+                () -> "run-1",
+                sanitizer);
+    }
+
     private ToolDefinition definition(String name) {
         return new ToolDefinition(name, name, mapper.createObjectNode().put("type", "object"), ToolMetadata.conservative());
     }
@@ -457,6 +503,22 @@ class ReactAgentTest {
     private static boolean isTerminal(RunEvent event) {
         return event instanceof RunEvent.RunCompleted || event instanceof RunEvent.RunFailed
                 || event instanceof RunEvent.RunCancelled || event instanceof RunEvent.RunLimitReached;
+    }
+
+    private static String eventText(RunEvent event) {
+        return switch (event) {
+            case RunEvent.RunStarted started -> started.inputSummary();
+            case RunEvent.TextDelta delta -> delta.text();
+            case RunEvent.ToolStarted started -> started.toolName() + started.argumentsSummary();
+            case RunEvent.ToolCompleted completed -> completed.toolName() + completed.summary();
+            case RunEvent.RunCompleted completed -> completed.finalAnswer();
+            case RunEvent.RunFailed failed -> failed.reason();
+            case RunEvent.RunCancelled cancelled -> cancelled.reason();
+            case RunEvent.RunLimitReached limit -> limit.reason();
+            case RunEvent.ModelRequestStarted ignored -> "";
+            case RunEvent.ModelRequestCompleted ignored -> "";
+            case RunEvent.IterationCompleted ignored -> "";
+        };
     }
 
     private static void assertTerminalEventInvariants(List<RunEvent> events) {
