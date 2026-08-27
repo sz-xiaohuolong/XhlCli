@@ -25,10 +25,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 /** Drives one serial structured-tool ReAct loop without committing partial protocol history. */
 public final class ReactAgent implements AgentRunner {
+    private static final AtomicLong FALLBACK_RUN_SEQUENCE = new AtomicLong();
     private final ChatMessage systemMessage;
     private final LlmClient client;
     private final ToolExecutor executor;
@@ -38,6 +41,7 @@ public final class ReactAgent implements AgentRunner {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final Supplier<String> runIdSupplier;
+    private final GateHook gateHook;
     private List<ChatMessage> committedHistory;
 
     public ReactAgent(
@@ -50,6 +54,21 @@ public final class ReactAgent implements AgentRunner {
             ObjectMapper mapper,
             Clock clock,
             Supplier<String> runIdSupplier) {
+        this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
+                runIdSupplier, point -> {});
+    }
+
+    ReactAgent(
+            ChatMessage systemMessage,
+            LlmClient client,
+            ToolExecutor executor,
+            List<ToolDefinition> toolDefinitions,
+            RunLimits limits,
+            TimeoutScheduler timeoutScheduler,
+            ObjectMapper mapper,
+            Clock clock,
+            Supplier<String> runIdSupplier,
+            GateHook gateHook) {
         this.systemMessage = Objects.requireNonNull(systemMessage, "systemMessage");
         if (systemMessage.role() != ChatMessage.Role.SYSTEM) {
             throw new IllegalArgumentException("systemMessage must have the SYSTEM role");
@@ -62,6 +81,7 @@ public final class ReactAgent implements AgentRunner {
         this.mapper = Objects.requireNonNull(mapper, "mapper");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.runIdSupplier = Objects.requireNonNull(runIdSupplier, "runIdSupplier");
+        this.gateHook = Objects.requireNonNull(gateHook, "gateHook");
         this.committedHistory = List.of(systemMessage);
     }
 
@@ -70,20 +90,26 @@ public final class ReactAgent implements AgentRunner {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(events, "events");
         Objects.requireNonNull(userCancellation, "userCancellation");
-        String runId = requireRunId(runIdSupplier.get());
+        RunIdResolution runIdResolution = resolveRunId();
+        String runId = runIdResolution.runId();
         RunLifecycle lifecycle = new RunLifecycle();
         EventSequencer sequencer = new EventSequencer(runId, events, clock);
         CancellationToken operationCancellation = new CancellationToken();
         AtomicReference<StopReason> stopReason = new AtomicReference<>(StopReason.NONE);
+        StartStopGate gate = new StartStopGate(gateHook);
         List<ChatMessage> workingHistory = new ArrayList<>(committedHistory);
         TokenUsage usage = TokenUsage.unknown();
         boolean receivedUsage = false;
         int iterations = 0;
 
+        if (runIdResolution.failed()) {
+            return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "INTERNAL_ERROR", "", iterations, usage);
+        }
+
         try (CancellationToken.Registration userRegistration = userCancellation.onCancel(
-                () -> requestStop(stopReason, StopReason.USER, operationCancellation));
+                () -> requestStop(stopReason, StopReason.USER, operationCancellation, gate));
              TimeoutScheduler.Registration timeoutRegistration = timeoutScheduler.schedule(limits.timeout(),
-                     () -> requestStop(stopReason, StopReason.TIMEOUT, operationCancellation))) {
+                     () -> requestStop(stopReason, StopReason.TIMEOUT, operationCancellation, gate))) {
             sequencer.emit(new RunEvent.RunStarted(sequencer.metadata(0), summarize(input)));
             if (input.isBlank()) {
                 return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "INVALID_INPUT", "", iterations, usage);
@@ -107,17 +133,27 @@ public final class ReactAgent implements AgentRunner {
                 if (lifecycle.status() != RunStatus.THINKING) {
                     lifecycle.transitionTo(RunStatus.THINKING);
                 }
-                lifecycle.requireActive();
                 int modelIteration = iterations;
-                sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(iterations)));
                 ChatResponse response;
                 try {
-                    response = client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
-                        if (!delta.isEmpty() && stopReason.get() == StopReason.NONE) {
-                            lifecycle.requireActive();
-                            sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(modelIteration), delta));
-                        }
-                    }, operationCancellation);
+                    GateResult<ChatResponse> modelStart = gate.start(stopReason, GatePoint.MODEL_START, () -> {
+                        lifecycle.requireActive();
+                        sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
+                        return client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
+                            if (!delta.isEmpty() && stopReason.get() == StopReason.NONE) {
+                                lifecycle.requireActive();
+                                sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(modelIteration), delta));
+                            }
+                        }, operationCancellation);
+                    });
+                    if (!modelStart.started()) {
+                        RunResult stoppedBeforeModel = finishIfStopped(
+                                lifecycle, sequencer, runId, stopReason, iterations, usage);
+                        return stoppedBeforeModel != null ? stoppedBeforeModel
+                                : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
+                                "INTERNAL_ERROR", "", iterations, usage);
+                    }
+                    response = modelStart.value();
                 } catch (LlmException failure) {
                     RunResult stoppedAfterFailure = finishIfStopped(
                             lifecycle, sequencer, runId, stopReason, iterations, usage);
@@ -147,9 +183,22 @@ public final class ReactAgent implements AgentRunner {
                                 "EMPTY_RESPONSE", "", iterations, usage);
                     }
                     workingHistory.add(ChatMessage.assistant(response.content()));
-                    committedHistory = List.copyOf(workingHistory);
-                    return finish(lifecycle, sequencer, runId, RunStatus.COMPLETED,
-                            "", response.content(), iterations, usage);
+                    String finalText = response.content();
+                    int completionIterations = iterations;
+                    TokenUsage completionUsage = usage;
+                    GateResult<RunResult> completion = gate.startUnchecked(stopReason, GatePoint.COMPLETION, () -> {
+                        committedHistory = List.copyOf(workingHistory);
+                        return finish(lifecycle, sequencer, runId, RunStatus.COMPLETED,
+                                "", finalText, completionIterations, completionUsage);
+                    });
+                    if (completion.started()) {
+                        return completion.value();
+                    }
+                    RunResult stoppedAtCompletion = finishIfStopped(
+                            lifecycle, sequencer, runId, stopReason, iterations, usage);
+                    return stoppedAtCompletion != null ? stoppedAtCompletion
+                            : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
+                            "INTERNAL_ERROR", "", iterations, usage);
                 }
                 emptyResponses = 0;
                 String protocolFailure = validateCalls(response.toolCalls(), callIds);
@@ -166,10 +215,21 @@ public final class ReactAgent implements AgentRunner {
                     if (stoppedBeforeTool != null) {
                         return stoppedBeforeTool;
                     }
-                    lifecycle.requireActive();
-                    sequencer.emit(new RunEvent.ToolStarted(sequencer.metadata(iterations),
-                            call.name(), summarize(call.argumentsJson())));
-                    ToolResult result = executor.execute(call, operationCancellation);
+                    int toolIteration = iterations;
+                    GateResult<ToolResult> toolStart = gate.startUnchecked(stopReason, GatePoint.TOOL_START, () -> {
+                        lifecycle.requireActive();
+                        sequencer.emit(new RunEvent.ToolStarted(sequencer.metadata(toolIteration),
+                                call.name(), summarize(call.argumentsJson())));
+                        return executor.execute(call, operationCancellation);
+                    });
+                    if (!toolStart.started()) {
+                        RunResult stoppedAtToolStart = finishIfStopped(
+                                lifecycle, sequencer, runId, stopReason, iterations, usage);
+                        return stoppedAtToolStart != null ? stoppedAtToolStart
+                                : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
+                                "INTERNAL_ERROR", "", iterations, usage);
+                    }
+                    ToolResult result = toolStart.value();
                     RunResult stoppedAfterTool = finishIfStopped(
                             lifecycle, sequencer, runId, stopReason, iterations, usage);
                     if (stoppedAfterTool != null) {
@@ -209,9 +269,13 @@ public final class ReactAgent implements AgentRunner {
     }
 
     private static void requestStop(
-            AtomicReference<StopReason> stopReason, StopReason requested, CancellationToken operationCancellation) {
+            AtomicReference<StopReason> stopReason,
+            StopReason requested,
+            CancellationToken operationCancellation,
+            StartStopGate gate) {
         if (stopReason.compareAndSet(StopReason.NONE, requested)) {
             operationCancellation.cancel();
+            gate.stop();
         }
     }
 
@@ -249,10 +313,10 @@ public final class ReactAgent implements AgentRunner {
         if (lifecycle.finish(status)) {
             RunEvent.Metadata metadata = sequencer.metadata(iterations);
             switch (status) {
-                case COMPLETED -> sequencer.emit(new RunEvent.RunCompleted(metadata, finalAnswer, usage));
-                case FAILED -> sequencer.emit(new RunEvent.RunFailed(metadata, reason));
-                case CANCELED -> sequencer.emit(new RunEvent.RunCancelled(metadata, reason));
-                case LIMIT_REACHED -> sequencer.emit(new RunEvent.RunLimitReached(metadata, reason));
+                case COMPLETED -> sequencer.emitTerminal(new RunEvent.RunCompleted(metadata, finalAnswer, usage));
+                case FAILED -> sequencer.emitTerminal(new RunEvent.RunFailed(metadata, reason));
+                case CANCELED -> sequencer.emitTerminal(new RunEvent.RunCancelled(metadata, reason));
+                case LIMIT_REACHED -> sequencer.emitTerminal(new RunEvent.RunLimitReached(metadata, reason));
                 default -> throw new IllegalArgumentException("Terminal status is required");
             }
         }
@@ -284,11 +348,16 @@ public final class ReactAgent implements AgentRunner {
         }
     }
 
-    private static String requireRunId(String runId) {
-        if (runId == null || runId.isBlank()) {
-            throw new IllegalArgumentException("runIdSupplier must return a non-blank value");
+    private RunIdResolution resolveRunId() {
+        try {
+            String runId = runIdSupplier.get();
+            if (runId != null && !runId.isBlank()) {
+                return new RunIdResolution(runId, false);
+            }
+        } catch (RuntimeException ignored) {
+            // The agent still needs a valid event identity to report the initialization failure.
         }
-        return runId;
+        return new RunIdResolution("internal-run-" + FALLBACK_RUN_SEQUENCE.incrementAndGet(), true);
     }
 
     private static TokenUsage combineUsage(TokenUsage previous, TokenUsage next) {
@@ -311,6 +380,61 @@ public final class ReactAgent implements AgentRunner {
         TIMEOUT
     }
 
+    enum GatePoint {
+        MODEL_START,
+        TOOL_START,
+        COMPLETION
+    }
+
+    @FunctionalInterface
+    interface GateHook {
+        void beforeGatePoint(GatePoint point);
+    }
+
+    private record RunIdResolution(String runId, boolean failed) {}
+
+    private record GateResult<T>(boolean started, T value) {
+        private static <T> GateResult<T> denied() {
+            return new GateResult<>(false, null);
+        }
+    }
+
+    @FunctionalInterface
+    private interface GateWork<T> {
+        T run() throws LlmException;
+    }
+
+    private static final class StartStopGate {
+        private final GateHook hook;
+        private final AtomicBoolean stopped = new AtomicBoolean();
+
+        private StartStopGate(GateHook hook) {
+            this.hook = hook;
+        }
+
+        private void stop() {
+            stopped.set(true);
+        }
+
+        private synchronized <T> GateResult<T> start(
+                AtomicReference<StopReason> stopReason, GatePoint point, GateWork<T> work) throws LlmException {
+            hook.beforeGatePoint(point);
+            if (stopped.get() || stopReason.get() != StopReason.NONE) {
+                return GateResult.denied();
+            }
+            return new GateResult<>(true, work.run());
+        }
+
+        private synchronized <T> GateResult<T> startUnchecked(
+                AtomicReference<StopReason> stopReason, GatePoint point, Supplier<T> work) {
+            hook.beforeGatePoint(point);
+            if (stopped.get() || stopReason.get() != StopReason.NONE) {
+                return GateResult.denied();
+            }
+            return new GateResult<>(true, work.get());
+        }
+    }
+
     private static final class EventSequencer {
         private final String runId;
         private final RunEventSink sink;
@@ -329,6 +453,14 @@ public final class ReactAgent implements AgentRunner {
 
         private void emit(RunEvent event) {
             sink.accept(event);
+        }
+
+        private void emitTerminal(RunEvent event) {
+            try {
+                sink.accept(event);
+            } catch (RuntimeException ignored) {
+                // A failed renderer must not make the agent throw or retry a terminal event.
+            }
         }
     }
 }

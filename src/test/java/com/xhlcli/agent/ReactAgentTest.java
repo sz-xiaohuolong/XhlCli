@@ -265,6 +265,104 @@ class ReactAgentTest {
         assertEquals(new TokenUsage(7, 10, true), run.usage());
     }
 
+    @Test
+    void doesNotStartAModelRequestWhenUserCancellationWinsTheStartGate() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(response("never requested")));
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.MODEL_START);
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of(), hook);
+        CancellationToken userCancellation = new CancellationToken();
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult run = inWindow(() -> agent.run("model race", events::add, userCancellation), hook, userCancellation::cancel);
+
+        assertEquals(RunStatus.CANCELED, run.status());
+        assertEquals(0, client.requests.size());
+        assertFalse(events.stream().anyMatch(RunEvent.ModelRequestStarted.class::isInstance));
+        assertTerminalEventInvariants(events);
+    }
+
+    @Test
+    void doesNotStartAToolWhenTimeoutWinsTheStartGate() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(
+                response("", new ToolCall("slow", "echo_text", "{}"))));
+        RecordingExecutor executor = new RecordingExecutor(List.of());
+        ManualTimeoutScheduler scheduler = new ManualTimeoutScheduler();
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.TOOL_START);
+        ReactAgent agent = agent(client, executor, new RunLimits(5, java.time.Duration.ofMinutes(1)), scheduler,
+                List.of(definition("echo_text")), hook);
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult run = inWindow(() -> agent.run("tool race", events::add, new CancellationToken()), hook, scheduler::fire);
+
+        assertEquals(RunStatus.FAILED, run.status());
+        assertEquals("TIMEOUT", run.reason());
+        assertTrue(executor.executedNames().isEmpty());
+        assertFalse(events.stream().anyMatch(RunEvent.ToolStarted.class::isInstance));
+        assertTerminalEventInvariants(events);
+    }
+
+    @Test
+    void doesNotCommitFinalHistoryWhenUserCancellationWinsTheCompletionGate() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(response("done")));
+        WindowHook hook = new WindowHook(ReactAgent.GatePoint.COMPLETION);
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of(), hook);
+        CancellationToken userCancellation = new CancellationToken();
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult run = inWindow(() -> agent.run("completion race", events::add, userCancellation), hook,
+                userCancellation::cancel);
+
+        assertEquals(RunStatus.CANCELED, run.status());
+        assertEquals(List.of(SYSTEM), agent.history());
+        assertFalse(events.stream().anyMatch(RunEvent.RunCompleted.class::isInstance));
+        assertTerminalEventInvariants(events);
+    }
+
+    @Test
+    void containsEventSinkFailuresAndAttemptsOnlyOneTerminalPublication() {
+        RecordingClient client = new RecordingClient(List.of(response("done")));
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of());
+        java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();
+
+        RunResult run = agent.run("broken sink", event -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("sink is unavailable");
+        }, new CancellationToken());
+
+        assertEquals(RunStatus.FAILED, run.status());
+        assertEquals("INTERNAL_ERROR", run.reason());
+        assertEquals(2, attempts.get());
+        assertEquals(List.of(SYSTEM), agent.history());
+    }
+
+    @Test
+    void containsRunIdSupplierFailuresAndUsesDistinctFallbackRunIds() {
+        List<RunEvent> throwingEvents = new ArrayList<>();
+        List<RunEvent> blankEvents = new ArrayList<>();
+        ReactAgent throwing = agentWithRunIdSupplier(() -> {
+            throw new IllegalStateException("id source failed");
+        });
+        ReactAgent blank = agentWithRunIdSupplier(() -> " ");
+
+        RunResult throwingRun = throwing.run("id", throwingEvents::add, new CancellationToken());
+        RunResult blankRun = blank.run("id", blankEvents::add, new CancellationToken());
+
+        assertEquals(RunStatus.FAILED, throwingRun.status());
+        assertEquals("INTERNAL_ERROR", throwingRun.reason());
+        assertEquals(RunStatus.FAILED, blankRun.status());
+        assertEquals("INTERNAL_ERROR", blankRun.reason());
+        assertEquals(1, throwingEvents.stream().filter(ReactAgentTest::isTerminal).count());
+        assertEquals(1, blankEvents.stream().filter(ReactAgentTest::isTerminal).count());
+        assertFalse(throwingRun.runId().isBlank());
+        assertFalse(blankRun.runId().isBlank());
+        assertFalse(throwingRun.runId().equals(blankRun.runId()));
+        assertEquals(0, throwingEvents.stream().filter(RunEvent.RunStarted.class::isInstance).count());
+        assertEquals(0, blankEvents.stream().filter(RunEvent.RunStarted.class::isInstance).count());
+    }
+
     private ReactAgent agent(RecordingClient client, ToolExecutor executor, RunLimits limits) {
         return agent(client, executor, limits, new NoopTimeoutScheduler(), List.of(definition("current_time"),
                 definition("echo_text"), definition("first_tool"), definition("second_tool"), definition("throwing_tool")));
@@ -273,6 +371,12 @@ class ReactAgentTest {
     private ReactAgent agent(
             LlmClient client, ToolExecutor executor, RunLimits limits, TimeoutScheduler scheduler,
             List<ToolDefinition> definitions) {
+        return agent(client, executor, limits, scheduler, definitions, point -> {});
+    }
+
+    private ReactAgent agent(
+            LlmClient client, ToolExecutor executor, RunLimits limits, TimeoutScheduler scheduler,
+            List<ToolDefinition> definitions, ReactAgent.GateHook hook) {
         return new ReactAgent(
                 SYSTEM,
                 client,
@@ -282,7 +386,21 @@ class ReactAgentTest {
                 scheduler,
                 mapper,
                 Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
-                () -> "run-1");
+                () -> "run-1",
+                hook);
+    }
+
+    private ReactAgent agentWithRunIdSupplier(java.util.function.Supplier<String> runIdSupplier) {
+        return new ReactAgent(
+                SYSTEM,
+                new RecordingClient(List.of(response("never requested"))),
+                new RecordingExecutor(List.of()),
+                List.of(),
+                new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(),
+                mapper,
+                Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
+                runIdSupplier);
     }
 
     private ToolDefinition definition(String name) {
@@ -325,6 +443,20 @@ class ReactAgentTest {
             Future<RunResult> result = workers.submit(task);
             assertTrue(started.await(1, TimeUnit.SECONDS));
             stop.run();
+            return result.get(1, TimeUnit.SECONDS);
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    private static RunResult inWindow(
+            java.util.concurrent.Callable<RunResult> task, WindowHook hook, Runnable stop) throws Exception {
+        ExecutorService workers = Executors.newSingleThreadExecutor();
+        try {
+            Future<RunResult> result = workers.submit(task);
+            assertTrue(hook.entered.await(1, TimeUnit.SECONDS));
+            stop.run();
+            hook.release.countDown();
             return result.get(1, TimeUnit.SECONDS);
         } finally {
             workers.shutdownNow();
@@ -484,5 +616,31 @@ class ReactAgentTest {
 
         @Override
         public void close() {}
+    }
+
+    private static final class WindowHook implements ReactAgent.GateHook {
+        private final ReactAgent.GatePoint point;
+        private final CountDownLatch entered = new CountDownLatch(1);
+        private final CountDownLatch release = new CountDownLatch(1);
+
+        private WindowHook(ReactAgent.GatePoint point) {
+            this.point = point;
+        }
+
+        @Override
+        public void beforeGatePoint(ReactAgent.GatePoint candidate) {
+            if (candidate != point) {
+                return;
+            }
+            entered.countDown();
+            try {
+                if (!release.await(1, TimeUnit.SECONDS)) {
+                    throw new AssertionError("test did not release gate hook");
+                }
+            } catch (InterruptedException failure) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(failure);
+            }
+        }
     }
 }
