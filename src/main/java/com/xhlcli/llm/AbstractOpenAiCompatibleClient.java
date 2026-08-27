@@ -8,6 +8,8 @@ import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
+import com.xhlcli.model.ToolCall;
+import com.xhlcli.model.ToolDefinition;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -52,9 +54,11 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
     @Override
     public ChatResponse stream(
             List<ChatMessage> messages,
+            List<ToolDefinition> tools,
             StreamListener listener,
             CancellationToken cancellationToken) throws LlmException {
         Objects.requireNonNull(messages, "messages");
+        Objects.requireNonNull(tools, "tools");
         Objects.requireNonNull(listener, "listener");
         Objects.requireNonNull(cancellationToken, "cancellationToken");
         if (!config.hasApiKey()) {
@@ -77,7 +81,7 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         };
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
-                return executeAttempt(messages, trackingListener, cancellationToken, receivedDelta);
+                return executeAttempt(messages, tools, trackingListener, cancellationToken, receivedDelta);
             } catch (LlmException failure) {
                 if (attempt > 0 || !shouldRetry(failure, receivedDelta.get(), cancellationToken)) {
                     throw failure;
@@ -94,10 +98,11 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
 
     private ChatResponse executeAttempt(
             List<ChatMessage> messages,
+            List<ToolDefinition> tools,
             StreamListener listener,
             CancellationToken cancellationToken,
             AtomicBoolean receivedDelta) throws LlmException {
-        Request request = buildRequest(messages);
+        Request request = buildRequest(messages, tools);
         Call call = httpClient.newCall(request);
         try (CancellationToken.Registration ignored = cancellationToken.onCancel(call::cancel);
              Response response = call.execute()) {
@@ -133,7 +138,7 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         }
     }
 
-    private Request buildRequest(List<ChatMessage> messages) throws LlmException {
+    private Request buildRequest(List<ChatMessage> messages, List<ToolDefinition> tools) throws LlmException {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", config.model());
         root.put("stream", true);
@@ -141,7 +146,36 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         for (ChatMessage message : messages) {
             ObjectNode node = messageNodes.addObject();
             node.put("role", message.role().wireName());
-            node.put("content", message.content());
+            if (message.role() == ChatMessage.Role.ASSISTANT && message.content().isEmpty()) {
+                node.putNull("content");
+            } else {
+                node.put("content", message.content());
+            }
+            if (!message.toolCalls().isEmpty()) {
+                ArrayNode toolCalls = node.putArray("tool_calls");
+                for (ToolCall call : message.toolCalls()) {
+                    ObjectNode toolCall = toolCalls.addObject();
+                    toolCall.put("id", call.id());
+                    toolCall.put("type", "function");
+                    ObjectNode function = toolCall.putObject("function");
+                    function.put("name", call.name());
+                    function.put("arguments", call.argumentsJson());
+                }
+            }
+            if (message.role() == ChatMessage.Role.TOOL) {
+                node.put("tool_call_id", message.toolCallId());
+            }
+        }
+        if (!tools.isEmpty()) {
+            ArrayNode toolNodes = root.putArray("tools");
+            for (ToolDefinition definition : tools) {
+                ObjectNode tool = toolNodes.addObject();
+                tool.put("type", "function");
+                ObjectNode function = tool.putObject("function");
+                function.put("name", definition.name());
+                function.put("description", definition.description());
+                function.set("parameters", definition.parameters());
+            }
         }
 
         try {

@@ -13,6 +13,7 @@ import com.xhlcli.llm.StreamListener;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.TokenUsage;
+import com.xhlcli.model.ToolDefinition;
 import com.xhlcli.render.PlainChatRenderer;
 import org.junit.jupiter.api.Test;
 
@@ -179,7 +180,11 @@ class ChatLoopTest {
         final List<List<ChatMessage>> requests = new ArrayList<>();
 
         @Override
-        public ChatResponse stream(List<ChatMessage> messages, StreamListener listener, CancellationToken token) {
+        public ChatResponse stream(
+                List<ChatMessage> messages,
+                List<ToolDefinition> tools,
+                StreamListener listener,
+                CancellationToken token) {
             requests.add(List.copyOf(messages));
             listener.onTextDelta("OK");
             return new ChatResponse("OK", TokenUsage.unknown());
@@ -190,8 +195,11 @@ class ChatLoopTest {
         private int calls;
 
         @Override
-        public ChatResponse stream(List<ChatMessage> messages, StreamListener listener, CancellationToken token)
-                throws LlmException {
+        public ChatResponse stream(
+                List<ChatMessage> messages,
+                List<ToolDefinition> tools,
+                StreamListener listener,
+                CancellationToken token) throws LlmException {
             calls++;
             if (calls == 1) {
                 throw new LlmException(LlmErrorType.NETWORK, "offline", true, false);
@@ -207,8 +215,11 @@ class ChatLoopTest {
         private int calls;
 
         @Override
-        public ChatResponse stream(List<ChatMessage> messages, StreamListener listener, CancellationToken token)
-                throws LlmException {
+        public ChatResponse stream(
+                List<ChatMessage> messages,
+                List<ToolDefinition> tools,
+                StreamListener listener,
+                CancellationToken token) throws LlmException {
             calls++;
             if (calls == 1) {
                 CountDownLatch cancelled = new CountDownLatch(1);

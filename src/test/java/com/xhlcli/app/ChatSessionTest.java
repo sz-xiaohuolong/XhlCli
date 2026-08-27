@@ -8,6 +8,7 @@ import com.xhlcli.llm.StreamListener;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.TokenUsage;
+import com.xhlcli.model.ToolDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -89,7 +90,11 @@ class ChatSessionTest {
         private final List<List<ChatMessage>> requests = new ArrayList<>();
 
         @Override
-        public ChatResponse stream(List<ChatMessage> messages, StreamListener listener, CancellationToken token) {
+        public ChatResponse stream(
+                List<ChatMessage> messages,
+                List<ToolDefinition> tools,
+                StreamListener listener,
+                CancellationToken token) {
             requests.add(List.copyOf(messages));
             String answer = "answer " + requests.size();
             listener.onTextDelta(answer.substring(0, 3));
@@ -100,8 +105,11 @@ class ChatSessionTest {
 
     private record FailingClient(LlmException failure) implements LlmClient {
         @Override
-        public ChatResponse stream(List<ChatMessage> messages, StreamListener listener, CancellationToken token)
-                throws LlmException {
+        public ChatResponse stream(
+                List<ChatMessage> messages,
+                List<ToolDefinition> tools,
+                StreamListener listener,
+                CancellationToken token) throws LlmException {
             if (failure.partialResponse()) {
                 listener.onTextDelta("partial");
             }

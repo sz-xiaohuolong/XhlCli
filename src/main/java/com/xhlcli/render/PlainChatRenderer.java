@@ -119,6 +119,7 @@ public final class PlainChatRenderer {
             case NETWORK -> "Check your network connection and DeepSeek endpoint.";
             case SERVER -> "The provider is unavailable; try again later.";
             case INVALID_RESPONSE -> "Retry the request; use DEBUG logs if the problem persists.";
+            case EMPTY_RESPONSE -> "Retry the request; use DEBUG logs if the problem persists.";
             case TIMEOUT -> "Increase the timeout or retry on a stable connection.";
             case CANCELLED -> "Submit a new prompt when ready.";
             case INVALID_CONFIGURATION -> "Check the configured model, URL, and timeout values.";

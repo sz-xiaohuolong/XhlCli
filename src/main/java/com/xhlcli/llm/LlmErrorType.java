@@ -7,6 +7,7 @@ public enum LlmErrorType {
     NETWORK,
     SERVER,
     INVALID_RESPONSE,
+    EMPTY_RESPONSE,
     TIMEOUT,
     CANCELLED,
     INVALID_CONFIGURATION

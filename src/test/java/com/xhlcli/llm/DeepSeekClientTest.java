@@ -7,6 +7,9 @@ import com.xhlcli.config.LogLevel;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.TokenUsage;
+import com.xhlcli.model.ToolCall;
+import com.xhlcli.model.ToolDefinition;
+import com.xhlcli.model.ToolMetadata;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 import okhttp3.mockwebserver.MockResponse;
@@ -84,6 +87,90 @@ class DeepSeekClientTest {
         assertEquals("user", body.path("messages").get(1).path("role").asText());
         assertEquals("你好", body.path("messages").get(1).path("content").asText());
         assertEquals(3, body.size());
+    }
+
+    @Test
+    void serializesToolsAndToolProtocolMessagesInRequestOrder() throws Exception {
+        server.enqueue(sse(ok("ready")));
+        ToolDefinition echoText = new ToolDefinition(
+                "echo_text",
+                "Echo text",
+                mapper.createObjectNode().put("type", "object"),
+                ToolMetadata.conservative());
+        List<ChatMessage> messages = List.of(
+                ChatMessage.user("echo hello"),
+                ChatMessage.assistant("", List.of(new ToolCall("call_1", "echo_text", "{\"text\":\"hello\"}"))),
+                ChatMessage.tool("call_1", "{\"status\":\"success\"}"));
+
+        try (DeepSeekClient client = client(config(Duration.ofSeconds(2)))) {
+            client.stream(messages, List.of(echoText), ignored -> {}, new CancellationToken());
+        }
+
+        JsonNode body = mapper.readTree(server.takeRequest().getBody().readUtf8());
+        assertEquals("function", body.path("tools").get(0).path("type").asText());
+        JsonNode function = body.path("tools").get(0).path("function");
+        assertEquals("echo_text", function.path("name").asText());
+        assertEquals("Echo text", function.path("description").asText());
+        assertEquals("object", function.path("parameters").path("type").asText());
+
+        JsonNode assistant = body.path("messages").get(1);
+        assertTrue(assistant.path("content").isNull());
+        assertEquals("call_1", assistant.path("tool_calls").get(0).path("id").asText());
+        assertEquals("function", assistant.path("tool_calls").get(0).path("type").asText());
+        assertEquals("echo_text", assistant.path("tool_calls").get(0).path("function").path("name").asText());
+        assertEquals("{\"text\":\"hello\"}",
+                assistant.path("tool_calls").get(0).path("function").path("arguments").asText());
+
+        JsonNode observation = body.path("messages").get(2);
+        assertEquals("tool", observation.path("role").asText());
+        assertEquals("call_1", observation.path("tool_call_id").asText());
+        assertEquals("{\"status\":\"success\"}", observation.path("content").asText());
+    }
+
+    @Test
+    void accumulatesFragmentedToolCallsAcrossDeltas() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_","function":{"name":"echo_","arguments":"{\\\"text\\\":"}}]}}]}
+
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"1","function":{"name":"text","arguments":"\\\"hello\\\"}"}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals("", response.content());
+        assertEquals(List.of(new ToolCall("call_1", "echo_text", "{\"text\":\"hello\"}")), response.toolCalls());
+    }
+
+    @Test
+    void accumulatesTextAndMultipleIndexedToolCalls() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"content":"Checking ","tool_calls":[{"index":1,"id":"call_2","function":{"name":"current_","arguments":"{}"}},{"index":0,"id":"call_1","function":{"name":"echo_","arguments":"{\\\"text\\\":\\\"hi\\\"}"}}]}}]}
+
+                data: {"choices":[{"delta":{"content":"now.","tool_calls":[{"index":1,"function":{"name":"time"}},{"index":0,"function":{"name":"text"}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals("Checking now.", response.content());
+        assertEquals(List.of(
+                new ToolCall("call_1", "echo_text", "{\"text\":\"hi\"}"),
+                new ToolCall("call_2", "current_time", "{}")), response.toolCalls());
+    }
+
+    @Test
+    void doneStreamWithoutTextOrToolCallsIsAnEmptyResponse() throws Exception {
+        server.enqueue(sse("data: [DONE]\n\n"));
+
+        LlmException failure = assertThrows(LlmException.class,
+                () -> stream(client(config(Duration.ofSeconds(2)))));
+
+        assertEquals(LlmErrorType.EMPTY_RESPONSE, failure.type());
     }
 
     @Test
