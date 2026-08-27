@@ -2,25 +2,25 @@ package com.xhlcli.agent;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Schedules timeout callbacks without allowing work after the scheduler is closed. */
 public final class ScheduledTimeoutScheduler implements TimeoutScheduler {
-    private final ScheduledExecutorService executor;
+    private final ScheduledThreadPoolExecutor executor;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public ScheduledTimeoutScheduler() {
-        this(Executors.newSingleThreadScheduledExecutor(new TimeoutThreadFactory()));
+        this(new ScheduledThreadPoolExecutor(1, new TimeoutThreadFactory()));
     }
 
-    ScheduledTimeoutScheduler(ScheduledExecutorService executor) {
+    ScheduledTimeoutScheduler(ScheduledThreadPoolExecutor executor) {
         this.executor = Objects.requireNonNull(executor, "executor");
+        this.executor.setRemoveOnCancelPolicy(true);
     }
 
     @Override

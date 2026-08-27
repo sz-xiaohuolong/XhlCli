@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -36,6 +37,19 @@ class TimeoutSchedulerTest {
             registration.close();
 
             assertFalse(fired.await(50, TimeUnit.MILLISECONDS));
+        }
+    }
+
+    @Test
+    void closingARegistrationImmediatelyRemovesItsDelayedTask() {
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+        try (ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler(executor)) {
+            TimeoutScheduler.Registration registration = scheduler.schedule(Duration.ofMinutes(10), () -> { });
+
+            assertTrue(executor.getQueue().size() == 1);
+            registration.close();
+
+            assertTrue(executor.getQueue().isEmpty());
         }
     }
 }
