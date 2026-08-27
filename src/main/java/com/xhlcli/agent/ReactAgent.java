@@ -380,12 +380,28 @@ public final class ReactAgent implements AgentRunner {
         try {
             String runId = runIdSupplier.get();
             if (runId != null && !runId.isBlank()) {
-                return new RunIdResolution(runId, false);
+                return new RunIdResolution(sanitizeRunId(runId), false);
             }
         } catch (RuntimeException ignored) {
             // The agent still needs a valid event identity to report the initialization failure.
         }
-        return new RunIdResolution("internal-run-" + FALLBACK_RUN_SEQUENCE.incrementAndGet(), true);
+        return new RunIdResolution(nextSafeFallbackRunId(), true);
+    }
+
+    private String sanitizeRunId(String runId) {
+        try {
+            String sanitized = eventSanitizer.apply(runId);
+            if (sanitized != null && !sanitized.isBlank()) {
+                return sanitized;
+            }
+        } catch (RuntimeException ignored) {
+            // A safe fallback keeps the run observable without exposing the supplier value.
+        }
+        return nextSafeFallbackRunId();
+    }
+
+    private static String nextSafeFallbackRunId() {
+        return "internal-run-" + FALLBACK_RUN_SEQUENCE.incrementAndGet();
     }
 
     private static TokenUsage combineUsage(TokenUsage previous, TokenUsage next) {
@@ -494,7 +510,12 @@ public final class ReactAgent implements AgentRunner {
         }
 
         private RunEvent sanitize(RunEvent event) {
-            RunEvent.Metadata metadata = event.metadata();
+            RunEvent.Metadata originalMetadata = event.metadata();
+            RunEvent.Metadata metadata = new RunEvent.Metadata(
+                    runId,
+                    originalMetadata.sequence(),
+                    originalMetadata.timestamp(),
+                    originalMetadata.iteration());
             return switch (event) {
                 case RunEvent.RunStarted started -> new RunEvent.RunStarted(metadata, sanitize(started.inputSummary()));
                 case RunEvent.ModelRequestStarted started -> started;

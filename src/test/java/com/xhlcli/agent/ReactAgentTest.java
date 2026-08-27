@@ -102,6 +102,40 @@ class ReactAgentTest {
     }
 
     @Test
+    void sanitizesRunIdentifiersBeforePublishingMetadataOrReturningTheRunResult() {
+        String knownKey = "known-secret";
+        String unsafeRunId = "run-known-secret Bearer provider-token token=known-secret password=known-secret";
+        ReactAgent agent = agentWithRunIdAndSanitizer(
+                () -> unsafeRunId, value -> SecretRedactor.redact(value, knownKey));
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = agent.run("ok", events::add, new CancellationToken());
+
+        List<String> eventRunIds = events.stream().map(event -> event.metadata().runId()).toList();
+        assertFalse(result.runId().contains("known-secret"));
+        assertFalse(result.runId().contains("provider-token"));
+        assertTrue(eventRunIds.stream().noneMatch(id -> id.contains("known-secret") || id.contains("provider-token")));
+        assertTrue(eventRunIds.stream().allMatch(id -> !id.isBlank()));
+        assertEquals(1, eventRunIds.stream().distinct().count());
+        assertEquals(result.runId(), eventRunIds.getFirst());
+    }
+
+    @Test
+    void replacesABlankSanitizedRunIdentifierWithAStableSafeFallback() {
+        String unsafeRunId = "all-secret";
+        ReactAgent agent = agentWithRunIdAndSanitizer(
+                () -> unsafeRunId, value -> value.equals(unsafeRunId) ? " " : value);
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = agent.run("ok", events::add, new CancellationToken());
+
+        List<String> eventRunIds = events.stream().map(event -> event.metadata().runId()).toList();
+        assertFalse(result.runId().isBlank());
+        assertTrue(eventRunIds.stream().allMatch(result.runId()::equals));
+        assertEquals(result.runId(), eventRunIds.getFirst());
+    }
+
+    @Test
     void returnsRecoverableToolObservationsToTheModelUntilItCorrectsTheCall() throws Exception {
         RecordingClient client = new RecordingClient(List.of(
                 response("", new ToolCall("unknown", "missing_tool", "{}")),
@@ -481,6 +515,21 @@ class ReactAgentTest {
                 mapper,
                 Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
                 () -> "run-1",
+                sanitizer);
+    }
+
+    private ReactAgent agentWithRunIdAndSanitizer(
+            java.util.function.Supplier<String> runIdSupplier, java.util.function.Function<String, String> sanitizer) {
+        return new ReactAgent(
+                SYSTEM,
+                new RecordingClient(List.of(response("ok"))),
+                new RecordingExecutor(List.of()),
+                List.of(),
+                new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(),
+                mapper,
+                Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
+                runIdSupplier,
                 sanitizer);
     }
 
