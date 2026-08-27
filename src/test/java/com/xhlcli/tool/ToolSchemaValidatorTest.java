@@ -28,11 +28,14 @@ class ToolSchemaValidatorTest {
     @Test
     void reportsMalformedJsonAndNonObjectRootsSafely() {
         ToolSchemaValidator.ValidationResult malformed = validator.parseAndValidate("{not-json}", schema());
+        ToolSchemaValidator.ValidationResult nullArguments = validator.parseAndValidate(null, schema());
         ToolSchemaValidator.ValidationResult scalar = validator.parseAndValidate("\"text\"", schema());
         ToolSchemaValidator.ValidationResult array = validator.parseAndValidate("[]", schema());
 
         assertFalse(malformed.isValid());
         assertEquals("Arguments must be valid JSON.", malformed.error());
+        assertFalse(nullArguments.isValid());
+        assertEquals("Arguments must be valid JSON.", nullArguments.error());
         assertFalse(scalar.isValid());
         assertEquals("Arguments must be a JSON object.", scalar.error());
         assertFalse(array.isValid());
@@ -49,6 +52,19 @@ class ToolSchemaValidatorTest {
         assertError("{\"text\":\"x\",\"items\":{}}", "Property 'items' must be an array.");
         assertError("{\"text\":\"x\",\"nested\":[]}", "Property 'nested' must be an object.");
         assertError("{\"text\":\"x\",\"extra\":true}", "Unknown property: extra.");
+        assertError("{\"text\":\"x\",\"unsupported\":true}", "Property 'unsupported' has an unsupported or missing schema type.");
+        assertError("{\"text\":\"x\",\"missing\":true}", "Property 'missing' has an unsupported or missing schema type.");
+    }
+
+    @Test
+    void allowsUnknownPropertiesWhenAdditionalPropertiesIsOmittedOrTrue() {
+        ObjectNode omitted = (ObjectNode) schema();
+        omitted.remove("additionalProperties");
+        ObjectNode allowed = (ObjectNode) schema();
+        allowed.put("additionalProperties", true);
+
+        assertTrue(validator.parseAndValidate("{\"text\":\"x\",\"extra\":true}", omitted).isValid());
+        assertTrue(validator.parseAndValidate("{\"text\":\"x\",\"extra\":true}", allowed).isValid());
     }
 
     private void assertError(String arguments, String error) {
@@ -66,6 +82,8 @@ class ToolSchemaValidatorTest {
         properties.set("enabled", property("boolean"));
         properties.set("items", property("array"));
         properties.set("nested", property("object"));
+        properties.set("unsupported", property("date"));
+        properties.set("missing", mapper.createObjectNode());
         ObjectNode schema = mapper.createObjectNode().put("type", "object");
         schema.set("properties", properties);
         schema.set("required", mapper.createArrayNode().add("text"));

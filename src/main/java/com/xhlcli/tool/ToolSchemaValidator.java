@@ -17,10 +17,13 @@ public final class ToolSchemaValidator {
     }
 
     public ValidationResult parseAndValidate(String argumentsJson, JsonNode schema) {
+        if (argumentsJson == null) {
+            return ValidationResult.error("Arguments must be valid JSON.");
+        }
         final JsonNode parsed;
         try {
-            parsed = mapper.readTree(Objects.requireNonNull(argumentsJson, "argumentsJson"));
-        } catch (JsonProcessingException | IllegalArgumentException failure) {
+            parsed = mapper.readTree(argumentsJson);
+        } catch (JsonProcessingException failure) {
             return ValidationResult.error("Arguments must be valid JSON.");
         }
         if (!parsed.isObject()) {
@@ -62,6 +65,9 @@ public final class ToolSchemaValidator {
     }
 
     private static String typeError(String property, JsonNode value, String type) {
+        if (!isSupportedType(type)) {
+            return "Property '" + property + "' has an unsupported or missing schema type.";
+        }
         boolean valid = switch (type) {
             case "string" -> value.isTextual();
             case "integer" -> value.isIntegralNumber();
@@ -69,13 +75,20 @@ public final class ToolSchemaValidator {
             case "boolean" -> value.isBoolean();
             case "array" -> value.isArray();
             case "object" -> value.isObject();
-            default -> true;
+            default -> throw new IllegalStateException("Unsupported schema type: " + type);
         };
         String article = switch (type) {
             case "integer", "object", "array" -> "an";
             default -> "a";
         };
         return valid ? null : "Property '" + property + "' must be " + article + " " + type + ".";
+    }
+
+    private static boolean isSupportedType(String type) {
+        return switch (type) {
+            case "string", "integer", "number", "boolean", "array", "object" -> true;
+            default -> false;
+        };
     }
 
     public record ValidationResult(ObjectNode arguments, String error) {

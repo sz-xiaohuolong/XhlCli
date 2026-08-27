@@ -29,11 +29,13 @@ class DefaultToolExecutorTest {
 
         ToolResult unknown = executor.execute(new ToolCall("call_1", "missing_tool", "{}"), token);
         ToolResult invalid = executor.execute(new ToolCall("call_2", "echo_text", "{not-json}"), token);
+        ToolResult nullArguments = executor.execute(new ToolCall("call_4", "echo_text", null), token);
         token.cancel();
         ToolResult cancelled = executor.execute(new ToolCall("call_3", "echo_text", "{\"text\":\"x\"}"), token);
 
         assertEquals(ToolResultStatus.UNKNOWN_TOOL, unknown.status());
         assertEquals(ToolResultStatus.VALIDATION_ERROR, invalid.status());
+        assertEquals(ToolResultStatus.VALIDATION_ERROR, nullArguments.status());
         assertEquals(ToolResultStatus.CANCELLED, cancelled.status());
     }
 

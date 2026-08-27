@@ -40,14 +40,26 @@ class ToolRegistryTest {
         assertThrows(IllegalArgumentException.class, () -> new ToolRegistry(List.of(tool("not-kebab"))));
     }
 
+    @Test
+    void rejectsBlankDescriptionsAndSchemasWithoutObjectRoots() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new ToolRegistry(List.of(tool("blank_description", " ", mapper.createObjectNode().put("type", "object")))));
+        assertThrows(IllegalArgumentException.class,
+                () -> new ToolRegistry(List.of(tool("array_schema", "A test tool.", mapper.createObjectNode().put("type", "array")))));
+    }
+
     private Tool tool(String name) {
+        return tool(name, "A test tool.", mapper.createObjectNode().put("type", "object"));
+    }
+
+    private Tool tool(String name, String description, JsonNode schema) {
         return new Tool() {
             @Override
             public ToolDefinition definition() {
                 return new ToolDefinition(
                         name,
-                        "A test tool.",
-                        mapper.createObjectNode().put("type", "object"),
+                        description,
+                        schema,
                         ToolMetadata.conservative());
             }
 
