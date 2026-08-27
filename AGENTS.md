@@ -20,10 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 01 已交付；下一阶段为 Phase 02 ReAct Agent。
-- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、Ctrl+C 取消、安全配置与脱敏、错误分类和 50 项离线测试。
+- 当前阶段：Phase 02 ReAct Agent 已交付；下一阶段为 Phase 03 本地工具。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent` 和 103 项离线测试。
 - 当前已发布：Phase 01 `v0.2.0` 终端流式对话基础。
-- 当前未交付：ReAct Agent、本地工具、Git 操作、MCP、RAG、长期记忆、Multi-Agent 和其他 Phase 02–18 运行能力。
+- 当前未交付：真实本地文件、Shell 和 Git 工具、Policy/HITL、MCP、RAG、长期记忆、Plan、并行工具、Multi-Agent 和 Phase 03–18 的其他运行能力。Phase 02 仅注册进程内 `echo_text` 与 `current_time` 演示工具，不读写项目文件、不执行命令且不访问网络。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 
@@ -179,7 +179,7 @@ Research → PRD → Tech Design → Implementation Plan
 
 ```bash
 find . -type f | sort
-rg -n 'TODO|TBD|待补充|占位符' .
+rg -n 'TO''DO|TB''D|待''补充|占''位符' .
 rg -n 'paicli|PaiCLI|com\.paicli|\.paicli' \
   --glob '!docs/engineering/source-adoption-map.md' \
   --glob '!RESEARCH.md' \
@@ -199,6 +199,8 @@ Phase 00 于 2026-08-25 完成当期干净构建和 CLI 冒烟验证；未知参
 
 Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取消测试、可执行 JAR、无 Key 退出码 3、真实 Provider 五轮会话、真实 Ctrl+C 恢复、脱敏演示 GIF 和 macOS Java 21 CI 验证。Phase 01 发布门禁不承诺 Windows/Linux 兼容性。
 
+Phase 02 于 2026-08-27 完成 103 项离线测试（较 Phase 01 增加 53 项）、结构化 Tool Call/Observation 协议、`RunEvent` Plain 渲染和阶段门禁。`AgentSettings` 的默认上限为 10 次迭代和 600 秒整体超时；取消、超时、空响应、重复无进展和终态后禁止新模型/工具工作的行为均有确定性测试。按用户明确决定，本期不要求人工演示或录屏；本期不创建版本标签，当前开发版本为 `0.3.0-SNAPSHOT`。
+
 后续每期把针对性测试和快速回归命令补充到本文件。
 
 ## 12. 文档联动
@@ -209,7 +211,7 @@ Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取
 - 改工具：Tool Schema + Agent Prompt + Policy + 测试 + 文档。
 - 改 Provider：能力声明 + 契约测试 + 配置示例 + 文档。
 - 改持久化格式：版本与迁移策略 + 测试 + 文档。
-- 阶段交付：README + CHANGELOG + Roadmap 状态 + 演示证据。
+- 阶段交付：README + CHANGELOG + Roadmap 状态 + 演示证据，或已记录的人工演示豁免。
 
 ## 13. Git 规则
 
@@ -219,7 +221,7 @@ Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取
 - 一次提交只包含一个可独立解释和验证的变化。
 - 使用实际日期和作者，不改写历史制造开发时长。
 - 推荐提交前缀：`docs:`、`test:`、`feat:`、`fix:`、`refactor:`、`build:`、`chore:`。
-- 每个阶段完成后再创建版本标签；未完成阶段不打正式标签。
+- 仅在阶段交付计划明确要求发布时创建版本标签；未完成阶段和明确免除标签的阶段不得创建正式标签。
 
 ## 14. 禁止事项
 

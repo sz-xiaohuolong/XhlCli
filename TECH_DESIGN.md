@@ -3,8 +3,10 @@
 > 文档状态：已确认，可用于分期实现
 > 设计版本：v1.0
 > Java 基线：21
-> 更新日期：2026-08-25
+> 更新日期：2026-08-27
 > 产品需求：[`PRD.md`](PRD.md)
+
+> 实现状态（2026-08-27）：Phase 02 已交付受控 ReAct 基线；后续章节中的 Plan、MCP、RAG、Policy/HITL、审计和本地工具仍为目标架构，不应当被理解为现有能力。
 
 ## 1. 文档目的
 
@@ -19,6 +21,14 @@
 5. 上下文、记忆、RAG 和 Skill 按需注入，有清晰预算与来源。
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
+
+## 2.1 Phase 02 已实现基线
+
+- `ReactAgent` 仅依赖 `LlmClient`、`ToolExecutor` 和不可变消息/工具协议，按模型响应中的结构化 `tool_calls` 驱动串行 ReAct 循环；不解析自然语言 `Thought:`。
+- `ChatMessage`、`ToolCall`、`ToolResult` 和 `ToolDefinition` 使 assistant Tool Call 与 `tool_call_id` Observation 保持原始顺序关联。OpenAI-compatible SSE 按调用 index 累积碎片。
+- `RunLifecycle` 和统一的 sealed `RunEvent` 负责状态、严格递增序号和用户可见时间线；Plain Renderer 只投影安全摘要，且不输出 ANSI、reasoning 或未脱敏凭据。
+- 当前注册的仅是进程内 `echo_text` 与 `current_time` 演示工具。默认 10 次迭代、600 秒整体超时；取消、超时、两次空响应、连续三轮相同调用/结果和终态竞争均阻止后续模型或工具启动。
+- 本期尚未接入真实文件系统、Shell、Git、Policy/HITL、审计、Plan、并行、Multi-Agent、MCP、RAG、持久 Run 或崩溃恢复；这些项目保留在各自后续阶段。
 
 ## 3. 非目标
 
@@ -146,7 +156,7 @@ xhlcli/
 - `budget`
 - `cancellationToken`
 
-Run 状态只能通过应用服务迁移。进入 `completed`、`failed` 或 `canceled` 后，不得产生新的模型请求或工具执行。
+Run 状态只能通过应用服务迁移。进入 `completed`、`failed`、`canceled` 或 `limit_reached` 后，不得产生新的模型请求或工具执行。
 
 ### 7.2 Message
 
@@ -457,3 +467,4 @@ API Key 默认仅引用环境变量名。`.env` 只作为本地开发便利，�
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-08-25 | 确立 Java 21、模块边界、事件模型、安全管线与选择性迁移方案 |
+| v1.1 | 2026-08-27 | 记录已交付的 Phase 02 受控 ReAct 基线及其与后续目标架构的边界 |

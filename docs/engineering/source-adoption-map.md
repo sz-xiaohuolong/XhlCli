@@ -31,7 +31,7 @@
 |---|---|---|---|
 | 00 项目基线 | `e2b8df4` 的 `pom.xml` | Maven 构建、Shade 入口、`.gitignore` | 只采用构建思路，不迁移 Agent 业务；升级 Java 21 并增加测试/CI |
 | 01 终端对话 | `e2b8df4`、`530bb9c`、`f49d33c`、最终 `llm/DeepSeekClient` | `cli/Main`、`llm/AbstractOpenAiCompatibleClient`、`llm/DeepSeekClient` | 采用请求结构、SSE 累积、Bearer 鉴权与 DeepSeek HTTP/1.1 兼容点；新增安全配置、取消、错误分类、受控重试和测试边界，不引入 Tool Call |
-| 02 ReAct | `e2b8df4`、最终 `agent/Agent` | `Agent`、`LlmClient`、Tool Call 消息 | 保留循环骨架，补上最大迭代、取消、重复检测和事件模型 |
+| 02 ReAct | `e2b8df4`、`f49d33c`、`a6fa3a8`、`b7ee842` | `agent/Agent`、`agent/AgentBudget`、`llm/LlmClient`、`llm/AbstractOpenAiCompatibleClient`、`tool/ToolRegistry` | 已交付：保留最小循环、结构化消息和流式 Tool Call 的采用意图；以 XhlCLI 自有协议补上最大迭代、超时、取消、重复检测、事件和受控演示工具 |
 | 03 本地工具 | `e2b8df4`、`72a7e90`、`c69be83` | `tool/ToolRegistry`、代码搜索工具 | 拆分最终巨型 Registry，按工具职责迁移，保留统一注册入口 |
 | 04 安全审批 | `75e6642`、`f90d9f5` | `hitl/*`、`policy/*` | 迁移审批和围栏，按 PRD 保持硬策略优先、非交互默认拒绝 |
 | 05 上下文记忆 | `d16c54e`、`72a7e90`、`96bc8b2` | `memory/*`、`context/*`、项目记忆加载 | 分开会话压缩、长期记忆和项目规则，删除自动长期记忆路径 |
@@ -48,6 +48,21 @@
 | 16 诊断快照 | `bceb60b` | `lsp/*`、`snapshot/*` | 将诊断与快照拆成两个可独立验收子能力 |
 | 17 Runtime 多模态 | `bceb60b` | `runtime/*`、`image/*` | 先持久任务与 API，再图片输入；共享 Run 事件和权限层 |
 | 18 开源发行 | 最终仓库测试与文档 | 测试矩阵、构建配置、示例 | 不迁移品牌站点；新建 XhlCLI 自有基准、发行和贡献文档 |
+
+### 4.1 Phase 02 已交付采用记录
+
+Phase 02 的采用依据固定为下列 Git 对象；读取时使用 `git -C ../paicli show <commit>:<path>`，不读取或修改参考工作树中的未提交状态。
+
+| 固定对象 | 采用的意图 | XhlCLI 主动差异 |
+|---|---|---|
+| `e2b8df4:src/main/java/com/paicli/agent/Agent.java` | 最小 ReAct 循环、assistant Tool Call 入历史、Observation 回灌和无调用完成 | 拆分到 `ReactAgent`、`RunLifecycle`、`RunEvent` 与 `ToolExecutor`；不直接写终端 |
+| `e2b8df4:src/main/java/com/paicli/llm/GLMClient.java` | OpenAI-compatible message、Tool Call 和 `tool_call_id` 线索 | 使用不可变顶层 `com.xhlcli.model` 协议，并保持 Phase 01 的 Provider 边界与取消/错误映射 |
+| `e2b8df4:src/main/java/com/paicli/tool/ToolRegistry.java` | 注册、定义导出和按名称查找的最小意图 | 重名失败、受限 JSON Schema 校验、结构化 `ToolResult`；仅 `echo_text` 和 `current_time`，不迁移真实本地工具 |
+| `f49d33c:src/main/java/com/paicli/llm/LlmClient.java`、`src/test/java/com/paicli/agent/AgentMessageTest.java`、`src/test/java/com/paicli/tool/ToolRegistryTest.java` | Provider-neutral LLM 边界和消息/注册测试线索 | 融合既有流式接口；XhlCLI 自建确定性契约测试，不引入参考实现的后期职责 |
+| `a6fa3a8:src/main/java/com/paicli/agent/AgentBudget.java`、`src/test/java/com/paicli/agent/AgentBudgetTest.java` | 最大轮次和连续调用停滞检测 | `RunLimits` 加入 1–100 迭代边界；重复指纹同时比较规范化参数和结果，并连续三轮才限制 |
+| `b7ee842:src/main/java/com/paicli/agent/Agent.java`、`src/main/java/com/paicli/llm/AbstractOpenAiCompatibleClient.java`、`src/main/java/com/paicli/tool/ToolRegistry.java`、`src/test/java/com/paicli/agent/AgentMessageTest.java`、`src/test/java/com/paicli/agent/AgentStreamRendererTest.java`、`src/test/java/com/paicli/tool/ToolRegistryTest.java` | 最终消息顺序、流式 Tool Call 碎片累积和 Registry 职责分离的对照 | 不迁移最终巨型类、Memory/RAG/Skill/LSP/图片/并行/MCP 或参考渲染；增加整体超时、first-wins 终态门、RunEvent 脱敏和 Plain 输出 |
+
+XhlCLI 的验证资产为自有 `com.xhlcli` 测试：工具/消息/事件/流式协议、成功与失败恢复、限制、取消、超时、重复、空响应、重复调用 ID 和终态不变量均不依赖真实 Key、网络、用户目录或参考仓库测试运行。发布时仍按本文件第 2 节的书面授权与法律要求处理。
 
 ## 5. 不直接迁移的内容
 
@@ -90,3 +105,4 @@
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | v1.0 | 2026-08-25 | 建立历史提交、模块、测试与 XhlCLI 阶段的采用地图 |
+| v1.1 | 2026-08-27 | 固定 Phase 02 的参考 Git 对象、测试对照和 XhlCLI 主动差异 |
