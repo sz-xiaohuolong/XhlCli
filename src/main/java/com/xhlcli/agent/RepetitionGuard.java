@@ -66,10 +66,26 @@ public final class RepetitionGuard {
     }
 
     private JsonNode canonicalArguments(String argumentsJson) {
+        ArrayNode tagged = mapper.createArrayNode();
+        if (argumentsJson == null) {
+            tagged.add(false);
+            tagged.addNull();
+            return tagged;
+        }
         try {
-            return canonicalize(mapper.readTree(Objects.requireNonNull(argumentsJson, "call.argumentsJson")));
+            JsonNode parsed = mapper.readTree(argumentsJson);
+            if (parsed == null) {
+                tagged.add(false);
+                tagged.add(argumentsJson);
+                return tagged;
+            }
+            tagged.add(true);
+            tagged.add(canonicalize(parsed));
+            return tagged;
         } catch (JsonProcessingException failure) {
-            throw new IllegalArgumentException("Tool arguments must be valid JSON", failure);
+            tagged.add(false);
+            tagged.add(argumentsJson);
+            return tagged;
         }
     }
 

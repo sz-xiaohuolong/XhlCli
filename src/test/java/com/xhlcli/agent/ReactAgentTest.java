@@ -227,6 +227,26 @@ class ReactAgentTest {
     }
 
     @Test
+    void limitsThreeEquivalentMalformedCallsWithoutMakingAFourthModelRequest() throws Exception {
+        RecordingClient client = new RecordingClient(List.of(
+                response("", new ToolCall("one", "echo_text", "{bad-json}")),
+                response("", new ToolCall("two", "echo_text", "{bad-json}")),
+                response("", new ToolCall("three", "echo_text", "{bad-json}")),
+                response("never requested")));
+        RecordingExecutor executor = new RecordingExecutor(List.of(
+                result("one", "echo_text", ToolResultStatus.VALIDATION_ERROR, "invalid", "{}"),
+                result("two", "echo_text", ToolResultStatus.VALIDATION_ERROR, "invalid", "{}"),
+                result("three", "echo_text", ToolResultStatus.VALIDATION_ERROR, "invalid", "{}")));
+        ReactAgent agent = agent(client, executor, new RunLimits(5, java.time.Duration.ofMinutes(1)));
+
+        RunResult run = agent.run("repeat invalid", ignored -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.LIMIT_REACHED, run.status());
+        assertEquals("REPETITION", run.reason());
+        assertEquals(3, client.requests.size());
+    }
+
+    @Test
     void mapsUserCancellationDuringAModelRequestToOneCancelledTerminalEvent() throws Exception {
         BlockingModel client = new BlockingModel();
         ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),

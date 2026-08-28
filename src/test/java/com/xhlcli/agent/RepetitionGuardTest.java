@@ -43,6 +43,50 @@ class RepetitionGuardTest {
         assertTrue(guard.recordCompletedIteration(calls, firstResult));
     }
 
+    @Test
+    void detectsTheThirdConsecutiveMalformedArgumentTextAndResetsWhenItChanges() throws Exception {
+        RepetitionGuard guard = new RepetitionGuard(mapper);
+        List<ToolResult> results = List.of(validationError("one"));
+
+        assertFalse(guard.recordCompletedIteration(List.of(call("one", "{bad-json}")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("two", "{bad-json}")), results));
+        assertTrue(guard.recordCompletedIteration(List.of(call("three", "{bad-json}")), results));
+
+        assertFalse(guard.recordCompletedIteration(List.of(call("four", "{different-json}")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("five", "{bad-json}")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("six", "{bad-json}")), results));
+        assertTrue(guard.recordCompletedIteration(List.of(call("seven", "{bad-json}")), results));
+    }
+
+    @Test
+    void keepsValidJsonAndMalformedRawArgumentTextInSeparateFingerprintDomains() throws Exception {
+        RepetitionGuard guard = new RepetitionGuard(mapper);
+        List<ToolResult> results = List.of(validationError("one"));
+
+        assertFalse(guard.recordCompletedIteration(
+                List.of(call("one", "{\"raw\":\"{bad-json}\"}")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("two", "{bad-json}")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("three", "{bad-json}")), results));
+        assertTrue(guard.recordCompletedIteration(List.of(call("four", "{bad-json}")), results));
+    }
+
+    private ToolCall call(String id, String arguments) {
+        return new ToolCall(id, "echo_text", arguments);
+    }
+
+    private ToolResult validationError(String callId) throws Exception {
+        return new ToolResult(
+                callId,
+                "echo_text",
+                ToolResultStatus.VALIDATION_ERROR,
+                "invalid",
+                mapper.readTree("{}"),
+                0,
+                false,
+                2,
+                "");
+    }
+
     private ToolResult result(String callId, String data, long elapsedMillis) throws Exception {
         return new ToolResult(
                 callId,
