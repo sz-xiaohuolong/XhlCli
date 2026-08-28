@@ -4,12 +4,14 @@ import com.xhlcli.model.RunEvent;
 import com.xhlcli.model.RunStatus;
 import com.xhlcli.model.TokenUsage;
 import com.xhlcli.model.ToolResultStatus;
+import com.xhlcli.llm.LlmErrorType;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -80,6 +82,34 @@ class PlainRunRendererTest {
         assertEquals(2, occurrences(rendered, "Assistant: "));
         assertTrue(rendered.contains("planning\nTool echo_text:"));
         assertTrue(rendered.contains("final\n[tokens: unknown]"));
+    }
+
+    @Test
+    void rendersEveryTypedLlmFailureWithPhaseOneGuidanceAndPartialMarker() {
+        Map<LlmErrorType, String> suggestions = Map.ofEntries(
+                Map.entry(LlmErrorType.MISSING_CONFIGURATION, "Set DEEPSEEK_API_KEY in the project .env file."),
+                Map.entry(LlmErrorType.AUTHENTICATION, "Check DEEPSEEK_API_KEY and its account permissions."),
+                Map.entry(LlmErrorType.RATE_LIMIT, "Wait briefly, then try again."),
+                Map.entry(LlmErrorType.NETWORK, "Check your network connection and DeepSeek endpoint."),
+                Map.entry(LlmErrorType.SERVER, "The provider is unavailable; try again later."),
+                Map.entry(LlmErrorType.INVALID_RESPONSE, "Retry the request; use DEBUG logs if the problem persists."),
+                Map.entry(LlmErrorType.TIMEOUT, "Increase the timeout or retry on a stable connection."),
+                Map.entry(LlmErrorType.CANCELLED, "Submit a new prompt when ready."),
+                Map.entry(LlmErrorType.INVALID_CONFIGURATION, "Check the configured model, URL, and timeout values."),
+                Map.entry(LlmErrorType.EMPTY_RESPONSE, "Retry the request; use DEBUG logs if the problem persists."));
+
+        for (Map.Entry<LlmErrorType, String> entry : suggestions.entrySet()) {
+            Streams streams = new Streams("top-secret-key");
+            streams.renderer.accept(new RunEvent.RunFailed(
+                    metadata(1), entry.getKey().name(), entry.getKey(), "provider rejected top-secret-key", true));
+
+            String rendered = streams.err();
+            assertTrue(rendered.contains("[" + entry.getKey() + "]"));
+            assertTrue(rendered.contains("(response incomplete)"));
+            assertTrue(rendered.contains(entry.getValue()));
+            assertFalse(rendered.contains("top-secret-key"));
+            assertFalse(rendered.contains("\u001B["));
+        }
     }
 
     private static RunEvent.Metadata metadata(long sequence) {

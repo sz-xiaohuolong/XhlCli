@@ -3,6 +3,7 @@ package com.xhlcli.render;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ConfigKey;
 import com.xhlcli.config.SecretRedactor;
+import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.model.RunEvent;
 
 import java.io.PrintStream;
@@ -40,7 +41,7 @@ public final class PlainRunRenderer {
             case RunEvent.ToolCompleted completed -> renderToolCompleted(completed);
             case RunEvent.IterationCompleted ignored -> { }
             case RunEvent.RunCompleted completed -> renderCompleted(completed);
-            case RunEvent.RunFailed failed -> renderTerminalError("FAILED", failed.reason());
+            case RunEvent.RunFailed failed -> renderFailure(failed);
             case RunEvent.RunCancelled cancelled -> renderTerminalError("CANCELED", cancelled.reason());
             case RunEvent.RunLimitReached limit -> renderTerminalError("LIMIT_REACHED", limit.reason());
         }
@@ -118,6 +119,34 @@ public final class PlainRunRenderer {
             assistantLineOpen = false;
         }
         err.println("Run " + status + ": " + safeSummary(reason));
+    }
+
+    private void renderFailure(RunEvent.RunFailed failure) {
+        if (failure.errorType() == null) {
+            renderTerminalError("FAILED", failure.reason());
+            return;
+        }
+        if (assistantLineOpen) {
+            err.println();
+            assistantLineOpen = false;
+        }
+        String partial = failure.partialResponse() ? " (response incomplete)" : "";
+        err.printf("[%s]%s %s%n", failure.errorType(), partial, safe(failure.safeMessage()));
+        err.println("Suggestion: " + suggestion(failure.errorType()));
+    }
+
+    private String suggestion(LlmErrorType type) {
+        return switch (type) {
+            case MISSING_CONFIGURATION -> "Set DEEPSEEK_API_KEY in the project .env file.";
+            case AUTHENTICATION -> "Check DEEPSEEK_API_KEY and its account permissions.";
+            case RATE_LIMIT -> "Wait briefly, then try again.";
+            case NETWORK -> "Check your network connection and DeepSeek endpoint.";
+            case SERVER -> "The provider is unavailable; try again later.";
+            case INVALID_RESPONSE, EMPTY_RESPONSE -> "Retry the request; use DEBUG logs if the problem persists.";
+            case TIMEOUT -> "Increase the timeout or retry on a stable connection.";
+            case CANCELLED -> "Submit a new prompt when ready.";
+            case INVALID_CONFIGURATION -> "Check the configured model, URL, and timeout values.";
+        };
     }
 
     private void closeAssistantLine() {

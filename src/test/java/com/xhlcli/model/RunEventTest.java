@@ -1,5 +1,6 @@
 package com.xhlcli.model;
 
+import com.xhlcli.llm.LlmErrorType;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -29,5 +30,20 @@ class RunEventTest {
                 new RunEvent.RunCancelled(METADATA, "USER").status());
         assertEquals(RunStatus.LIMIT_REACHED,
                 new RunEvent.RunLimitReached(METADATA, "ITERATIONS").status());
+    }
+
+    @Test
+    void failedEventsRetainOptionalStructuredLlmFailureDetails() {
+        RunEvent.RunFailed failure = new RunEvent.RunFailed(
+                METADATA, "NETWORK", LlmErrorType.NETWORK, "Provider connection failed.", true);
+
+        assertEquals(LlmErrorType.NETWORK, failure.errorType());
+        assertEquals("Provider connection failed.", failure.safeMessage());
+        assertEquals(true, failure.partialResponse());
+        assertEquals(null, new RunEvent.RunFailed(METADATA, "PROTOCOL").errorType());
+        assertThrows(IllegalArgumentException.class,
+                () -> new RunEvent.RunFailed(METADATA, "PROTOCOL", null, "not an LLM failure", false));
+        assertThrows(IllegalArgumentException.class,
+                () -> new RunEvent.RunFailed(METADATA, "NETWORK", LlmErrorType.NETWORK, " ", false));
     }
 }

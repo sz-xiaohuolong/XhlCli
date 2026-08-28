@@ -1,5 +1,7 @@
 package com.xhlcli.model;
 
+import com.xhlcli.llm.LlmErrorType;
+
 import java.time.Instant;
 import java.util.Objects;
 
@@ -98,10 +100,27 @@ public sealed interface RunEvent permits RunEvent.RunStarted, RunEvent.ModelRequ
         }
     }
 
-    record RunFailed(Metadata metadata, String reason) implements RunEvent {
+    record RunFailed(
+            Metadata metadata,
+            String reason,
+            LlmErrorType errorType,
+            String safeMessage,
+            boolean partialResponse) implements RunEvent {
         public RunFailed {
             requireMetadata(metadata);
             requireNonBlank(reason, "reason");
+            Objects.requireNonNull(safeMessage, "safeMessage");
+            if (errorType == null) {
+                if (!safeMessage.isEmpty() || partialResponse) {
+                    throw new IllegalArgumentException("Non-LLM failures must not contain LLM failure details");
+                }
+            } else {
+                requireNonBlank(safeMessage, "safeMessage");
+            }
+        }
+
+        public RunFailed(Metadata metadata, String reason) {
+            this(metadata, reason, null, "", false);
         }
 
         public RunStatus status() {

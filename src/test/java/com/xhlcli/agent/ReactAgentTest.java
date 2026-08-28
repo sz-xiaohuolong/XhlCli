@@ -3,6 +3,8 @@ package com.xhlcli.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.llm.LlmClient;
+import com.xhlcli.llm.LlmErrorType;
+import com.xhlcli.llm.LlmException;
 import com.xhlcli.llm.StreamListener;
 import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
@@ -380,6 +382,64 @@ class ReactAgentTest {
         assertEquals(2, client.requests);
         assertEquals(List.of(SYSTEM), agent.history());
         assertTerminalEventInvariants(events);
+        RunEvent.RunFailed failure = events.stream()
+                .filter(RunEvent.RunFailed.class::isInstance)
+                .map(RunEvent.RunFailed.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(LlmErrorType.EMPTY_RESPONSE, failure.errorType());
+        assertEquals("empty", failure.safeMessage());
+        assertFalse(failure.partialResponse());
+    }
+
+    @Test
+    void publishesStructuredSanitizedLlmFailureWithoutChangingHistory() {
+        String knownKey = "known-secret";
+        LlmClient client = (messages, tools, listener, token) -> {
+            listener.onTextDelta("partial known-secret");
+            throw new LlmException(
+                    LlmErrorType.NETWORK,
+                    "provider known-secret Bearer provider-token token=known-secret password=known-secret",
+                    false,
+                    true);
+        };
+        ReactAgent agent = agentWithEventSanitizer(client, new RecordingExecutor(List.of()),
+                value -> SecretRedactor.redact(value, knownKey));
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = agent.run("prompt", events::add, new CancellationToken());
+
+        RunEvent.RunFailed failure = events.stream()
+                .filter(RunEvent.RunFailed.class::isInstance)
+                .map(RunEvent.RunFailed.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(RunStatus.FAILED, result.status());
+        assertEquals("NETWORK", result.reason());
+        assertEquals(LlmErrorType.NETWORK, failure.errorType());
+        assertTrue(failure.partialResponse());
+        assertFalse(failure.safeMessage().contains("known-secret"));
+        assertFalse(failure.safeMessage().contains("provider-token"));
+        assertEquals(List.of(SYSTEM), agent.history());
+    }
+
+    @Test
+    void mapsOverallTimeoutToTypedPartialLlmFailureAfterTextDelta() throws Exception {
+        BlockingModel client = new BlockingModel();
+        ManualTimeoutScheduler scheduler = new ManualTimeoutScheduler();
+        ReactAgent agent = agent(client, new RecordingExecutor(List.of()), new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                scheduler, List.of());
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = inWorker(() -> agent.run("timeout", events::add, new CancellationToken()), client.started, scheduler::fire);
+
+        RunEvent.RunFailed failure = events.stream()
+                .filter(RunEvent.RunFailed.class::isInstance)
+                .map(RunEvent.RunFailed.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(RunStatus.FAILED, result.status());
+        assertEquals("TIMEOUT", result.reason());
+        assertEquals(LlmErrorType.TIMEOUT, failure.errorType());
+        assertEquals("The run exceeded its overall timeout.", failure.safeMessage());
+        assertTrue(failure.partialResponse());
     }
 
     @Test
@@ -639,7 +699,7 @@ class ReactAgentTest {
             case RunEvent.ToolStarted started -> started.toolName() + started.argumentsSummary();
             case RunEvent.ToolCompleted completed -> completed.toolName() + completed.summary();
             case RunEvent.RunCompleted completed -> completed.finalAnswer();
-            case RunEvent.RunFailed failed -> failed.reason();
+            case RunEvent.RunFailed failed -> failed.reason() + failed.safeMessage();
             case RunEvent.RunCancelled cancelled -> cancelled.reason();
             case RunEvent.RunLimitReached limit -> limit.reason();
             case RunEvent.ModelRequestStarted ignored -> "";
@@ -786,6 +846,7 @@ class ReactAgentTest {
         public ChatResponse stream(List<ChatMessage> messages, List<ToolDefinition> tools,
                 StreamListener listener, CancellationToken cancellationToken) throws com.xhlcli.llm.LlmException {
             requests++;
+            listener.onTextDelta("partial");
             CountDownLatch cancelled = new CountDownLatch(1);
             try (CancellationToken.Registration ignored = cancellationToken.onCancel(cancelled::countDown)) {
                 started.countDown();

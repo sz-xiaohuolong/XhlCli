@@ -195,8 +195,8 @@ public final class ReactAgent implements AgentRunner {
                     if (failure.type() == LlmErrorType.EMPTY_RESPONSE && ++emptyResponses < 2) {
                         continue;
                     }
-                    String reason = failure.type() == LlmErrorType.EMPTY_RESPONSE ? "EMPTY_RESPONSE" : failure.type().name();
-                    return finish(lifecycle, sequencer, runId, RunStatus.FAILED, reason, "", iterations, usage);
+                    return finish(lifecycle, sequencer, runId, RunStatus.FAILED, failure.type().name(), "", iterations,
+                            usage, failure.type(), failure.getMessage(), failure.partialResponse());
                 }
                 RunResult stoppedAfterModel = finishIfStopped(lifecycle, sequencer, runId, gate, iterations, usage);
                 if (stoppedAfterModel != null) {
@@ -211,8 +211,9 @@ public final class ReactAgent implements AgentRunner {
                         if (++emptyResponses < 2) {
                             continue;
                         }
-                        return finish(lifecycle, sequencer, runId, RunStatus.FAILED,
-                                "EMPTY_RESPONSE", "", iterations, usage);
+                        return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "EMPTY_RESPONSE", "", iterations,
+                                usage, LlmErrorType.EMPTY_RESPONSE, "Provider returned an empty response.",
+                                sequencer.hasTextDelta());
                     }
                     workingHistory.add(ChatMessage.assistant(response.content()));
                     String finalText = response.content();
@@ -324,7 +325,8 @@ public final class ReactAgent implements AgentRunner {
             case USER -> finish(lifecycle, sequencer, runId, RunStatus.CANCELED,
                     "USER_CANCELED", "", iterations, usage);
             case TIMEOUT -> finish(lifecycle, sequencer, runId, RunStatus.FAILED,
-                    "TIMEOUT", "", iterations, usage);
+                    "TIMEOUT", "", iterations, usage, LlmErrorType.TIMEOUT,
+                    "The run exceeded its overall timeout.", sequencer.hasTextDelta());
             case NONE -> throw new IllegalArgumentException("A stop reason is required");
         };
     }
@@ -338,11 +340,27 @@ public final class ReactAgent implements AgentRunner {
             String finalAnswer,
             int iterations,
             TokenUsage usage) {
+        return finish(lifecycle, sequencer, runId, status, reason, finalAnswer, iterations, usage, null, "", false);
+    }
+
+    private RunResult finish(
+            RunLifecycle lifecycle,
+            EventSequencer sequencer,
+            String runId,
+            RunStatus status,
+            String reason,
+            String finalAnswer,
+            int iterations,
+            TokenUsage usage,
+            LlmErrorType errorType,
+            String safeMessage,
+            boolean partialResponse) {
         if (lifecycle.finish(status)) {
             RunEvent.Metadata metadata = sequencer.metadata(iterations);
             switch (status) {
                 case COMPLETED -> sequencer.emitTerminal(new RunEvent.RunCompleted(metadata, finalAnswer, usage));
-                case FAILED -> sequencer.emitTerminal(new RunEvent.RunFailed(metadata, reason));
+                case FAILED -> sequencer.emitTerminal(new RunEvent.RunFailed(
+                        metadata, reason, errorType, safeMessage, partialResponse));
                 case CANCELED -> sequencer.emitTerminal(new RunEvent.RunCancelled(metadata, reason));
                 case LIMIT_REACHED -> sequencer.emitTerminal(new RunEvent.RunLimitReached(metadata, reason));
                 default -> throw new IllegalArgumentException("Terminal status is required");
@@ -485,6 +503,7 @@ public final class ReactAgent implements AgentRunner {
         private final Clock clock;
         private final Function<String, String> sanitizer;
         private long sequence;
+        private boolean textDeltaEmitted;
 
         private EventSequencer(String runId, RunEventSink sink, Clock clock, Function<String, String> sanitizer) {
             this.runId = runId;
@@ -498,7 +517,14 @@ public final class ReactAgent implements AgentRunner {
         }
 
         private void emit(RunEvent event) {
+            if (event instanceof RunEvent.TextDelta) {
+                textDeltaEmitted = true;
+            }
             sink.accept(sanitize(event));
+        }
+
+        private boolean hasTextDelta() {
+            return textDeltaEmitted;
         }
 
         private void emitTerminal(RunEvent event) {
@@ -529,7 +555,13 @@ public final class ReactAgent implements AgentRunner {
                 case RunEvent.IterationCompleted completed -> completed;
                 case RunEvent.RunCompleted completed -> new RunEvent.RunCompleted(
                         metadata, sanitize(completed.finalAnswer()), completed.usage());
-                case RunEvent.RunFailed failed -> new RunEvent.RunFailed(metadata, sanitize(failed.reason()));
+                case RunEvent.RunFailed failed -> new RunEvent.RunFailed(
+                        metadata,
+                        sanitizeRequired(failed.reason(), "REDACTED_FAILURE"),
+                        failed.errorType(),
+                        failed.errorType() == null ? "" : sanitizeRequired(
+                                failed.safeMessage(), "Failure details were redacted."),
+                        failed.partialResponse());
                 case RunEvent.RunCancelled cancelled -> new RunEvent.RunCancelled(metadata, sanitize(cancelled.reason()));
                 case RunEvent.RunLimitReached limit -> new RunEvent.RunLimitReached(metadata, sanitize(limit.reason()));
             };
@@ -537,6 +569,11 @@ public final class ReactAgent implements AgentRunner {
 
         private String sanitize(String value) {
             return Objects.requireNonNull(sanitizer.apply(value), "event sanitizer result");
+        }
+
+        private String sanitizeRequired(String value, String fallback) {
+            String sanitized = sanitize(value);
+            return sanitized.isBlank() ? fallback : sanitized;
         }
     }
 }
