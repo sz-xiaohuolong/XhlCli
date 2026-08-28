@@ -1,6 +1,8 @@
 package com.xhlcli.agent;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -8,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xhlcli.model.ToolCall;
 import com.xhlcli.model.ToolResult;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -66,27 +69,36 @@ public final class RepetitionGuard {
     }
 
     private JsonNode canonicalArguments(String argumentsJson) {
-        ArrayNode tagged = mapper.createArrayNode();
         if (argumentsJson == null) {
-            tagged.add(false);
-            tagged.addNull();
-            return tagged;
+            return malformedArguments(null);
         }
-        try {
-            JsonNode parsed = mapper.readTree(argumentsJson);
-            if (parsed == null) {
-                tagged.add(false);
-                tagged.add(argumentsJson);
-                return tagged;
+        try (JsonParser parser = mapper.getFactory().createParser(argumentsJson)) {
+            JsonToken firstToken = parser.nextToken();
+            if (firstToken == null) {
+                return malformedArguments(argumentsJson);
             }
+            JsonNode parsed = mapper.readTree(parser);
+            if (parsed == null || parsed.isMissingNode() || parser.nextToken() != null) {
+                return malformedArguments(argumentsJson);
+            }
+            ArrayNode tagged = mapper.createArrayNode();
             tagged.add(true);
             tagged.add(canonicalize(parsed));
             return tagged;
-        } catch (JsonProcessingException failure) {
-            tagged.add(false);
-            tagged.add(argumentsJson);
-            return tagged;
+        } catch (IOException failure) {
+            return malformedArguments(argumentsJson);
         }
+    }
+
+    private ArrayNode malformedArguments(String rawArguments) {
+        ArrayNode tagged = mapper.createArrayNode();
+        tagged.add(false);
+        if (rawArguments == null) {
+            tagged.addNull();
+        } else {
+            tagged.add(rawArguments);
+        }
+        return tagged;
     }
 
     private JsonNode canonicalize(JsonNode node) {

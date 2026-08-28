@@ -70,6 +70,41 @@ class RepetitionGuardTest {
         assertTrue(guard.recordCompletedIteration(List.of(call("four", "{bad-json}")), results));
     }
 
+    @Test
+    void treatsEmptyInputAsMalformedAndKeepsItSeparateFromJsonNull() throws Exception {
+        RepetitionGuard guard = new RepetitionGuard(mapper);
+        List<ToolResult> results = List.of(validationError("one"));
+
+        assertFalse(guard.recordCompletedIteration(List.of(call("one", "")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("two", "null")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("three", "null")), results));
+    }
+
+    @Test
+    void treatsTrailingTokensAsMalformedRawTextAndRepeatsOnlyTheExactText() throws Exception {
+        RepetitionGuard guard = new RepetitionGuard(mapper);
+        List<ToolResult> results = List.of(validationError("one"));
+        String valid = "{\"a\":1}";
+        String trailing = "{\"a\":1}junk";
+
+        assertFalse(guard.recordCompletedIteration(List.of(call("one", valid)), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("two", trailing)), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("three", trailing)), results));
+        assertTrue(guard.recordCompletedIteration(List.of(call("four", trailing)), results));
+    }
+
+    @Test
+    void keepsNullRawStableWithoutCollidingWithJsonNull() throws Exception {
+        RepetitionGuard guard = new RepetitionGuard(mapper);
+        List<ToolResult> results = List.of(validationError("one"));
+
+        assertFalse(guard.recordCompletedIteration(List.of(call("one", null)), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("two", "null")), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("three", null)), results));
+        assertFalse(guard.recordCompletedIteration(List.of(call("four", null)), results));
+        assertTrue(guard.recordCompletedIteration(List.of(call("five", null)), results));
+    }
+
     private ToolCall call(String id, String arguments) {
         return new ToolCall(id, "echo_text", arguments);
     }
