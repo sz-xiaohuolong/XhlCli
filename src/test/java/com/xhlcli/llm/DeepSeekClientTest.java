@@ -164,6 +164,62 @@ class DeepSeekClientTest {
     }
 
     @Test
+    void preservesAToolCallWithAMissingId() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"echo_text","arguments":"{}"}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals(List.of(new ToolCall("", "echo_text", "{}")), response.toolCalls());
+    }
+
+    @Test
+    void preservesAToolCallWithAMissingName() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"arguments":"{}"}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals(List.of(new ToolCall("call_1", "", "{}")), response.toolCalls());
+    }
+
+    @Test
+    void preservesAToolCallWithMissingArguments() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"echo_text"}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals(List.of(new ToolCall("call_1", "echo_text", "")), response.toolCalls());
+    }
+
+    @Test
+    void preservesAToolCallWithEmptyArguments() throws Exception {
+        server.enqueue(sse("""
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"echo_text","arguments":""}}]}}]}
+
+                data: [DONE]
+
+                """));
+
+        ChatResponse response = stream(client(config(Duration.ofSeconds(2))));
+
+        assertEquals(List.of(new ToolCall("call_1", "echo_text", "")), response.toolCalls());
+    }
+
+    @Test
     void doneStreamWithoutTextOrToolCallsIsAnEmptyResponse() throws Exception {
         server.enqueue(sse("data: [DONE]\n\n"));
 

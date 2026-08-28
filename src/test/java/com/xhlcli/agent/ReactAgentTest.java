@@ -16,7 +16,12 @@ import com.xhlcli.model.ToolDefinition;
 import com.xhlcli.model.ToolMetadata;
 import com.xhlcli.model.ToolResult;
 import com.xhlcli.model.ToolResultStatus;
+import com.xhlcli.tool.DefaultToolExecutor;
 import com.xhlcli.tool.ToolExecutor;
+import com.xhlcli.tool.ToolRegistry;
+import com.xhlcli.tool.ToolResultBudget;
+import com.xhlcli.tool.ToolSchemaValidator;
+import com.xhlcli.tool.demo.EchoTool;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -270,6 +275,59 @@ class ReactAgentTest {
         assertEquals("DUPLICATE_TOOL_CALL_ID", run.reason());
         assertTrue(executor.executedNames().isEmpty());
         assertEquals(List.of(SYSTEM), agent.history());
+    }
+
+    @Test
+    void rejectsBlankToolIdsAndNamesBeforeExecutingAnyTool() {
+        RecordingClient blankIdClient = new RecordingClient(List.of(
+                response("", new ToolCall("", "echo_text", "{}"))));
+        RecordingExecutor blankIdExecutor = new RecordingExecutor(List.of());
+        ReactAgent blankIdAgent = agent(blankIdClient, blankIdExecutor, new RunLimits(5, java.time.Duration.ofMinutes(1)));
+
+        RunResult blankIdRun = blankIdAgent.run("blank id", ignored -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.FAILED, blankIdRun.status());
+        assertEquals("INVALID_TOOL_CALL_ID", blankIdRun.reason());
+        assertTrue(blankIdExecutor.executedNames().isEmpty());
+        assertEquals(List.of(SYSTEM), blankIdAgent.history());
+
+        RecordingClient blankNameClient = new RecordingClient(List.of(
+                response("", new ToolCall("call_1", "", "{}"))));
+        RecordingExecutor blankNameExecutor = new RecordingExecutor(List.of());
+        ReactAgent blankNameAgent = agent(blankNameClient, blankNameExecutor,
+                new RunLimits(5, java.time.Duration.ofMinutes(1)));
+
+        RunResult blankNameRun = blankNameAgent.run("blank name", ignored -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.FAILED, blankNameRun.status());
+        assertEquals("INVALID_TOOL_NAME", blankNameRun.reason());
+        assertTrue(blankNameExecutor.executedNames().isEmpty());
+        assertEquals(List.of(SYSTEM), blankNameAgent.history());
+    }
+
+    @Test
+    void returnsAValidationObservationForMissingArgumentsBeforeTheModelCorrectsTheCall() {
+        EchoTool echoTool = new EchoTool();
+        DefaultToolExecutor executor = new DefaultToolExecutor(
+                new ToolRegistry(List.of(echoTool)),
+                new ToolSchemaValidator(mapper),
+                new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
+                mapper,
+                () -> 0L);
+        RecordingClient client = new RecordingClient(List.of(
+                response("", new ToolCall("missing_arguments", "echo_text", "")),
+                response("", new ToolCall("corrected", "echo_text", "{\"text\":\"fixed\"}")),
+                response("done")));
+        ReactAgent agent = agent(client, executor, new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(), List.of(echoTool.definition()));
+
+        RunResult run = agent.run("recover missing arguments", ignored -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.COMPLETED, run.status());
+        assertEquals("done", run.finalAnswer());
+        assertEquals(3, client.requests.size());
+        assertTrue(client.requests.get(1).get(3).content().contains("validation_error"));
+        assertTrue(client.requests.get(2).get(5).content().contains("success"));
     }
 
     @Test

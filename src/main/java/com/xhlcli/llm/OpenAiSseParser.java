@@ -144,9 +144,6 @@ final class OpenAiSseParser {
         }
 
         ToolCall build() {
-            if (id.isEmpty() || name.isEmpty() || arguments.isEmpty()) {
-                throw new IllegalStateException("Tool call fields must not be empty");
-            }
             return new ToolCall(id.toString(), name.toString(), arguments.toString());
         }
 
