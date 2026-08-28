@@ -18,14 +18,14 @@ Phase 02 在 Phase 01 的 DeepSeek 流式聊天之上增加一个可测试、可
 
 | 提交与文件 | 采用内容 | XhlCLI 主动差异 |
 |---|---|---|
-| `e2b8df4:agent/Agent.java` | 最小 ReAct 循环、assistant Tool Call 入历史、Observation 回灌、无调用即完成 | 拆分生命周期、事件和执行器；不直接输出终端 |
-| `e2b8df4:llm/GLMClient.java` | OpenAI-compatible `Message`、`ToolCall`、`Tool` 和 `tool_call_id` 格式 | 该提交没有独立 `LlmClient`；XhlCLI 使用顶层不可变领域类型 |
-| `e2b8df4:tool/ToolRegistry.java` | 注册、定义暴露、按名称执行的最小意图 | 重名失败、Schema 校验、结构化结果、无真实本地工具 |
-| `f49d33c:llm/LlmClient.java` | Provider-neutral LLM 边界和 Tool Call 消息 | 融合现有取消、错误分类和流式接口；不迁移 reasoning |
-| `a6fa3a8:agent/AgentBudget.java` 与测试 | 最大轮次和连续调用停滞检测 | 重复签名加入规范化 JSON 和相同 Observation |
-| `b7ee842:agent/Agent.java` | 最终循环的消息顺序和统一工具执行入口 | 排除 Memory、RAG、Skill、LSP、图片、并行和巨型渲染逻辑 |
-| `b7ee842:llm/AbstractOpenAiCompatibleClient.java` | 流式 Tool Call 按 index 累积碎片 | 保留 XhlCLI 的 `[DONE]` 完整性、脱敏、取消和错误映射 |
-| `b7ee842:tool/ToolRegistry.java` | `ToolInvocation`/`ToolExecutionResult` 的职责分离 | 不迁移 1423 行 Registry、并行执行、MCP 或真实工具 |
+| `e2b8df4:src/main/java/com/paicli/agent/Agent.java` | 最小 ReAct 循环、assistant Tool Call 入历史、Observation 回灌、无调用即完成 | 拆分生命周期、事件和执行器；不直接输出终端 |
+| `e2b8df4:src/main/java/com/paicli/llm/GLMClient.java` | OpenAI-compatible `Message`、`ToolCall`、`Tool` 和 `tool_call_id` 格式 | 该提交没有独立 `LlmClient`；XhlCLI 使用顶层不可变领域类型 |
+| `e2b8df4:src/main/java/com/paicli/tool/ToolRegistry.java` | 注册、定义暴露、按名称执行的最小意图 | 重名失败、Schema 校验、结构化结果、无真实本地工具 |
+| `f49d33c:src/main/java/com/paicli/llm/LlmClient.java` | Provider-neutral LLM 边界和 Tool Call 消息 | 融合现有取消、错误分类和流式接口；不迁移 reasoning |
+| `a6fa3a8:src/main/java/com/paicli/agent/AgentBudget.java`、`a6fa3a8:src/test/java/com/paicli/agent/AgentBudgetTest.java` | 最大轮次和连续调用停滞检测 | 重复签名加入规范化 JSON 和相同 Observation |
+| `b7ee842:src/main/java/com/paicli/agent/Agent.java` | 最终循环的消息顺序和统一工具执行入口 | 排除 Memory、RAG、Skill、LSP、图片、并行和巨型渲染逻辑 |
+| `b7ee842:src/main/java/com/paicli/llm/AbstractOpenAiCompatibleClient.java` | 流式 Tool Call 按 index 累积碎片 | 保留 XhlCLI 的 `[DONE]` 完整性、脱敏、取消和错误映射 |
+| `b7ee842:src/main/java/com/paicli/tool/ToolRegistry.java` | `ToolInvocation`/`ToolExecutionResult` 的职责分离 | 不迁移 1423 行 Registry、并行执行、MCP 或真实工具 |
 
 不复制 Paicli 的 Git 历史、工作区修改、构建产物、配置、品牌、作者身份、最终大类或后期能力。包名统一为 `com.xhlcli`。来源采用范围和主动差异同步记录到 `docs/engineering/source-adoption-map.md`。
 
