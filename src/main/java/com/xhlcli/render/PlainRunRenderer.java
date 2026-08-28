@@ -3,17 +3,16 @@ package com.xhlcli.render;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ConfigKey;
 import com.xhlcli.config.SecretRedactor;
+import com.xhlcli.config.StreamingSecretRedactor;
 import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.model.RunEvent;
 
 import java.io.PrintStream;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 /** Renders safe, human-readable RunEvent timelines without terminal escape sequences. */
 public final class PlainRunRenderer {
     private static final int SUMMARY_LIMIT = 200;
-    private static final Pattern ANSI = Pattern.compile("\\u001B\\[[;?0-9]*[ -/]*[@-~]");
 
     private final PrintStream out;
     private final PrintStream err;
@@ -22,11 +21,14 @@ public final class PlainRunRenderer {
     private boolean thinkingShown;
     private boolean assistantPrefixShown;
     private boolean assistantLineOpen;
+    private StreamingSecretRedactor textSecretRedactor;
+    private TerminalTextSanitizer textTerminalSanitizer;
 
     public PlainRunRenderer(PrintStream out, PrintStream err, String apiKey) {
         this.out = Objects.requireNonNull(out, "out");
         this.err = Objects.requireNonNull(err, "err");
         this.apiKey = apiKey;
+        resetTextSanitizers();
     }
 
     public synchronized void accept(RunEvent event) {
@@ -83,11 +85,18 @@ public final class PlainRunRenderer {
     }
 
     private void renderDelta(String text) {
+        writeAssistantText(textTerminalSanitizer.accept(textSecretRedactor.accept(text)));
+    }
+
+    private void writeAssistantText(String text) {
+        if (text.isEmpty()) {
+            return;
+        }
         if (!assistantPrefixShown) {
             out.print("Assistant: ");
             assistantPrefixShown = true;
         }
-        out.print(safe(text));
+        out.print(text);
         assistantLineOpen = true;
         out.flush();
     }
@@ -114,10 +123,7 @@ public final class PlainRunRenderer {
     }
 
     private void renderTerminalError(String status, String reason) {
-        if (assistantLineOpen) {
-            err.println();
-            assistantLineOpen = false;
-        }
+        closeAssistantLine();
         err.println("Run " + status + ": " + safeSummary(reason));
     }
 
@@ -126,10 +132,7 @@ public final class PlainRunRenderer {
             renderTerminalError("FAILED", failure.reason());
             return;
         }
-        if (assistantLineOpen) {
-            err.println();
-            assistantLineOpen = false;
-        }
+        closeAssistantLine();
         String partial = failure.partialResponse() ? " (response incomplete)" : "";
         err.printf("[%s]%s %s%n", failure.errorType(), partial, safe(failure.safeMessage()));
         err.println("Suggestion: " + suggestion(failure.errorType()));
@@ -150,10 +153,13 @@ public final class PlainRunRenderer {
     }
 
     private void closeAssistantLine() {
+        String secretTail = textSecretRedactor.finish();
+        writeAssistantText(textTerminalSanitizer.accept(secretTail) + textTerminalSanitizer.finish());
         if (assistantLineOpen) {
             out.println();
             assistantLineOpen = false;
         }
+        resetTextSanitizers();
     }
 
     private void renderThinking() {
@@ -171,6 +177,7 @@ public final class PlainRunRenderer {
             thinkingShown = false;
             assistantPrefixShown = false;
             assistantLineOpen = false;
+            resetTextSanitizers();
         }
     }
 
@@ -181,6 +188,11 @@ public final class PlainRunRenderer {
 
     private String safe(String value) {
         String redacted = SecretRedactor.redact(value == null ? "" : value, apiKey);
-        return ANSI.matcher(redacted).replaceAll("");
+        return TerminalTextSanitizer.sanitize(redacted);
+    }
+
+    private void resetTextSanitizers() {
+        textSecretRedactor = new StreamingSecretRedactor(apiKey);
+        textTerminalSanitizer = new TerminalTextSanitizer();
     }
 }

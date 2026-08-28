@@ -17,7 +17,7 @@ XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目
 - `echo_text` 与 `current_time` 两个进程内演示工具，以及参数 Schema 校验、结果预算和结构化失败 Observation；
 - 最大迭代、600 秒整体超时、Ctrl+C 取消、空响应重试一次和连续三轮重复无进展保护；
 - 统一 `RunEvent` 时间线与无 ANSI 的 Plain 终端输出；
-- Java 21 可执行 JAR、103 项离线自动测试和 macOS CI 配置。
+- Java 21 可执行 JAR、127 项离线自动测试和 macOS CI 配置。
 
 > Phase 02 的工具仅用于协议演示：不会读取或修改本地文件，不执行 Shell 或 Git，也不访问网络。本期不含 Policy/HITL、Plan、并行工具、Multi-Agent、MCP、RAG、长期记忆、持久 Run 或崩溃恢复；真实本地工具从 Phase 03 开始。
 
@@ -121,7 +121,7 @@ java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
 
 ## 当前验收状态
 
-Phase 02 已通过 103 项离线自动测试（比 Phase 01 增加 53 项）、MockWebServer Tool Call 协议测试、可执行 JAR、`--help` / `--version` 冒烟和 Java 21 字节码门禁。按用户明确决定，本期免除人工演示和录屏；`0.3.0-SNAPSHOT` 没有 Phase 02 版本标签。Phase 01 的真实 DeepSeek 五轮会话、Ctrl+C 恢复和 `v0.2.0` 发布记录保持不变。
+Phase 02 已通过 127 项离线自动测试（比 Phase 01 增加 77 项）、MockWebServer Tool Call 协议测试、可执行 JAR、`--help` / `--version` 冒烟和 Java 21 字节码门禁。按用户明确决定，本期免除人工演示和录屏；`0.3.0-SNAPSHOT` 没有 Phase 02 版本标签。Phase 01 的真实 DeepSeek 五轮会话、Ctrl+C 恢复和 `v0.2.0` 发布记录保持不变。
 
 ## License
 

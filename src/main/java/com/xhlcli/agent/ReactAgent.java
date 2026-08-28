@@ -6,6 +6,7 @@ import com.xhlcli.llm.LlmClient;
 import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.llm.LlmException;
 import com.xhlcli.config.SecretRedactor;
+import com.xhlcli.config.StreamingSecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.RunEvent;
@@ -33,6 +34,8 @@ import java.util.function.Function;
 public final class ReactAgent implements AgentRunner {
     private static final AtomicLong FALLBACK_RUN_SEQUENCE = new AtomicLong();
     private static final Function<String, String> DEFAULT_EVENT_SANITIZER = value -> SecretRedactor.redact(value, null);
+    private static final Supplier<StreamingSecretRedactor> DEFAULT_STREAM_SANITIZER =
+            () -> new StreamingSecretRedactor(null);
     private final ChatMessage systemMessage;
     private final LlmClient client;
     private final ToolExecutor executor;
@@ -43,6 +46,7 @@ public final class ReactAgent implements AgentRunner {
     private final Clock clock;
     private final Supplier<String> runIdSupplier;
     private final Function<String, String> eventSanitizer;
+    private final Supplier<StreamingSecretRedactor> streamingSanitizerSupplier;
     private final GateHook gateHook;
     private List<ChatMessage> committedHistory;
 
@@ -57,7 +61,7 @@ public final class ReactAgent implements AgentRunner {
             Clock clock,
             Supplier<String> runIdSupplier) {
         this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
-                runIdSupplier, DEFAULT_EVENT_SANITIZER, GateHook.NOOP);
+                runIdSupplier, DEFAULT_EVENT_SANITIZER, DEFAULT_STREAM_SANITIZER, GateHook.NOOP);
     }
 
     public ReactAgent(
@@ -72,7 +76,24 @@ public final class ReactAgent implements AgentRunner {
             Supplier<String> runIdSupplier,
             Function<String, String> eventSanitizer) {
         this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
-                runIdSupplier, eventSanitizer, GateHook.NOOP);
+                runIdSupplier, eventSanitizer,
+                () -> StreamingSecretRedactor.buffered(eventSanitizer), GateHook.NOOP);
+    }
+
+    public ReactAgent(
+            ChatMessage systemMessage,
+            LlmClient client,
+            ToolExecutor executor,
+            List<ToolDefinition> toolDefinitions,
+            RunLimits limits,
+            TimeoutScheduler timeoutScheduler,
+            ObjectMapper mapper,
+            Clock clock,
+            Supplier<String> runIdSupplier,
+            Function<String, String> eventSanitizer,
+            Supplier<StreamingSecretRedactor> streamingSanitizerSupplier) {
+        this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
+                runIdSupplier, eventSanitizer, streamingSanitizerSupplier, GateHook.NOOP);
     }
 
     ReactAgent(
@@ -87,7 +108,7 @@ public final class ReactAgent implements AgentRunner {
             Supplier<String> runIdSupplier,
             GateHook gateHook) {
         this(systemMessage, client, executor, toolDefinitions, limits, timeoutScheduler, mapper, clock,
-                runIdSupplier, DEFAULT_EVENT_SANITIZER, gateHook);
+                runIdSupplier, DEFAULT_EVENT_SANITIZER, DEFAULT_STREAM_SANITIZER, gateHook);
     }
 
     ReactAgent(
@@ -101,6 +122,7 @@ public final class ReactAgent implements AgentRunner {
             Clock clock,
             Supplier<String> runIdSupplier,
             Function<String, String> eventSanitizer,
+            Supplier<StreamingSecretRedactor> streamingSanitizerSupplier,
             GateHook gateHook) {
         this.systemMessage = Objects.requireNonNull(systemMessage, "systemMessage");
         if (systemMessage.role() != ChatMessage.Role.SYSTEM) {
@@ -115,6 +137,8 @@ public final class ReactAgent implements AgentRunner {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.runIdSupplier = Objects.requireNonNull(runIdSupplier, "runIdSupplier");
         this.eventSanitizer = Objects.requireNonNull(eventSanitizer, "eventSanitizer");
+        this.streamingSanitizerSupplier = Objects.requireNonNull(
+                streamingSanitizerSupplier, "streamingSanitizerSupplier");
         this.gateHook = Objects.requireNonNull(gateHook, "gateHook");
         this.committedHistory = List.of(systemMessage);
     }
@@ -127,7 +151,8 @@ public final class ReactAgent implements AgentRunner {
         RunIdResolution runIdResolution = resolveRunId();
         String runId = runIdResolution.runId();
         RunLifecycle lifecycle = new RunLifecycle();
-        EventSequencer sequencer = new EventSequencer(runId, events, clock, eventSanitizer);
+        EventSequencer sequencer = new EventSequencer(
+                runId, events, clock, eventSanitizer, streamingSanitizerSupplier);
         CancellationToken operationCancellation = new CancellationToken();
         StartStopGate gate = new StartStopGate(gateHook);
         List<ChatMessage> workingHistory = new ArrayList<>(committedHistory);
@@ -180,13 +205,16 @@ public final class ReactAgent implements AgentRunner {
                     gateHook.afterPermit(GatePoint.MODEL_START);
                     lifecycle.requireActive();
                     sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
+                    sequencer.beginTextStream();
                     response = client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
                         if (!delta.isEmpty() && gate.stopReason() == StopReason.NONE) {
                             lifecycle.requireActive();
-                            sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(modelIteration), delta));
+                            sequencer.emitTextDelta(modelIteration, delta);
                         }
                     }, operationCancellation);
+                    sequencer.finishTextStream(modelIteration, true);
                 } catch (LlmException failure) {
+                    sequencer.finishTextStream(modelIteration, gate.stopReason() == StopReason.NONE);
                     RunResult stoppedAfterFailure = finishIfStopped(
                             lifecycle, sequencer, runId, gate, iterations, usage);
                     if (stoppedAfterFailure != null) {
@@ -502,14 +530,22 @@ public final class ReactAgent implements AgentRunner {
         private final RunEventSink sink;
         private final Clock clock;
         private final Function<String, String> sanitizer;
+        private final Supplier<StreamingSecretRedactor> streamingSanitizerSupplier;
+        private StreamingSecretRedactor streamingSanitizer;
         private long sequence;
         private boolean textDeltaEmitted;
 
-        private EventSequencer(String runId, RunEventSink sink, Clock clock, Function<String, String> sanitizer) {
+        private EventSequencer(
+                String runId,
+                RunEventSink sink,
+                Clock clock,
+                Function<String, String> sanitizer,
+                Supplier<StreamingSecretRedactor> streamingSanitizerSupplier) {
             this.runId = runId;
             this.sink = sink;
             this.clock = clock;
             this.sanitizer = sanitizer;
+            this.streamingSanitizerSupplier = streamingSanitizerSupplier;
         }
 
         private RunEvent.Metadata metadata(int iteration) {
@@ -521,6 +557,36 @@ public final class ReactAgent implements AgentRunner {
                 textDeltaEmitted = true;
             }
             sink.accept(sanitize(event));
+        }
+
+        private void beginTextStream() {
+            streamingSanitizer = Objects.requireNonNull(
+                    streamingSanitizerSupplier.get(), "streaming sanitizer");
+        }
+
+        private void emitTextDelta(int iteration, String delta) {
+            if (streamingSanitizer == null) {
+                beginTextStream();
+            }
+            textDeltaEmitted = true;
+            emitSafeText(iteration, streamingSanitizer.accept(delta));
+        }
+
+        private void finishTextStream(int iteration, boolean publish) {
+            if (streamingSanitizer == null) {
+                return;
+            }
+            String tail = streamingSanitizer.finish();
+            streamingSanitizer = null;
+            if (publish) {
+                emitSafeText(iteration, tail);
+            }
+        }
+
+        private void emitSafeText(int iteration, String text) {
+            if (!text.isEmpty()) {
+                sink.accept(new RunEvent.TextDelta(metadata(iteration), sanitize(text)));
+            }
         }
 
         private boolean hasTextDelta() {

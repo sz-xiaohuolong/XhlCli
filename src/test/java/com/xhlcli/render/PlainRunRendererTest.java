@@ -112,6 +112,24 @@ class PlainRunRendererTest {
         }
     }
 
+    @Test
+    void filtersTerminalControlSequencesAcrossTextDeltasAndOneShotFields() {
+        String source = "before\u001B]52;c;clipboard\u0007after";
+        for (int split = 0; split <= source.length(); split++) {
+            Streams streams = new Streams("top-secret-key");
+            streams.renderer.accept(new RunEvent.TextDelta(metadata(1), source.substring(0, split)));
+            streams.renderer.accept(new RunEvent.TextDelta(metadata(2), source.substring(split)));
+            streams.renderer.accept(new RunEvent.ToolStarted(metadata(3), "echo_text", "value\r\n\u001B[31mred"));
+
+            String rendered = streams.out();
+            assertFalse(rendered.contains("clipboard"), "split=" + split);
+            assertFalse(rendered.contains("\u001B"), "split=" + split);
+            assertFalse(rendered.contains("\r"), "split=" + split);
+            assertTrue(rendered.contains("beforeafter"), "split=" + split);
+            assertTrue(rendered.contains("value\nred"), "split=" + split);
+        }
+    }
+
     private static RunEvent.Metadata metadata(long sequence) {
         return metadata("run-1", sequence);
     }

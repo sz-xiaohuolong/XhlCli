@@ -7,6 +7,7 @@ import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.llm.LlmException;
 import com.xhlcli.llm.StreamListener;
 import com.xhlcli.config.SecretRedactor;
+import com.xhlcli.config.StreamingSecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
 import com.xhlcli.model.RunEvent;
@@ -106,6 +107,27 @@ class ReactAgentTest {
         assertEquals(arguments, agent.history().get(2).toolCalls().getFirst().argumentsJson());
         assertTrue(agent.history().get(3).content().contains("known-secret"));
         assertEquals(finalAnswer, agent.history().get(4).content());
+    }
+
+    @Test
+    void redactsCredentialsSplitAcrossPublishedTextDeltaEventsWithoutChangingHistory() {
+        String key = "known-secret";
+        String answer = "before known-secret after";
+        LlmClient client = (messages, tools, listener, token) -> {
+            listener.onTextDelta("before known-");
+            listener.onTextDelta("secret after");
+            return response(answer);
+        };
+        ReactAgent agent = agentWithStreamingSanitizer(client, key);
+        List<RunEvent> events = new ArrayList<>();
+
+        RunResult result = agent.run("prompt", events::add, new CancellationToken());
+
+        String published = events.stream().map(ReactAgentTest::eventText).reduce("", String::concat);
+        assertEquals(RunStatus.COMPLETED, result.status());
+        assertFalse(published.contains(key));
+        assertTrue(published.contains("***"));
+        assertEquals(answer, agent.history().getLast().content());
     }
 
     @Test
@@ -654,6 +676,21 @@ class ReactAgentTest {
                 Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
                 () -> "run-1",
                 sanitizer);
+    }
+
+    private ReactAgent agentWithStreamingSanitizer(LlmClient client, String knownKey) {
+        return new ReactAgent(
+                SYSTEM,
+                client,
+                new RecordingExecutor(List.of()),
+                List.of(),
+                new RunLimits(5, java.time.Duration.ofMinutes(1)),
+                new NoopTimeoutScheduler(),
+                mapper,
+                Clock.fixed(Instant.parse("2026-08-27T00:00:00Z"), ZoneOffset.UTC),
+                () -> "run-1",
+                value -> SecretRedactor.redact(value, knownKey),
+                () -> new StreamingSecretRedactor(knownKey));
     }
 
     private ReactAgent agentWithRunIdAndSanitizer(

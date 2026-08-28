@@ -8,6 +8,7 @@ import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ChatConfigLoader;
 import com.xhlcli.config.ConfigurationException;
 import com.xhlcli.config.SecretRedactor;
+import com.xhlcli.config.StreamingSecretRedactor;
 import com.xhlcli.llm.DeepSeekClient;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.render.PlainRunRenderer;
@@ -77,7 +78,8 @@ public final class ChatBootstrap implements ChatRunner {
                     client, executor, registry.definitions(),
                     new RunLimits(config.agentSettings().maxIterations(), config.agentSettings().timeout()), scheduler,
                     mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString(),
-                    value -> SecretRedactor.redact(value, config.apiKey()));
+                    value -> SecretRedactor.redact(value, config.apiKey()),
+                    () -> new StreamingSecretRedactor(config.apiKey()));
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
             ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config);
             terminal.bind(loop);

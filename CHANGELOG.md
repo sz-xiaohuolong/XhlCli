@@ -13,7 +13,7 @@
 
 ### Verification
 
-- `./mvnw clean verify` 通过 103 项离线测试；可执行 JAR 的帮助、版本 `0.3.0-SNAPSHOT` 和 Java 21 字节码门禁均通过。
+- `./mvnw clean verify` 通过 127 项离线测试；可执行 JAR 的帮助、版本 `0.3.0-SNAPSHOT` 和 Java 21 字节码门禁均通过。
 - 按用户明确决定，Phase 02 不要求人工演示或录屏；本期没有版本标签。
 
 ## [0.2.0] - 2026-08-26
