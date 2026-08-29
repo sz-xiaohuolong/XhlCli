@@ -20,10 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 02 ReAct Agent 已交付；下一阶段为 Phase 03 本地工具。
-- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent` 和 127 项离线测试。
+- 当前阶段：Phase 03 本地工具集已交付；下一阶段为 Phase 04 安全策略与审批 (Safety and Approval)。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，以及 8 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、Golden Set 评测集与 155 项自动化测试。
 - 当前已发布：Phase 01 `v0.2.0` 终端流式对话基础。
-- 当前未交付：真实本地文件、Shell 和 Git 工具、Policy/HITL、MCP、RAG、长期记忆、Plan、并行工具、Multi-Agent 和 Phase 03–18 的其他运行能力。Phase 02 仅注册进程内 `echo_text` 与 `current_time` 演示工具，不读写项目文件、不执行命令且不访问网络。
+- 当前未交付：Policy/HITL（审批与风险拦截机制）、MCP、RAG、长期记忆、Plan、并行工具、Multi-Agent 和 Phase 04–18 的其他运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 

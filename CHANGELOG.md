@@ -6,15 +6,21 @@
 
 ### Added
 
+- Phase 03 本地工具集 (Local Tools)：
+  - `WorkspacePathResolver`：强制限制文件操作在项目工作区内，防止路径穿越与非法越界。
+  - 只读探索与读取：`list_dir`（过滤系统隐藏/构建目录）、`read_file`（支持 offset/limit 分页读取与行号标注）、`glob_files`（按 glob 匹配项目文件）。
+  - 代码搜索体系：`JavaCodeSearchEngine`（纯 Java 跨平台搜索）、`RipgrepCodeSearchEngine`（流式 `rg --json` 快速搜索与超时降级）、`grep_code`（行上下文展示、预算截断与 suggested_reads 推荐）。
+  - 受控写入与补丁：`write_file`（单文件 5MB 上限、自动建目录）、`apply_patch`（单处唯一匹配安全替换）。
+  - 版本控制与 Shell：`git_diff`（工作区 Git 差异查看）、`execute_command`（短时受控 Shell 命令执行、输出截断与实时取消）。
+  - `CodeSearchGoldenSetTest` 评测集与 `LocalToolsCodingLoopTest` 真实 Agent 循环集成测试。
 - Phase 02 ReAct Agent：结构化 Tool Call/Observation、按原顺序的调用执行与调用 ID 关联回灌。
-- 仅进程内 `echo_text` 与 `current_time` 演示工具；参数 Schema 校验、结果预算、结构化工具失败和安全摘要。
+- 演示工具；参数 Schema 校验、结果预算、结构化工具失败和安全摘要。
 - 最大迭代、600 秒整体超时、Ctrl+C 取消、一次空响应重试、连续三轮重复无进展保护，以及终态后禁止启动新的模型或工具工作。
 - 统一 `RunEvent` 和 Plain 终端渲染；事件及渲染输出不包含 reasoning 或未脱敏凭据。
 
 ### Verification
 
-- `./mvnw clean verify` 通过 127 项离线测试；可执行 JAR 的帮助、版本 `0.3.0-SNAPSHOT` 和 Java 21 字节码门禁均通过。
-- 按用户明确决定，Phase 02 不要求人工演示或录屏；本期没有版本标签。
+- `./mvnw test` 全量通过 155 项自动化测试（覆盖所有 8 个本地工具、两个搜索引擎、Golden Set 评测集及完整 ReAct 工具循环）。
 
 ## [0.2.0] - 2026-08-26
 

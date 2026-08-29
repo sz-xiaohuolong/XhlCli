@@ -1,0 +1,34 @@
+[
+  {
+    "id": "bootstrap-tools",
+    "question": "ChatBootstrap 中默认注册了哪些演示工具？",
+    "pattern": "EchoTool",
+    "glob": "**/ChatBootstrap.java",
+    "expectedPath": "src/main/java/com/xhlcli/cli/ChatBootstrap.java",
+    "expectedText": "new EchoTool()"
+  },
+  {
+    "id": "react-agent-repetition",
+    "question": "ReactAgent 中如何防范工具调用循环重复？",
+    "pattern": "repetitionGuard",
+    "glob": "**/ReactAgent.java",
+    "expectedPath": "src/main/java/com/xhlcli/agent/ReactAgent.java",
+    "expectedText": "RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);"
+  },
+  {
+    "id": "tool-registry-validation",
+    "question": "ToolRegistry 如何校验工具定义的命名与 schema？",
+    "pattern": "validateDefinition",
+    "glob": "**/ToolRegistry.java",
+    "expectedPath": "src/main/java/com/xhlcli/tool/ToolRegistry.java",
+    "expectedText": "private static void validateDefinition(ToolDefinition definition)"
+  },
+  {
+    "id": "workspace-path-guard",
+    "question": "WorkspacePathResolver 在哪里解析并防止路径穿越？",
+    "pattern": "resolveSafe",
+    "glob": "**/WorkspacePathResolver.java",
+    "expectedPath": "src/main/java/com/xhlcli/tool/local/WorkspacePathResolver.java",
+    "expectedText": "public Path resolveSafe(String path)"
+  }
+]

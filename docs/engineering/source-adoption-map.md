@@ -62,6 +62,17 @@ Phase 02 的采用依据固定为下列 Git 对象；读取时使用 `git -C ../
 | `a6fa3a8:src/main/java/com/paicli/agent/AgentBudget.java`、`src/test/java/com/paicli/agent/AgentBudgetTest.java` | 最大轮次和连续调用停滞检测 | `RunLimits` 加入 1–100 迭代边界；重复指纹同时比较规范化参数和结果，并连续三轮才限制 |
 | `b7ee842:src/main/java/com/paicli/agent/Agent.java`、`src/main/java/com/paicli/llm/AbstractOpenAiCompatibleClient.java`、`src/main/java/com/paicli/tool/ToolRegistry.java`、`src/test/java/com/paicli/agent/AgentMessageTest.java`、`src/test/java/com/paicli/agent/AgentStreamRendererTest.java`、`src/test/java/com/paicli/tool/ToolRegistryTest.java` | 最终消息顺序、流式 Tool Call 碎片累积和 Registry 职责分离的对照 | 不迁移最终巨型类、Memory/RAG/Skill/LSP/图片/并行/MCP 或参考渲染；增加整体超时、first-wins 终态门、RunEvent 脱敏和 Plain 输出 |
 
+### 4.2 Phase 03 已交付采用记录
+
+Phase 03 的采用依据固定为下列 Git 对象：
+
+| 固定对象 | 采用的意图 | XhlCLI 主动差异 |
+|---|---|---|
+| `e2b8df4:src/main/java/com/paicli/tool/ToolRegistry.java` | `readFile`、`writeFile`、`listDir`、`executeCommand` | 彻底拆分巨型单体类，每个工具作为独立 `Tool` 实现，统一注入 `WorkspacePathResolver` 确保路径安全 |
+| `72a7e90:src/main/java/com/paicli/tool/JavaCodeSearchEngine.java` | 纯 Java 代码搜索、文件树遍历、二进制跳过、行号与上下文提取 | 领域对象统一抽象为不可变 Record，严格校验工作区边界 |
+| `c69be83:src/main/java/com/paicli/tool/RipgrepCodeSearchEngine.java` | `rg --json` 进程流式解析、8 秒超时、自动降级 Java 引擎 | 增加 `xhlcli.search.disable.rg` 属性控制，统一资源回收与异常处理 |
+| `c69be83:src/test/resources/code-search/golden-set.json` | 搜索与读取联动 Golden Set 评测基准 | 构建针对 XhlCLI 源码架构的真实 Golden Set 用例集合 |
+
 XhlCLI 的验证资产为自有 `com.xhlcli` 测试：工具/消息/事件/流式协议、成功与失败恢复、限制、取消、超时、重复、空响应、重复调用 ID 和终态不变量均不依赖真实 Key、网络、用户目录或参考仓库测试运行。发布时仍按本文件第 2 节的书面授权与法律要求处理。
 
 ## 5. 不直接迁移的内容
@@ -106,3 +117,4 @@ XhlCLI 的验证资产为自有 `com.xhlcli` 测试：工具/消息/事件/流�
 |---|---|---|
 | v1.0 | 2026-08-25 | 建立历史提交、模块、测试与 XhlCLI 阶段的采用地图 |
 | v1.1 | 2026-08-27 | 固定 Phase 02 的参考 Git 对象、测试对照和 XhlCLI 主动差异 |
+| v1.2 | 2026-08-29 | 固定 Phase 03 的参考 Git 对象、本地工具集与代码搜索采用记录 |

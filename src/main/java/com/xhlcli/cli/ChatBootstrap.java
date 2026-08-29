@@ -19,6 +19,15 @@ import com.xhlcli.tool.ToolResultBudget;
 import com.xhlcli.tool.ToolSchemaValidator;
 import com.xhlcli.tool.demo.CurrentTimeTool;
 import com.xhlcli.tool.demo.EchoTool;
+import com.xhlcli.tool.local.ApplyPatchTool;
+import com.xhlcli.tool.local.ExecuteCommandTool;
+import com.xhlcli.tool.local.GitDiffTool;
+import com.xhlcli.tool.local.GlobFilesTool;
+import com.xhlcli.tool.local.ListDirTool;
+import com.xhlcli.tool.local.ReadFileTool;
+import com.xhlcli.tool.local.WorkspacePathResolver;
+import com.xhlcli.tool.local.WriteFileTool;
+import com.xhlcli.tool.local.search.GrepCodeTool;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -69,12 +78,36 @@ public final class ChatBootstrap implements ChatRunner {
              ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler();
              JLineTerminalSession terminal = new JLineTerminalSession()) {
             ObjectMapper mapper = new ObjectMapper();
-            ToolRegistry registry = new ToolRegistry(List.of(new EchoTool(), new CurrentTimeTool(Clock.systemUTC())));
+            WorkspacePathResolver pathResolver = new WorkspacePathResolver(projectDirectory);
+            ToolRegistry registry = new ToolRegistry(List.of(
+                    new ListDirTool(pathResolver),
+                    new ReadFileTool(pathResolver),
+                    new WriteFileTool(pathResolver),
+                    new ApplyPatchTool(pathResolver),
+                    new GitDiffTool(pathResolver),
+                    new ExecuteCommandTool(pathResolver),
+                    new GlobFilesTool(pathResolver),
+                    new GrepCodeTool(pathResolver),
+                    new EchoTool(),
+                    new CurrentTimeTool(Clock.systemUTC())));
             DefaultToolExecutor executor = new DefaultToolExecutor(
                     registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
                     mapper, System::nanoTime);
+            String systemPrompt = """
+                    You are XhlCLI, a helpful and precise coding assistant.
+                    Please reply in Chinese (中文).
+
+                    ## Tools Guidelines
+                    - Use `glob_files` and `grep_code` to search for files and locate symbols before reading.
+                    - Use `read_file` with offset/limit when reading large files.
+                    - Use `write_file` to create or overwrite files.
+                    - Use `apply_patch` for precise single-occurrence text replacements in existing files.
+                    - Use `git_diff` to check unstaged changes in the repository.
+                    - Use `execute_command` to run short-running build, test, and shell commands in the project directory.
+                    - All file operations are restricted to the project workspace.
+                    """;
             ReactAgent agent = new ReactAgent(
-                    ChatMessage.system("You are XhlCLI, a helpful coding assistant. You may use only the provided demo tools."),
+                    ChatMessage.system(systemPrompt),
                     client, executor, registry.definitions(),
                     new RunLimits(config.agentSettings().maxIterations(), config.agentSettings().timeout()), scheduler,
                     mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString(),
