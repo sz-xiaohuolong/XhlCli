@@ -14,6 +14,7 @@ public final class ChatLoop {
     private final AgentRunner agent;
     private final PlainRunRenderer renderer;
     private final ChatConfig config;
+    private final com.xhlcli.hitl.HitlHandler hitlHandler;
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -22,11 +23,22 @@ public final class ChatLoop {
             AgentRunner agent,
             PlainRunRenderer renderer,
             ChatConfig config) {
+        this(inputReader, commandParser, agent, renderer, config, null);
+    }
+
+    public ChatLoop(
+            InputReader inputReader,
+            ChatCommandParser commandParser,
+            AgentRunner agent,
+            PlainRunRenderer renderer,
+            ChatConfig config,
+            com.xhlcli.hitl.HitlHandler hitlHandler) {
         this.inputReader = Objects.requireNonNull(inputReader, "inputReader");
         this.commandParser = Objects.requireNonNull(commandParser, "commandParser");
         this.agent = Objects.requireNonNull(agent, "agent");
         this.renderer = Objects.requireNonNull(renderer, "renderer");
         this.config = Objects.requireNonNull(config, "config");
+        this.hitlHandler = hitlHandler;
     }
 
     public int run() {
@@ -47,6 +59,9 @@ public final class ChatLoop {
                 case CONFIG -> renderer.printConfig(config);
                 case CLEAR -> {
                     agent.clearHistory();
+                    if (hitlHandler != null) {
+                        hitlHandler.clearApprovedAll();
+                    }
                     renderer.printCleared();
                 }
                 case EXIT -> {

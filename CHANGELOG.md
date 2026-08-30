@@ -6,6 +6,15 @@
 
 ### Added
 
+- Phase 04 安全策略与人工审批 (Safety and Approval)：
+  - 系统硬策略 `PathGuard`：路径围栏防逃逸（绝对路径越界、`..` 穿越、符号链接指向外部），不可被用户批准绕过。
+  - 系统硬策略 `CommandGuard`：危险 Shell 命令 Fast-fail 拦截（`sudo`、`rm -rf /`、`mkfs`、`dd of=/dev`、fork bomb、`curl|sh`、`find /`、`chmod 777`、`shutdown/reboot`）。
+  - 脱敏审计日志 `AuditLog`：每日 JSONL 结构化审计落盘（`~/.xhlcli/audit/`），自动掩码 Bearer Token、API Key、Password、Secret 等敏感凭据。
+  - 风险分级策略 `ApprovalPolicy`：只读工具自动放行，写入/命令工具需人工审批，未注册工具默认高危。
+  - 人工审批交互 `TerminalHitlHandler`：结构化终端审批框（CJK/Emoji 显示宽度精确对齐），支持 `y/a/n/s/m` 五种决策。
+  - `DefaultToolExecutor` 编排：Schema → 硬策略 → HITL 审批 → 执行 → 审计，修改参数重新校验。
+  - `ChatBootstrap` 装配与 `ChatLoop` `/clear` 联动清除会话临时授权。
+  - `AgentSafetyIntegrationTest` 端到端安全闭环验证。
 - Phase 03 本地工具集 (Local Tools)：
   - `WorkspacePathResolver`：强制限制文件操作在项目工作区内，防止路径穿越与非法越界。
   - 只读探索与读取：`list_dir`（过滤系统隐藏/构建目录）、`read_file`（支持 offset/limit 分页读取与行号标注）、`glob_files`（按 glob 匹配项目文件）。
@@ -20,7 +29,7 @@
 
 ### Verification
 
-- `./mvnw test` 全量通过 155 项自动化测试（覆盖所有 8 个本地工具、两个搜索引擎、Golden Set 评测集及完整 ReAct 工具循环）。
+- `./mvnw test` 全量通过 187 项自动化测试（覆盖 Phase 04 安全策略、HITL 审批、审计日志、所有 8 个本地工具、两个搜索引擎、Golden Set 评测集及完整 ReAct 工具循环）。
 
 ## [0.2.0] - 2026-08-26
 

@@ -20,10 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 03 本地工具集已交付；下一阶段为 Phase 04 安全策略与审批 (Safety and Approval)。
-- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，以及 8 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、Golden Set 评测集与 155 项自动化测试。
+- 当前阶段：Phase 04 安全策略与审批已交付；下一阶段为 Phase 05 上下文管理与会话记忆 (Context Management)。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，8 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环和 187 项自动化测试。
 - 当前已发布：Phase 01 `v0.2.0` 终端流式对话基础。
-- 当前未交付：Policy/HITL（审批与风险拦截机制）、MCP、RAG、长期记忆、Plan、并行工具、Multi-Agent 和 Phase 04–18 的其他运行能力。
+- 当前未交付：MCP、RAG、长期记忆、上下文预算管理、Plan、并行工具、Multi-Agent 和 Phase 05–18 的其他运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 
@@ -201,7 +201,9 @@ Phase 01 于 2026-08-26 完成 50 项离线测试、MockWebServer SSE/错误/取
 
 Phase 02 于 2026-08-28 完成 127 项离线测试（较 Phase 01 增加 77 项）、结构化 Tool Call/Observation 协议、`RunEvent` Plain 渲染和阶段门禁。`AgentSettings` 的默认上限为 10 次迭代和 600 秒整体超时；取消、超时、空响应、重复无进展和终态后禁止新模型/工具工作的行为均有确定性测试。按用户明确决定，本期不要求人工演示或录屏；本期不创建版本标签，当前开发版本为 `0.3.0-SNAPSHOT`。
 
-后续每期把针对性测试和快速回归命令补充到本文件。
+Phase 03 于 2026-08-29 完成 155 项离线测试（较 Phase 02 增加 28 项），交付 8 个本地工具（`list_dir`、`read_file`、`write_file`、`apply_patch`、`git_diff`、`execute_command`、`glob_files`、`grep_code`），纯 Java 与 Ripgrep 双搜索引擎，Golden Set 评测集和 `LocalToolsCodingLoopTest` 真实 Agent 循环集成。
+
+Phase 04 于 2026-08-30 完成 187 项离线测试（较 Phase 03 增加 32 项），交付系统硬策略 (`PathGuard` 路径围栏、`CommandGuard` 命令黑名单)、脱敏审计日志 (`AuditLog`)、风险分级策略 (`ApprovalPolicy`)、终端人工审批 (`TerminalHitlHandler` 支持 y/a/n/s/m 决策)、`DefaultToolExecutor` 安全编排闭环 (Schema → 硬策略 → HITL → 执行 → 审计)、`ChatBootstrap` 装配与 `ChatLoop` `/clear` 联动，以及 `AgentSafetyIntegrationTest` 端到端安全验证。
 
 ## 12. 文档联动
 

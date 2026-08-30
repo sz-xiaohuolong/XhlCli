@@ -73,6 +73,17 @@ Phase 03 的采用依据固定为下列 Git 对象：
 | `c69be83:src/main/java/com/paicli/tool/RipgrepCodeSearchEngine.java` | `rg --json` 进程流式解析、8 秒超时、自动降级 Java 引擎 | 增加 `xhlcli.search.disable.rg` 属性控制，统一资源回收与异常处理 |
 | `c69be83:src/test/resources/code-search/golden-set.json` | 搜索与读取联动 Golden Set 评测基准 | 构建针对 XhlCLI 源码架构的真实 Golden Set 用例集合 |
 
+### 4.3 Phase 04 已交付采用记录
+
+Phase 04 的采用依据固定为下列 Git 对象：
+
+| 固定对象 | 采用的意图 | XhlCLI 主动差异 |
+|---|---|---|
+| `75e6642:src/main/java/com/paicli/policy/PathGuard.java` | 路径围栏与符号链接向父级展开解析 | 统一不可变异常 `PolicyException`，支持 Path 与 String 接口，针对多平台真实路径标准化 |
+| `75e6642:src/main/java/com/paicli/policy/CommandGuard.java` | 命令 Fast-fail 破坏性黑名单规则 | 拓展组合参数与多标志正则匹配（如 `rm -r -f /`），提供清晰原因说明 |
+| `75e6642:src/main/java/com/paicli/policy/AuditLog.java` | 每日 JSONL 审计落盘与凭据脱敏 | 统一配置路径 `~/.xhlcli/audit`，不可变 `AuditEntry` 记录，Fail-safe 错误容忍 |
+| `f90d9f5:src/main/java/com/paicli/hitl/*` | 人工审批策略、请求展示、决策模型与终端处理器 | 基于 CJK/Emoji 列宽精确对齐，与 `DefaultToolExecutor` 严格编排，与 `ChatLoop` /clear 联动清理临时授权 |
+
 XhlCLI 的验证资产为自有 `com.xhlcli` 测试：工具/消息/事件/流式协议、成功与失败恢复、限制、取消、超时、重复、空响应、重复调用 ID 和终态不变量均不依赖真实 Key、网络、用户目录或参考仓库测试运行。发布时仍按本文件第 2 节的书面授权与法律要求处理。
 
 ## 5. 不直接迁移的内容
@@ -118,3 +129,4 @@ XhlCLI 的验证资产为自有 `com.xhlcli` 测试：工具/消息/事件/流�
 | v1.0 | 2026-08-25 | 建立历史提交、模块、测试与 XhlCLI 阶段的采用地图 |
 | v1.1 | 2026-08-27 | 固定 Phase 02 的参考 Git 对象、测试对照和 XhlCLI 主动差异 |
 | v1.2 | 2026-08-29 | 固定 Phase 03 的参考 Git 对象、本地工具集与代码搜索采用记录 |
+| v1.3 | 2026-08-30 | 固定 Phase 04 的参考 Git 对象、硬策略防护、HITL 审批与审计记录 |

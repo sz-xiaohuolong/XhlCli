@@ -13,6 +13,9 @@ import com.xhlcli.llm.DeepSeekClient;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.render.PlainRunRenderer;
 import com.xhlcli.render.PlainDiagnosticSink;
+import com.xhlcli.hitl.TerminalHitlHandler;
+import com.xhlcli.policy.AuditLog;
+import com.xhlcli.policy.PathGuard;
 import com.xhlcli.tool.DefaultToolExecutor;
 import com.xhlcli.tool.ToolRegistry;
 import com.xhlcli.tool.ToolResultBudget;
@@ -79,6 +82,10 @@ public final class ChatBootstrap implements ChatRunner {
              JLineTerminalSession terminal = new JLineTerminalSession()) {
             ObjectMapper mapper = new ObjectMapper();
             WorkspacePathResolver pathResolver = new WorkspacePathResolver(projectDirectory);
+            PathGuard pathGuard = new PathGuard(projectDirectory);
+            AuditLog auditLog = new AuditLog(userHome.resolve(".xhlcli").resolve("audit"));
+            TerminalHitlHandler hitlHandler = new TerminalHitlHandler(true);
+
             ToolRegistry registry = new ToolRegistry(List.of(
                     new ListDirTool(pathResolver),
                     new ReadFileTool(pathResolver),
@@ -92,7 +99,7 @@ public final class ChatBootstrap implements ChatRunner {
                     new CurrentTimeTool(Clock.systemUTC())));
             DefaultToolExecutor executor = new DefaultToolExecutor(
                     registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
-                    mapper, System::nanoTime);
+                    mapper, System::nanoTime, pathGuard, hitlHandler, auditLog);
             String systemPrompt = """
                     You are XhlCLI, a helpful and precise coding assistant.
                     Please reply in Chinese (中文).
@@ -114,7 +121,7 @@ public final class ChatBootstrap implements ChatRunner {
                     value -> SecretRedactor.redact(value, config.apiKey()),
                     () -> new StreamingSecretRedactor(config.apiKey()));
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
-            ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config);
+            ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {
