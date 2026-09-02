@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### Added
+- **Context & Memory** (Phase 05):
+  - `TokenBudget` for tracking token limits.
+  - `ContextAssembler` for hierarchical context management.
+  - `MemoryManager` and `LongTermMemory` with global/project scopes.
+  - Auto-compaction of `ConversationHistory` preserving tool call/result pairs.
+  - CLI commands: `/context`, `/compact`, `/save`, `/memory`.
 
 - Phase 04 安全策略与人工审批 (Safety and Approval)：
   - 系统硬策略 `PathGuard`：路径围栏防逃逸（绝对路径越界、`..` 穿越、符号链接指向外部），不可被用户批准绕过。

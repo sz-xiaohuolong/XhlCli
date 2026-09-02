@@ -34,7 +34,7 @@
 | 02 ReAct | `e2b8df4`、`f49d33c`、`a6fa3a8`、`b7ee842` | `agent/Agent`、`agent/AgentBudget`、`llm/LlmClient`、`llm/AbstractOpenAiCompatibleClient`、`tool/ToolRegistry` | 已交付：保留最小循环、结构化消息和流式 Tool Call 的采用意图；以 XhlCLI 自有协议补上最大迭代、超时、取消、重复检测、事件和受控演示工具 |
 | 03 本地工具 | `e2b8df4`、`72a7e90`、`c69be83` | `tool/ToolRegistry`、代码搜索工具 | 拆分最终巨型 Registry，按工具职责迁移，保留统一注册入口 |
 | 04 安全审批 | `75e6642`、`f90d9f5` | `hitl/*`、`policy/*` | 迁移审批和围栏，按 PRD 保持硬策略优先、非交互默认拒绝 |
-| 05 上下文记忆 | `d16c54e`、`72a7e90`、`96bc8b2` | `memory/*`、`context/*`、项目记忆加载 | 分开会话压缩、长期记忆和项目规则，删除自动长期记忆路径 |
+| 05 上下文记忆 | `d16c54e`, `72a7e90`, `96bc8b2` | `com.xhlcli.memory`, `com.xhlcli.context` | 重构了 MemoryEntry 和 TokenBudget 的逻辑；实现了 ConversationHistoryCompactor 和 /save 等命令 |
 | 06 精确搜索 | `72a7e90`、`c69be83` | `tool/CodeSearchEngine*`、`CodeSearchGoldenSetTest` | `rg` 优先、Java 降级、结果预算与建议读取 |
 | 07 代码库 RAG | `3ff4ebc` | `rag/*` | 迁移切分、Embedding、SQLite 向量存储和增量索引；精确搜索仍为默认 |
 | 08 计划执行 | `a3101c4`–`bfdaf43` | `plan/*`、`PlanExecuteAgent`、审阅解析 | 先串行 DAG，再引入重新规划和范围限制 |
