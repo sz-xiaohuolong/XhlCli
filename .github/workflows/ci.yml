@@ -25,5 +25,6 @@ jobs:
         run: ./mvnw --batch-mode verify
       - name: Smoke test executable JAR
         run: |
-          java -jar target/xhlcli-0.2.0.jar --help
-          java -jar target/xhlcli-0.2.0.jar --version
+          JAR_FILE=$(ls target/xhlcli-*.jar | grep -v original | head -n 1)
+          java -jar "$JAR_FILE" --help
+          java -jar "$JAR_FILE" --version
