@@ -120,8 +120,20 @@ public final class ChatBootstrap implements ChatRunner {
                     mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString(),
                     value -> SecretRedactor.redact(value, config.apiKey()),
                     () -> new StreamingSecretRedactor(config.apiKey()));
+            Path globalMemoryDir = userHome.resolve(".xhlcli").resolve("memory");
+            Path projectMemoryDir = projectDirectory.resolve(".xhlcli").resolve("memory");
+            com.xhlcli.memory.MemoryManager memoryManager = new com.xhlcli.memory.MemoryManager(globalMemoryDir, projectMemoryDir);
+            com.xhlcli.context.TokenBudget budget = new com.xhlcli.context.TokenBudget(100000);
+            com.xhlcli.context.ContextAssembler contextAssembler = new com.xhlcli.context.ContextAssembler(budget);
+            com.xhlcli.memory.ConversationHistoryCompactor compactor = new com.xhlcli.memory.ConversationHistoryCompactor(client);
+            agent.setContextAssembler(contextAssembler);
+            agent.setCompactor(compactor);
+            agent.setRetrievedMemory(memoryManager.loadAll().stream().map(m -> ChatMessage.system("【记忆片段】 " + m.content())).toList());
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
             ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
+            loop.setMemoryManager(memoryManager);
+            loop.setContextAssembler(contextAssembler);
+            loop.setCompactor(compactor);
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {

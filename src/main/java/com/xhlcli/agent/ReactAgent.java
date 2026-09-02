@@ -49,6 +49,21 @@ public final class ReactAgent implements AgentRunner {
     private final Supplier<StreamingSecretRedactor> streamingSanitizerSupplier;
     private final GateHook gateHook;
     private List<ChatMessage> committedHistory;
+    private com.xhlcli.context.ContextAssembler contextAssembler;
+    private com.xhlcli.memory.ConversationHistoryCompactor compactor;
+    private java.util.List<ChatMessage> retrievedMemory;
+
+    public void setContextAssembler(com.xhlcli.context.ContextAssembler contextAssembler) {
+        this.contextAssembler = contextAssembler;
+    }
+
+    public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) {
+        this.compactor = compactor;
+    }
+
+    public void setRetrievedMemory(java.util.List<ChatMessage> retrievedMemory) {
+        this.retrievedMemory = retrievedMemory;
+    }
 
     public ReactAgent(
             ChatMessage systemMessage,
@@ -206,7 +221,23 @@ public final class ReactAgent implements AgentRunner {
                     lifecycle.requireActive();
                     sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
                     sequencer.beginTextStream();
-                    response = client.stream(List.copyOf(workingHistory), toolDefinitions, delta -> {
+                    List<ChatMessage> toSend = List.copyOf(workingHistory);
+                    if (contextAssembler != null) {
+                        String baseSys = "";
+                        List<ChatMessage> pure = new java.util.ArrayList<>();
+                        for (ChatMessage m : workingHistory) {
+                            if (m.role() == ChatMessage.Role.SYSTEM) baseSys += m.content() + "\n";
+                            else pure.add(m);
+                        }
+                        if (compactor != null && !contextAssembler.getBudget().isWithinBudget(pure)) {
+                            pure = compactor.compact(pure, 5);
+                            workingHistory.clear();
+                            workingHistory.add(ChatMessage.system(baseSys.trim()));
+                            workingHistory.addAll(pure);
+                        }
+                        toSend = contextAssembler.assemble(baseSys.trim(), "", "", "", "", retrievedMemory, null, pure);
+                    }
+                    response = client.stream(toSend, toolDefinitions, delta -> {
                         if (!delta.isEmpty() && gate.stopReason() == StopReason.NONE) {
                             lifecycle.requireActive();
                             sequencer.emitTextDelta(modelIteration, delta);

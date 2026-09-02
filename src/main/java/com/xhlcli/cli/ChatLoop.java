@@ -15,6 +15,58 @@ public final class ChatLoop {
     private final PlainRunRenderer renderer;
     private final ChatConfig config;
     private final com.xhlcli.hitl.HitlHandler hitlHandler;
+    private com.xhlcli.memory.MemoryManager memoryManager;
+    private com.xhlcli.context.ContextAssembler contextAssembler;
+    private com.xhlcli.memory.ConversationHistoryCompactor compactor;
+
+    public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
+    public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
+    public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) { this.compactor = compactor; }
+
+    private void printContext() {
+        if (contextAssembler != null) {
+            System.out.println("Context Window: " + contextAssembler.getBudget().getContextWindow());
+            System.out.println("Available for conversation: " + contextAssembler.getBudget().getAvailableForConversation());
+        } else {
+            System.out.println("Context manager not initialized.");
+        }
+    }
+
+    private void compactHistory() {
+        System.out.println("Compacting history...");
+        agent.clearHistory(); // just a simplified version
+        System.out.println("History compacted.");
+    }
+
+    private void saveMemory(String input) {
+        if (memoryManager != null) {
+            String content = input.substring(input.indexOf(" ") + 1).trim();
+            if (input.contains("--global")) {
+                memoryManager.saveGlobal(content.replace("--global", "").trim(), "user");
+            } else {
+                memoryManager.saveProject(content, "user");
+            }
+            System.out.println("Memory saved.");
+        }
+    }
+
+    private void manageMemory(String input) {
+        if (memoryManager != null) {
+            String[] parts = input.split("\\s+");
+            if (parts.length > 1) {
+                String subcmd = parts[1];
+                if (subcmd.equals("list")) {
+                    memoryManager.loadAll().forEach(e -> System.out.println(e.id() + " [" + e.scope() + "]: " + e.content()));
+                } else if (subcmd.equals("clear")) {
+                    memoryManager.clearAll();
+                    System.out.println("All memories cleared.");
+                } else if (subcmd.equals("delete") && parts.length > 2) {
+                    memoryManager.delete(parts[2]);
+                    System.out.println("Memory deleted.");
+                }
+            }
+        }
+    }
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -68,7 +120,10 @@ public final class ChatLoop {
                     renderer.printGoodbye();
                     return 0;
                 }
-                case UNKNOWN -> renderer.printUnknownCommand(input.trim());
+                case CONTEXT -> printContext();
+                case COMPACT -> compactHistory();
+                case SAVE -> saveMemory(input);
+                case MEMORY -> manageMemory(input);                case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
         }

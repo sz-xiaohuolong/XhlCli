@@ -6,5 +6,9 @@ public enum ChatCommand {
     CLEAR,
     EXIT,
     UNKNOWN,
-    USER_MESSAGE
+    USER_MESSAGE,
+    CONTEXT,
+    COMPACT,
+    SAVE,
+    MEMORY
 }

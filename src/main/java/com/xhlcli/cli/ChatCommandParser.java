@@ -9,11 +9,16 @@ public final class ChatCommandParser {
         if (!normalized.startsWith("/")) {
             return ChatCommand.USER_MESSAGE;
         }
-        return switch (normalized.toLowerCase(Locale.ROOT)) {
+        String cmd = normalized.split("\\s+")[0].toLowerCase(Locale.ROOT);
+        return switch (cmd) {
             case "/help" -> ChatCommand.HELP;
             case "/config" -> ChatCommand.CONFIG;
             case "/clear" -> ChatCommand.CLEAR;
             case "/exit", "/quit" -> ChatCommand.EXIT;
+            case "/context" -> ChatCommand.CONTEXT;
+            case "/compact" -> ChatCommand.COMPACT;
+            case "/save" -> ChatCommand.SAVE;
+            case "/memory" -> ChatCommand.MEMORY;
             default -> ChatCommand.UNKNOWN;
         };
     }
