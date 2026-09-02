@@ -40,31 +40,87 @@ public final class ChatLoop {
 
     private void saveMemory(String input) {
         if (memoryManager != null) {
-            String content = input.substring(input.indexOf(" ") + 1).trim();
-            if (input.contains("--global")) {
-                memoryManager.saveGlobal(content.replace("--global", "").trim(), "user");
-            } else {
-                memoryManager.saveProject(content, "user");
+            String trimmed = input.trim();
+            int firstSpace = trimmed.indexOf(' ');
+            if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
+                System.out.println("用法: /save [--global] <记忆内容>");
+                return;
             }
-            System.out.println("Memory saved.");
+            String content = trimmed.substring(firstSpace + 1).trim();
+            if (content.startsWith("--global")) {
+                String fact = content.substring("--global".length()).trim();
+                if (fact.isBlank()) {
+                    System.out.println("用法: /save --global <记忆内容>");
+                    return;
+                }
+                memoryManager.saveGlobal(fact, "user");
+                System.out.println("已保存全局长期记忆: " + fact);
+            } else {
+                if (content.isBlank()) {
+                    System.out.println("用法: /save <记忆内容>");
+                    return;
+                }
+                memoryManager.saveProject(content, "user");
+                System.out.println("已保存项目长期记忆: " + content);
+            }
+        } else {
+            System.out.println("记忆管理器未初始化。");
         }
     }
 
     private void manageMemory(String input) {
         if (memoryManager != null) {
-            String[] parts = input.split("\\s+");
-            if (parts.length > 1) {
-                String subcmd = parts[1];
-                if (subcmd.equals("list")) {
-                    memoryManager.loadAll().forEach(e -> System.out.println(e.id() + " [" + e.scope() + "]: " + e.content()));
-                } else if (subcmd.equals("clear")) {
-                    memoryManager.clearAll();
-                    System.out.println("All memories cleared.");
-                } else if (subcmd.equals("delete") && parts.length > 2) {
-                    memoryManager.delete(parts[2]);
-                    System.out.println("Memory deleted.");
-                }
+            String[] parts = input.trim().split("\\s+");
+            if (parts.length < 2) {
+                System.out.println("用法: /memory <list|search <query>|delete <id>|clear>");
+                return;
             }
+            String subcmd = parts[1].toLowerCase(java.util.Locale.ROOT);
+            switch (subcmd) {
+                case "list" -> {
+                    var list = memoryManager.loadAll();
+                    if (list.isEmpty()) {
+                        System.out.println("当前没有保存任何长期记忆。");
+                    } else {
+                        System.out.println("=== 长期记忆列表 (" + list.size() + " 条) ===");
+                        list.forEach(e -> System.out.println("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
+                    }
+                }
+                case "search" -> {
+                    if (parts.length < 3) {
+                        System.out.println("用法: /memory search <关键词>");
+                        return;
+                    }
+                    String query = input.trim().substring(input.trim().indexOf(parts[2]));
+                    var results = memoryManager.search(query);
+                    if (results.isEmpty()) {
+                        System.out.println("未找到与 \"" + query + "\" 相关的记忆。");
+                    } else {
+                        System.out.println("=== 搜索结果 (" + results.size() + " 条) ===");
+                        results.forEach(e -> System.out.println("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
+                    }
+                }
+                case "delete" -> {
+                    if (parts.length < 3) {
+                        System.out.println("用法: /memory delete <id>");
+                        return;
+                    }
+                    String id = parts[2];
+                    boolean deleted = memoryManager.delete(id);
+                    if (deleted) {
+                        System.out.println("已成功删除记忆 [" + id + "]。");
+                    } else {
+                        System.out.println("未找到 ID 为 [" + id + "] 的记忆。");
+                    }
+                }
+                case "clear" -> {
+                    memoryManager.clearAll();
+                    System.out.println("已清空所有长期记忆。");
+                }
+                default -> System.out.println("未知子命令。用法: /memory <list|search <query>|delete <id>|clear>");
+            }
+        } else {
+            System.out.println("记忆管理器未初始化。");
         }
     }
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
@@ -123,7 +179,8 @@ public final class ChatLoop {
                 case CONTEXT -> printContext();
                 case COMPACT -> compactHistory();
                 case SAVE -> saveMemory(input);
-                case MEMORY -> manageMemory(input);                case UNKNOWN -> renderer.printUnknownCommand(input.trim());
+                case MEMORY -> manageMemory(input);
+                case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
         }

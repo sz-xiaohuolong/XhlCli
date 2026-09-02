@@ -1,5 +1,6 @@
 package com.xhlcli.context;
 
+import com.xhlcli.memory.MemoryEntry;
 import com.xhlcli.model.ChatMessage;
 
 import java.util.ArrayList;
@@ -29,13 +30,13 @@ public class ContextAssembler {
             String agentMode,
             String runtimeContext,
             String projectRules,
-            List<ChatMessage> retrievedMemory,
+            List<MemoryEntry> retrievedMemory,
             List<ChatMessage> compactedConversation,
             List<ChatMessage> currentInput) {
         
         List<ChatMessage> context = new ArrayList<>();
         
-        // 1-5. System level rules
+        // 1-6. System level rules & persistent memory
         StringBuilder systemContent = new StringBuilder();
         if (baseSystemRules != null && !baseSystemRules.isBlank()) {
             systemContent.append(baseSystemRules).append("\n\n");
@@ -52,14 +53,16 @@ public class ContextAssembler {
         if (projectRules != null && !projectRules.isBlank()) {
             systemContent.append("## Project Rules\n").append(projectRules).append("\n\n");
         }
+        if (retrievedMemory != null && !retrievedMemory.isEmpty()) {
+            systemContent.append("## 长期记忆与已知事实 (Long-Term Memory)\n");
+            for (MemoryEntry entry : retrievedMemory) {
+                systemContent.append("- [").append(entry.scope()).append("] ").append(entry.content()).append("\n");
+            }
+            systemContent.append("\n");
+        }
 
         if (!systemContent.isEmpty()) {
             context.add(ChatMessage.system(systemContent.toString().trim()));
-        }
-
-        // 6. Retrieved memory
-        if (retrievedMemory != null) {
-            context.addAll(retrievedMemory);
         }
 
         // 7. Compacted conversation (摘要)

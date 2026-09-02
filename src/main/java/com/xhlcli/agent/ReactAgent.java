@@ -51,7 +51,7 @@ public final class ReactAgent implements AgentRunner {
     private List<ChatMessage> committedHistory;
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
-    private java.util.List<ChatMessage> retrievedMemory;
+    private java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier;
 
     public void setContextAssembler(com.xhlcli.context.ContextAssembler contextAssembler) {
         this.contextAssembler = contextAssembler;
@@ -61,8 +61,8 @@ public final class ReactAgent implements AgentRunner {
         this.compactor = compactor;
     }
 
-    public void setRetrievedMemory(java.util.List<ChatMessage> retrievedMemory) {
-        this.retrievedMemory = retrievedMemory;
+    public void setMemorySupplier(java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier) {
+        this.memorySupplier = memorySupplier;
     }
 
     public ReactAgent(
@@ -235,7 +235,8 @@ public final class ReactAgent implements AgentRunner {
                             workingHistory.add(ChatMessage.system(baseSys.trim()));
                             workingHistory.addAll(pure);
                         }
-                        toSend = contextAssembler.assemble(baseSys.trim(), "", "", "", "", retrievedMemory, null, pure);
+                        java.util.List<com.xhlcli.memory.MemoryEntry> activeMemories = memorySupplier != null ? memorySupplier.get() : null;
+                        toSend = contextAssembler.assemble(baseSys.trim(), "", "", "", "", activeMemories, null, pure);
                     }
                     response = client.stream(toSend, toolDefinitions, delta -> {
                         if (!delta.isEmpty() && gate.stopReason() == StopReason.NONE) {

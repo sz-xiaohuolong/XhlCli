@@ -128,7 +128,7 @@ public final class ChatBootstrap implements ChatRunner {
             com.xhlcli.memory.ConversationHistoryCompactor compactor = new com.xhlcli.memory.ConversationHistoryCompactor(client);
             agent.setContextAssembler(contextAssembler);
             agent.setCompactor(compactor);
-            agent.setRetrievedMemory(memoryManager.loadAll().stream().map(m -> ChatMessage.system("【记忆片段】 " + m.content())).toList());
+            agent.setMemorySupplier(memoryManager::loadAll);
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
             ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
             loop.setMemoryManager(memoryManager);
