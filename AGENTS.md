@@ -205,6 +205,8 @@ Phase 03 于 2026-08-29 完成 155 项离线测试（较 Phase 02 增加 28 项�
 
 Phase 04 于 2026-08-30 完成 187 项离线测试（较 Phase 03 增加 32 项），交付系统硬策略 (`PathGuard` 路径围栏、`CommandGuard` 命令黑名单)、脱敏审计日志 (`AuditLog`)、风险分级策略 (`ApprovalPolicy`)、终端人工审批 (`TerminalHitlHandler` 支持 y/a/n/s/m 决策)、`DefaultToolExecutor` 安全编排闭环 (Schema → 硬策略 → HITL → 执行 → 审计)、`ChatBootstrap` 装配与 `ChatLoop` `/clear` 联动，以及 `AgentSafetyIntegrationTest` 端到端安全验证。
 
+Phase 05 于 2026-09-02 完成 194 项离线测试（较 Phase 04 增加 7 项），交付上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆与作用域隔离 (`MemoryManager`/`LongTermMemory` 支持 global/project)、会话历史无损自动压缩 (`ConversationHistoryCompactor`)，CLI 控制指令 (`/context`, `/compact`, `/save`, `/memory`)，以及动态记忆注入与集成测试 (`AgentMemoryIntegrationTest`)。发布版本标签 `v0.3.0`。
+
 ## 12. 文档联动
 
 - 改产品范围：对应子 PRD + 总 PRD（仅影响长期范围时）。
@@ -213,7 +215,7 @@ Phase 04 于 2026-08-30 完成 187 项离线测试（较 Phase 03 增加 32 项�
 - 改工具：Tool Schema + Agent Prompt + Policy + 测试 + 文档。
 - 改 Provider：能力声明 + 契约测试 + 配置示例 + 文档。
 - 改持久化格式：版本与迁移策略 + 测试 + 文档。
-- 阶段交付：README + CHANGELOG + Roadmap 状态 + 演示证据，或已记录的人工演示豁免。
+- 阶段交付：README + CHANGELOG + Roadmap 状态 + 检查并同步 CI 指令 + 创建并推送 Git Tag (如 `v0.3.0`) + 演示证据，或已记录的人工演示豁免。
 
 ## 13. Git 规则
 
@@ -223,7 +225,9 @@ Phase 04 于 2026-08-30 完成 187 项离线测试（较 Phase 03 增加 32 项�
 - 一次提交只包含一个可独立解释和验证的变化。
 - 使用实际日期和作者，不改写历史制造开发时长。
 - 推荐提交前缀：`docs:`、`test:`、`feat:`、`fix:`、`refactor:`、`build:`、`chore:`。
-- 仅在阶段交付计划明确要求发布时创建版本标签；未完成阶段和明确免除标签的阶段不得创建正式标签。
+- 每完成并交付一个 Phase 阶段，必须：
+  1. 检查并确保 CI 工作流指令与当前版本匹配（自适应或同步更新）。
+  2. 创建并推送对应的阶段版本 Tag（如 `v0.3.0` 等）至远程仓库。
 
 ## 14. 禁止事项
 
