@@ -7,6 +7,7 @@ import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.model.ToolOutput;
 import com.xhlcli.tool.local.ReadFileTool;
 import com.xhlcli.tool.local.WorkspacePathResolver;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
@@ -23,7 +24,18 @@ class CodeSearchGoldenSetTest {
     private static final int MAX_CHARS = 6_000;
 
     @Test
-    void grepThenReadGoldenSetStaysWithinBudgetAndFindsExpectedCode() throws Exception {
+    @DisplayName("Golden Set - 默认引擎（自适应 rg / 降级 Java）")
+    void testGoldenSetWithDefaultEngine() throws Exception {
+        executeGoldenSet(false);
+    }
+
+    @Test
+    @DisplayName("Golden Set - 强制 Java 降级实现")
+    void testGoldenSetWithJavaFallback() throws Exception {
+        executeGoldenSet(true);
+    }
+
+    private void executeGoldenSet(boolean forceJavaFallback) throws Exception {
         Path projectRoot = Path.of("").toAbsolutePath().normalize();
         WorkspacePathResolver resolver = new WorkspacePathResolver(projectRoot);
         GrepCodeTool grepTool = new GrepCodeTool(resolver);
@@ -31,21 +43,42 @@ class CodeSearchGoldenSetTest {
         List<GoldenCase> cases = loadGoldenSet();
 
         String previous = System.getProperty("xhlcli.search.disable.rg");
-        System.setProperty("xhlcli.search.disable.rg", "true");
+        if (forceJavaFallback) {
+            System.setProperty("xhlcli.search.disable.rg", "true");
+        } else {
+            System.clearProperty("xhlcli.search.disable.rg");
+        }
+
+        long totalStartTime = System.currentTimeMillis();
+        int passCount = 0;
+
         try {
             for (GoldenCase goldenCase : cases) {
-                Path expectedFile = projectRoot.resolve(goldenCase.expectedPath()).normalize();
-                int expectedLine = lineContaining(expectedFile, goldenCase.expectedText());
+                long caseStart = System.currentTimeMillis();
 
                 ObjectNode grepArgs = MAPPER.createObjectNode();
                 grepArgs.put("pattern", goldenCase.pattern());
-                grepArgs.put("glob", goldenCase.glob());
+                if (goldenCase.glob() != null && !goldenCase.glob().isBlank()) {
+                    grepArgs.put("glob", goldenCase.glob());
+                }
                 grepArgs.put("max_results", 20);
                 grepArgs.put("head_limit", 5);
                 grepArgs.put("max_chars", MAX_CHARS);
 
                 ToolOutput grepOutput = grepTool.execute(grepArgs, new CancellationToken());
                 String grepResult = grepOutput.summary();
+
+                if (!goldenCase.shouldExist()) {
+                    // 负向用例：验证不存在的符号不伪造结果
+                    assertTrue(grepResult.contains("未找到匹配内容") || grepResult.contains("匹配结果 0 条"),
+                            () -> goldenCase.id() + " expected no matches, but got: " + grepResult);
+                    passCount++;
+                    continue;
+                }
+
+                // 正向用例：必须定位到指定文件与行
+                Path expectedFile = projectRoot.resolve(goldenCase.expectedPath()).normalize();
+                int expectedLine = lineContaining(expectedFile, goldenCase.expectedText());
 
                 assertTrue(grepResult.length() <= MAX_CHARS + 500,
                         () -> goldenCase.id() + " exceeded grep output budget: " + grepResult.length());
@@ -64,10 +97,16 @@ class CodeSearchGoldenSetTest {
                 String readResult = readOutput.summary();
                 assertTrue(readResult.contains(goldenCase.expectedText()),
                         () -> goldenCase.id() + " did not read expected context. Output:\n" + readResult);
+
+                passCount++;
             }
         } finally {
             restoreSystemProperty("xhlcli.search.disable.rg", previous);
         }
+
+        long totalDuration = System.currentTimeMillis() - totalStartTime;
+        System.out.printf("[%s] Golden Set 测试通过: %d/%d 用例，总耗时: %d ms%n",
+                forceJavaFallback ? "Java-Fallback" : "Default-Engine", passCount, cases.size(), totalDuration);
     }
 
     private List<GoldenCase> loadGoldenSet() throws Exception {
@@ -103,6 +142,11 @@ class CodeSearchGoldenSetTest {
             String pattern,
             String glob,
             String expectedPath,
-            String expectedText
-    ) {}
+            String expectedText,
+            boolean shouldExist
+    ) {
+        public GoldenCase {
+            // Jackson 默认对缺失的 boolean 解析为 false，但已有 json 需兼容
+        }
+    }
 }

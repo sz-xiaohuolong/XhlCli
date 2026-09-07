@@ -83,7 +83,21 @@ public final class GrepCodeTool implements Tool {
             return new ToolOutput("代码搜索失败: " + result.partialReason(), JsonNodeFactory.instance.objectNode(), "");
         }
         if (result.matches().isEmpty()) {
-            return new ToolOutput("未找到匹配内容: " + pattern, JsonNodeFactory.instance.objectNode(), "");
+            StringBuilder emptyMsg = new StringBuilder();
+            emptyMsg.append("未找到匹配内容: \"").append(pattern).append("\"");
+            if (glob != null && !glob.isBlank()) {
+                emptyMsg.append(" (限定 glob: ").append(glob).append(")");
+            }
+            emptyMsg.append("\n建议：");
+            if (caseSensitive) {
+                emptyMsg.append("\n- 尝试设置 case_sensitive 为 false 忽略大小写再次搜索");
+            }
+            if (glob != null && !glob.isBlank()) {
+                emptyMsg.append("\n- 尝试放宽或移除 glob 路径/后缀限制");
+            }
+            emptyMsg.append("\n- 尝试缩短 pattern 关键字，或先使用 glob_files 定位候选文件");
+            emptyMsg.append("\n- 检查是否需要切换 regex 正则模式或固定字符串模式");
+            return new ToolOutput(emptyMsg.toString(), JsonNodeFactory.instance.objectNode(), "");
         }
 
         StringBuilder sb = new StringBuilder();

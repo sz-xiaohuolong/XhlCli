@@ -13,6 +13,12 @@ class ChatCommandParserTest {
         assertEquals(ChatCommand.CONFIG, parser.parse(" /config "));
         assertEquals(ChatCommand.CLEAR, parser.parse("/CLEAR"));
         assertEquals(ChatCommand.EXIT, parser.parse("/exit"));
+        assertEquals(ChatCommand.CONTEXT, parser.parse("/context"));
+        assertEquals(ChatCommand.COMPACT, parser.parse("/compact"));
+        assertEquals(ChatCommand.SAVE, parser.parse("/save some text"));
+        assertEquals(ChatCommand.MEMORY, parser.parse("/memory list"));
+        assertEquals(ChatCommand.SEARCH_TEXT, parser.parse("/search-text foo"));
+        assertEquals(ChatCommand.SEARCH_TEXT, parser.parse("/search bar"));
     }
 
     @Test

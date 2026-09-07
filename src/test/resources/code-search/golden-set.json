@@ -1,34 +1,74 @@
 [
   {
+    "id": "class-definition",
+    "question": "RipgrepCodeSearchEngine 类在何处定义？",
+    "pattern": "public final class RipgrepCodeSearchEngine",
+    "glob": "**/RipgrepCodeSearchEngine.java",
+    "expectedPath": "src/main/java/com/xhlcli/tool/local/search/RipgrepCodeSearchEngine.java",
+    "expectedText": "public final class RipgrepCodeSearchEngine implements CodeSearchEngine",
+    "shouldExist": true
+  },
+  {
+    "id": "interface-implementation",
+    "question": "CodeSearchEngine 接口有哪些实现？",
+    "pattern": "implements CodeSearchEngine",
+    "glob": "**/JavaCodeSearchEngine.java",
+    "expectedPath": "src/main/java/com/xhlcli/tool/local/search/JavaCodeSearchEngine.java",
+    "expectedText": "public final class JavaCodeSearchEngine implements CodeSearchEngine",
+    "shouldExist": true
+  },
+  {
+    "id": "method-invocation",
+    "question": "ReactAgent 中在何处调用 ToolExecutor 执行工具？",
+    "pattern": "executor.execute(call",
+    "glob": "**/ReactAgent.java",
+    "expectedPath": "src/main/java/com/xhlcli/agent/ReactAgent.java",
+    "expectedText": "ToolResult result = executor.execute(call, operationCancellation);",
+    "shouldExist": true
+  },
+  {
+    "id": "config-key",
+    "question": "DEEPSEEK_API_KEY 配置项在启动引导时何处检查？",
+    "pattern": "DEEPSEEK_API_KEY",
+    "glob": "**/ChatBootstrap.java",
+    "expectedPath": "src/main/java/com/xhlcli/cli/ChatBootstrap.java",
+    "expectedText": "Copy .env.example to .env and set DEEPSEEK_API_KEY",
+    "shouldExist": true
+  },
+  {
+    "id": "test-case",
+    "question": "AgentSafetyIntegrationTest 安全集成测试位于何处？",
+    "pattern": "class AgentSafetyIntegrationTest",
+    "glob": "**/AgentSafetyIntegrationTest.java",
+    "expectedPath": "src/test/java/com/xhlcli/agent/AgentSafetyIntegrationTest.java",
+    "expectedText": "class AgentSafetyIntegrationTest {",
+    "shouldExist": true
+  },
+  {
+    "id": "command-entrypoint",
+    "question": "CLI 主程序入口 main 函数位于何处？",
+    "pattern": "public static void main(String[] args)",
+    "glob": "**/Main.java",
+    "expectedPath": "src/main/java/com/xhlcli/cli/Main.java",
+    "expectedText": "public static void main(String[] args)",
+    "shouldExist": true
+  },
+  {
     "id": "bootstrap-tools",
     "question": "ChatBootstrap 中默认注册了哪些演示工具？",
     "pattern": "EchoTool",
     "glob": "**/ChatBootstrap.java",
     "expectedPath": "src/main/java/com/xhlcli/cli/ChatBootstrap.java",
-    "expectedText": "new EchoTool()"
+    "expectedText": "new EchoTool()",
+    "shouldExist": true
   },
   {
-    "id": "react-agent-repetition",
-    "question": "ReactAgent 中如何防范工具调用循环重复？",
-    "pattern": "repetitionGuard",
-    "glob": "**/ReactAgent.java",
-    "expectedPath": "src/main/java/com/xhlcli/agent/ReactAgent.java",
-    "expectedText": "RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);"
-  },
-  {
-    "id": "tool-registry-validation",
-    "question": "ToolRegistry 如何校验工具定义的命名与 schema？",
-    "pattern": "validateDefinition",
-    "glob": "**/ToolRegistry.java",
-    "expectedPath": "src/main/java/com/xhlcli/tool/ToolRegistry.java",
-    "expectedText": "private static void validateDefinition(ToolDefinition definition)"
-  },
-  {
-    "id": "workspace-path-guard",
-    "question": "WorkspacePathResolver 在哪里解析并防止路径穿越？",
-    "pattern": "resolveSafe",
-    "glob": "**/WorkspacePathResolver.java",
-    "expectedPath": "src/main/java/com/xhlcli/tool/local/WorkspacePathResolver.java",
-    "expectedText": "public Path resolveSafe(String path)"
+    "id": "non-existent-symbol",
+    "question": "搜索项目中不存在的魔法符号 NonExistentMagicSymbolXYZ_404 是否会正确返回空结果？",
+    "pattern": "NonExistentMagicSymbolXYZ_404",
+    "glob": "**/*.java",
+    "expectedPath": "",
+    "expectedText": "",
+    "shouldExist": false
   }
 ]

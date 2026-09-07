@@ -20,10 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 04 安全策略与审批已交付；下一阶段为 Phase 05 上下文管理与会话记忆 (Context Management)。
-- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，8 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环和 187 项自动化测试。
-- 当前已发布：Phase 01 `v0.2.0` 终端流式对话基础。
-- 当前未交付：MCP、RAG、长期记忆、上下文预算管理、Plan、并行工具、Multi-Agent 和 Phase 05–18 的其他运行能力。
+- 当前阶段：Phase 06 代码精确检索已交付；下一阶段为 Phase 07 代码库 RAG (Repository RAG)。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，8 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环，上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆 (`MemoryManager`)、会话自动压缩 (`ConversationHistoryCompactor`)，CLI 指令 (`/search-text`, `/context`, `/compact`, `/save`, `/memory`) 及 197 项全量自动化测试。
+- 当前已发布：Phase 01 `v0.2.0`，Phase 05 `v0.3.0`，Phase 06 `v0.4.0`。
+- 当前未交付：MCP、RAG、Plan、并行工具、Multi-Agent 和 Phase 07–18 的其他运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 
@@ -206,6 +206,8 @@ Phase 03 于 2026-08-29 完成 155 项离线测试（较 Phase 02 增加 28 项�
 Phase 04 于 2026-08-30 完成 187 项离线测试（较 Phase 03 增加 32 项），交付系统硬策略 (`PathGuard` 路径围栏、`CommandGuard` 命令黑名单)、脱敏审计日志 (`AuditLog`)、风险分级策略 (`ApprovalPolicy`)、终端人工审批 (`TerminalHitlHandler` 支持 y/a/n/s/m 决策)、`DefaultToolExecutor` 安全编排闭环 (Schema → 硬策略 → HITL → 执行 → 审计)、`ChatBootstrap` 装配与 `ChatLoop` `/clear` 联动，以及 `AgentSafetyIntegrationTest` 端到端安全验证。
 
 Phase 05 于 2026-09-02 完成 194 项离线测试（较 Phase 04 增加 7 项），交付上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆与作用域隔离 (`MemoryManager`/`LongTermMemory` 支持 global/project)、会话历史无损自动压缩 (`ConversationHistoryCompactor`)，CLI 控制指令 (`/context`, `/compact`, `/save`, `/memory`)，以及动态记忆注入与集成测试 (`AgentMemoryIntegrationTest`)。发布版本标签 `v0.3.0`。
+
+Phase 06 于 2026-09-07 完成 197 项离线测试（较 Phase 05 增加 3 项），交付覆盖 7 类典型场景的确定性 Golden Set 评测集、Ripgrep 与纯 Java 降级双引擎 100% 正确率验证、`GrepCodeTool` 智能搜索调整建议、CLI `/search-text` 人工交互验证指令，以及 Agent 核心代码探索流水线提示词。发布交付物基准报告 `docs/engineering/code-search-golden-set.md`，发布版本标签 `v0.4.0`。
 
 ## 12. 文档联动
 

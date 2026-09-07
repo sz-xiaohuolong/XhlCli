@@ -35,7 +35,7 @@
 | 03 本地工具 | `e2b8df4`、`72a7e90`、`c69be83` | `tool/ToolRegistry`、代码搜索工具 | 拆分最终巨型 Registry，按工具职责迁移，保留统一注册入口 |
 | 04 安全审批 | `75e6642`、`f90d9f5` | `hitl/*`、`policy/*` | 迁移审批和围栏，按 PRD 保持硬策略优先、非交互默认拒绝 |
 | 05 上下文记忆 | `d16c54e`, `72a7e90`, `96bc8b2` | `com.xhlcli.memory`, `com.xhlcli.context` | 重构了 MemoryEntry 和 TokenBudget 的逻辑；实现了 ConversationHistoryCompactor 和 /save 等命令 |
-| 06 精确搜索 | `72a7e90`、`c69be83` | `tool/CodeSearchEngine*`、`CodeSearchGoldenSetTest` | `rg` 优先、Java 降级、结果预算与建议读取 |
+| 06 精确搜索 | `72a7e90`、`c69be83` | `tool/CodeSearchEngine*`、`CodeSearchGoldenSetTest` | 已交付：`rg` 优先、纯 Java 降级无缝回退；7 类 Golden Set 评测、智能无结果建议、CLI `/search-text` 指令及代码探索流水线规则 |
 | 07 代码库 RAG | `3ff4ebc` | `rag/*` | 迁移切分、Embedding、SQLite 向量存储和增量索引；精确搜索仍为默认 |
 | 08 计划执行 | `a3101c4`–`bfdaf43` | `plan/*`、`PlanExecuteAgent`、审阅解析 | 先串行 DAG，再引入重新规划和范围限制 |
 | 09 并行执行 | `039ecdc` | Agent/Plan/SubAgent 的批量执行入口 | 统一到单一有界调度器，保持结果顺序 |

@@ -78,6 +78,7 @@ public final class PlainRunRenderer {
 
     public synchronized void printCleared() { out.println("Conversation cleared."); }
     public synchronized void printGoodbye() { out.println("Goodbye."); }
+    public synchronized void printMessage(String message) { out.println(message); }
 
     public synchronized void printUnknownCommand(String command) {
         err.println("Unknown command: " + safe(command));

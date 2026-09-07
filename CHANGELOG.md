@@ -5,12 +5,23 @@
 ## [Unreleased]
 
 ### Added
+- **Code Search** (Phase 06):
+  - 全面扩充代码检索 Golden Set 评测集至 7 大真实场景（类定义、接口实现、方法调用、配置键、测试、入口函数、不存在符号安全负向用例），双引擎通过率 100%。
+  - `GrepCodeTool` 无结果智能建议：依据当前搜索参数自动提示放宽大小写敏感、移除 glob 或缩短 pattern。
+  - CLI 人工调试指令 `/search-text <pattern>` 与 `/search <pattern>`：终端直出高亮检索结果与 suggested_reads，无需消耗大模型 Token。
+  - Agent System Prompt 核心检索流水线强化：明确 `glob_files -> grep_code -> read_file` 代码探索路径，强制本地代码首选原则，杜绝误触发网络搜索。
+  - 发布交付物报告 `docs/engineering/code-search-golden-set.md`。
+
+## [0.3.0] - 2026-09-02
+
+### Added
 - **Context & Memory** (Phase 05):
-  - `TokenBudget` for tracking token limits.
-  - `ContextAssembler` for hierarchical context management.
-  - `MemoryManager` and `LongTermMemory` with global/project scopes.
-  - Auto-compaction of `ConversationHistory` preserving tool call/result pairs.
-  - CLI commands: `/context`, `/compact`, `/save`, `/memory`.
+  - `TokenBudget` 字符级上下文预算管理与预估。
+  - `ContextAssembler` 8 层标准上下文组装管线。
+  - `MemoryManager` 与 `LongTermMemory`：项目级（`<workspace>/.xhlcli/memory`）与全局级（`~/.xhlcli/memory`）双重作用域隔离。
+  - `ConversationHistoryCompactor`：长对话大模型驱动结构化无损压缩，保护 Tool Call / Tool Result 成对关系。
+  - CLI 控制指令：`/context`、`/compact`、`/save`、`/memory`。
+  - 动态实时长期记忆注入与端到端集成测试 `AgentMemoryIntegrationTest`。
 
 - Phase 04 安全策略与人工审批 (Safety and Approval)：
   - 系统硬策略 `PathGuard`：路径围栏防逃逸（绝对路径越界、`..` 穿越、符号链接指向外部），不可被用户批准绕过。

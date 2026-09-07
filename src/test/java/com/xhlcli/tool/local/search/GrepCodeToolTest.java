@@ -42,4 +42,37 @@ class GrepCodeToolTest {
         assertTrue(summary.contains(">    2 | banana"));
         assertTrue(summary.contains("suggested_reads"));
     }
+
+    @Test
+    void testGrepCodeNoMatchProvidesHelpfulSuggestions(@TempDir Path tempDir) throws Exception {
+        WorkspacePathResolver resolver = new WorkspacePathResolver(tempDir);
+        GrepCodeTool tool = new GrepCodeTool(resolver);
+        Files.writeString(tempDir.resolve("target.txt"), "apple\nbanana\ncherry\n");
+
+        ObjectNode args = JsonNodeFactory.instance.objectNode();
+        args.put("pattern", "Orange");
+        args.put("glob", "**/*.txt");
+        args.put("case_sensitive", true);
+
+        ToolOutput out = tool.execute(args, new CancellationToken());
+        String summary = out.summary();
+        assertTrue(summary.contains("未找到匹配内容: \"Orange\""));
+        assertTrue(summary.contains("限定 glob: **/*.txt"));
+        assertTrue(summary.contains("建议："));
+        assertTrue(summary.contains("case_sensitive"));
+    }
+
+    @Test
+    void testInvalidRegexReturnsSyntaxError(@TempDir Path tempDir) throws Exception {
+        WorkspacePathResolver resolver = new WorkspacePathResolver(tempDir);
+        GrepCodeTool tool = new GrepCodeTool(resolver);
+
+        ObjectNode args = JsonNodeFactory.instance.objectNode();
+        args.put("pattern", "[unclosed_regex");
+        args.put("regex", true);
+
+        ToolOutput out = tool.execute(args, new CancellationToken());
+        String summary = out.summary();
+        assertTrue(summary.contains("代码搜索失败: 正则表达式无效") || summary.contains("代码搜索失败"));
+    }
 }

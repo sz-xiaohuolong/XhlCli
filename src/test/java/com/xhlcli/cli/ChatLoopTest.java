@@ -105,6 +105,20 @@ class ChatLoopTest {
         assertTrue(harness.out().contains("Assistant: OK"));
     }
 
+    @Test
+    void searchTextCommandInvokesGrepToolDirectly() throws Exception {
+        FakeAgent agent = new FakeAgent();
+        Harness harness = new Harness(new ListInput(List.of("/search-text class EchoTool", "/search", "/exit")), agent);
+        java.nio.file.Path root = java.nio.file.Path.of("").toAbsolutePath().normalize();
+        com.xhlcli.tool.local.WorkspacePathResolver resolver = new com.xhlcli.tool.local.WorkspacePathResolver(root);
+        com.xhlcli.tool.local.search.GrepCodeTool grepTool = new com.xhlcli.tool.local.search.GrepCodeTool(resolver);
+        harness.loop.setGrepCodeTool(grepTool);
+
+        assertEquals(0, harness.loop.run());
+        assertTrue(harness.out().contains("EchoTool.java:"));
+        assertTrue(harness.out().contains("用法: /search-text"));
+    }
+
     private static final class Harness {
         private final ByteArrayOutputStream out = new ByteArrayOutputStream();
         private final ByteArrayOutputStream err = new ByteArrayOutputStream();

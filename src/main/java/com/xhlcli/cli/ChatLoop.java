@@ -18,10 +18,12 @@ public final class ChatLoop {
     private com.xhlcli.memory.MemoryManager memoryManager;
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
+    private com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
     public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) { this.compactor = compactor; }
+    public void setGrepCodeTool(com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool) { this.grepCodeTool = grepCodeTool; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -123,6 +125,28 @@ public final class ChatLoop {
             System.out.println("记忆管理器未初始化。");
         }
     }
+
+    private void searchText(String input) {
+        if (grepCodeTool == null) {
+            renderer.printMessage("代码搜索工具未初始化。");
+            return;
+        }
+        String trimmed = input.trim();
+        int firstSpace = trimmed.indexOf(' ');
+        if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
+            renderer.printMessage("用法: /search-text <关键词/正则> 或 /search <关键词/正则>");
+            return;
+        }
+        String query = trimmed.substring(firstSpace + 1).trim();
+        try {
+            com.fasterxml.jackson.databind.node.ObjectNode args = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("pattern", query);
+            var output = grepCodeTool.execute(args, new CancellationToken());
+            renderer.printMessage(output.summary());
+        } catch (Exception e) {
+            renderer.printMessage("搜索失败: " + e.getMessage());
+        }
+    }
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -180,6 +204,7 @@ public final class ChatLoop {
                 case COMPACT -> compactHistory();
                 case SAVE -> saveMemory(input);
                 case MEMORY -> manageMemory(input);
+                case SEARCH_TEXT -> searchText(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

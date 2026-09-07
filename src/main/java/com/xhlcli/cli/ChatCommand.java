@@ -10,5 +10,6 @@ public enum ChatCommand {
     CONTEXT,
     COMPACT,
     SAVE,
-    MEMORY
+    MEMORY,
+    SEARCH_TEXT
 }

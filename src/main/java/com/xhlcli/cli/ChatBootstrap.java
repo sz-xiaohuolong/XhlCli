@@ -86,6 +86,7 @@ public final class ChatBootstrap implements ChatRunner {
             AuditLog auditLog = new AuditLog(userHome.resolve(".xhlcli").resolve("audit"));
             TerminalHitlHandler hitlHandler = new TerminalHitlHandler(true);
 
+            GrepCodeTool grepCodeTool = new GrepCodeTool(pathResolver);
             ToolRegistry registry = new ToolRegistry(List.of(
                     new ListDirTool(pathResolver),
                     new ReadFileTool(pathResolver),
@@ -94,7 +95,7 @@ public final class ChatBootstrap implements ChatRunner {
                     new GitDiffTool(pathResolver),
                     new ExecuteCommandTool(pathResolver),
                     new GlobFilesTool(pathResolver),
-                    new GrepCodeTool(pathResolver),
+                    grepCodeTool,
                     new EchoTool(),
                     new CurrentTimeTool(Clock.systemUTC())));
             DefaultToolExecutor executor = new DefaultToolExecutor(
@@ -104,9 +105,18 @@ public final class ChatBootstrap implements ChatRunner {
                     You are XhlCLI, a helpful and precise coding assistant.
                     Please reply in Chinese (中文).
 
-                    ## Tools Guidelines
-                    - Use `glob_files` and `grep_code` to search for files and locate symbols before reading.
-                    - Use `read_file` with offset/limit when reading large files.
+                    ## Code Exploration Pipeline
+                    1. `glob_files`: Locate candidate filenames or structural patterns (e.g. `**/*Service.java`).
+                    2. `grep_code`: Locate exact symbols, method declarations, configurations, or lines.
+                    3. `read_file`: Read bounded line ranges around matches using suggested `offset` and `limit`. Never read the whole file if nearby lines suffice.
+                    4. When `grep_code` indicates `partial: true`, refine your search with a more specific `path`, `glob`, or `pattern`.
+
+                    ## Local Code First Rule
+                    - When the user asks about the current repository, code, architecture, or configuration, ALWAYS use local exploration tools (`glob_files`, `grep_code`, `read_file`).
+                    - NEVER fabricate file paths or line numbers. Every code claim must cite real relative paths and line numbers verified from tool results.
+                    - NEVER invoke external web searches for questions about current local code.
+
+                    ## Modification Guidelines
                     - Use `write_file` to create or overwrite files.
                     - Use `apply_patch` for precise single-occurrence text replacements in existing files.
                     - Use `git_diff` to check unstaged changes in the repository.
@@ -134,6 +144,7 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setMemoryManager(memoryManager);
             loop.setContextAssembler(contextAssembler);
             loop.setCompactor(compactor);
+            loop.setGrepCodeTool(grepCodeTool);
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {
