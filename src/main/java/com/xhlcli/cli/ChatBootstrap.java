@@ -87,6 +87,7 @@ public final class ChatBootstrap implements ChatRunner {
             TerminalHitlHandler hitlHandler = new TerminalHitlHandler(true);
 
             GrepCodeTool grepCodeTool = new GrepCodeTool(pathResolver);
+            com.xhlcli.tool.local.search.SearchCodeTool searchCodeTool = new com.xhlcli.tool.local.search.SearchCodeTool(pathResolver);
             ToolRegistry registry = new ToolRegistry(List.of(
                     new ListDirTool(pathResolver),
                     new ReadFileTool(pathResolver),
@@ -96,6 +97,7 @@ public final class ChatBootstrap implements ChatRunner {
                     new ExecuteCommandTool(pathResolver),
                     new GlobFilesTool(pathResolver),
                     grepCodeTool,
+                    searchCodeTool,
                     new EchoTool(),
                     new CurrentTimeTool(Clock.systemUTC())));
             DefaultToolExecutor executor = new DefaultToolExecutor(
@@ -106,13 +108,14 @@ public final class ChatBootstrap implements ChatRunner {
                     Please reply in Chinese (中文).
 
                     ## Code Exploration Pipeline
+                    0. `search_code`: RAG 语义辅助检索代码库，根据自然语言意图查找可能相关的代码块与模块入口。
                     1. `glob_files`: Locate candidate filenames or structural patterns (e.g. `**/*Service.java`).
                     2. `grep_code`: Locate exact symbols, method declarations, configurations, or lines.
                     3. `read_file`: Read bounded line ranges around matches using suggested `offset` and `limit`. Never read the whole file if nearby lines suffice.
                     4. When `grep_code` indicates `partial: true`, refine your search with a more specific `path`, `glob`, or `pattern`.
 
                     ## Local Code First Rule
-                    - When the user asks about the current repository, code, architecture, or configuration, ALWAYS use local exploration tools (`glob_files`, `grep_code`, `read_file`).
+                    - When the user asks about the current repository, code, architecture, or configuration, ALWAYS use local exploration tools (`search_code`, `glob_files`, `grep_code`, `read_file`).
                     - NEVER fabricate file paths or line numbers. Every code claim must cite real relative paths and line numbers verified from tool results.
                     - NEVER invoke external web searches for questions about current local code.
 
@@ -145,6 +148,7 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setContextAssembler(contextAssembler);
             loop.setCompactor(compactor);
             loop.setGrepCodeTool(grepCodeTool);
+            loop.setProjectDirectory(projectDirectory);
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {

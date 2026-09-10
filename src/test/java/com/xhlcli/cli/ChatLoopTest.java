@@ -53,6 +53,21 @@ class ChatLoopTest {
     }
 
     @Test
+    void routesIndexAndSearchCommands() {
+        System.setProperty("xhlcli.rag.dir", "/tmp/xhlcli-test-loop-rag");
+        System.setProperty("xhlcli.embedding.provider", "fake");
+        FakeAgent agent = new FakeAgent();
+        Harness harness = new Harness(new ListInput(List.of(
+                "/index status",
+                "/search query",
+                "/exit")), agent);
+
+        assertEquals(0, harness.loop.run());
+        assertTrue(harness.out().contains("索引状态") || harness.out().contains("已索引"));
+        assertTrue(harness.out().contains("尚未索引") || harness.out().contains("检索") || harness.out().contains("未找到"));
+    }
+
+    @Test
     void eofAndIdleInterruptAreNormalInteractiveEvents() {
         Harness eof = new Harness(prompt -> { throw new InputEndOfFileException(); }, new FakeAgent());
         assertEquals(0, eof.loop.run());
@@ -108,7 +123,7 @@ class ChatLoopTest {
     @Test
     void searchTextCommandInvokesGrepToolDirectly() throws Exception {
         FakeAgent agent = new FakeAgent();
-        Harness harness = new Harness(new ListInput(List.of("/search-text class EchoTool", "/search", "/exit")), agent);
+        Harness harness = new Harness(new ListInput(List.of("/search-text class EchoTool", "/search-text", "/exit")), agent);
         java.nio.file.Path root = java.nio.file.Path.of("").toAbsolutePath().normalize();
         com.xhlcli.tool.local.WorkspacePathResolver resolver = new com.xhlcli.tool.local.WorkspacePathResolver(root);
         com.xhlcli.tool.local.search.GrepCodeTool grepTool = new com.xhlcli.tool.local.search.GrepCodeTool(resolver);

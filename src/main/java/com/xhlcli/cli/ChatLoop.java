@@ -19,11 +19,13 @@ public final class ChatLoop {
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
     private com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool;
+    private java.nio.file.Path projectDirectory;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
     public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) { this.compactor = compactor; }
     public void setGrepCodeTool(com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool) { this.grepCodeTool = grepCodeTool; }
+    public void setProjectDirectory(java.nio.file.Path projectDirectory) { this.projectDirectory = projectDirectory; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -134,7 +136,7 @@ public final class ChatLoop {
         String trimmed = input.trim();
         int firstSpace = trimmed.indexOf(' ');
         if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
-            renderer.printMessage("用法: /search-text <关键词/正则> 或 /search <关键词/正则>");
+            renderer.printMessage("用法: /search-text <关键词/正则>");
             return;
         }
         String query = trimmed.substring(firstSpace + 1).trim();
@@ -145,6 +147,55 @@ public final class ChatLoop {
             renderer.printMessage(output.summary());
         } catch (Exception e) {
             renderer.printMessage("搜索失败: " + e.getMessage());
+        }
+    }
+
+    private void handleIndex(String input) {
+        String projPath = projectDirectory != null ? projectDirectory.toAbsolutePath().normalize().toString() : ".";
+        String trimmed = input.trim();
+        String[] parts = trimmed.split("\\s+");
+        com.xhlcli.rag.CodeIndex indexer = new com.xhlcli.rag.CodeIndex(renderer::printMessage);
+        if (parts.length > 1) {
+            String sub = parts[1].toLowerCase(java.util.Locale.ROOT);
+            if ("status".equals(sub)) {
+                var stats = indexer.getStatus(projPath);
+                renderer.printMessage(String.format("📊 索引状态：已索引 %d 个文件，%d 个代码块，%d 条代码关系",
+                        stats.fileCount(), stats.chunkCount(), stats.relationCount()));
+                return;
+            } else if ("clean".equals(sub)) {
+                indexer.clean(projPath);
+                return;
+            } else {
+                projPath = parts[1];
+            }
+        }
+        indexer.index(projPath);
+    }
+
+    private void searchSemantic(String input) {
+        String trimmed = input.trim();
+        int firstSpace = trimmed.indexOf(' ');
+        if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
+            renderer.printMessage("用法: /search <自然语言查询或关键词>");
+            return;
+        }
+        String query = trimmed.substring(firstSpace + 1).trim();
+        String projPath = projectDirectory != null ? projectDirectory.toAbsolutePath().normalize().toString() : ".";
+        renderer.printMessage("🔍 检索: " + query);
+        try (com.xhlcli.rag.CodeRetriever retriever = new com.xhlcli.rag.CodeRetriever(projPath)) {
+            var stats = retriever.getStats();
+            if (stats.chunkCount() == 0) {
+                renderer.printMessage("⚠️ 代码库尚未索引，请先使用 /index 命令构建索引。");
+                return;
+            }
+            var results = retriever.hybridSearch(query, 5);
+            if (results.isEmpty()) {
+                renderer.printMessage("📭 未找到与查询相关的代码。");
+            } else {
+                renderer.printMessage(com.xhlcli.rag.SearchResultFormatter.formatForCli(query, results));
+            }
+        } catch (Exception e) {
+            renderer.printMessage("❌ 检索失败: " + e.getMessage());
         }
     }
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
@@ -205,6 +256,8 @@ public final class ChatLoop {
                 case SAVE -> saveMemory(input);
                 case MEMORY -> manageMemory(input);
                 case SEARCH_TEXT -> searchText(input);
+                case INDEX -> handleIndex(input);
+                case SEARCH -> searchSemantic(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

@@ -2,13 +2,27 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.5.0] - 2026-09-10
+
+### Added
+- **Codebase RAG** (Phase 07):
+  - 引入嵌入式 SQLite 存储（`sqlite-jdbc:3.49.1.0`）与 Java AST 解析（`javaparser-core:3.28.0`）。
+  - 基于文件 SHA-256 哈希的确定性增量索引机制，未修改文件毫秒级跳过，修改/删除实时同步。
+  - 混合语义检索引擎 `CodeRetriever`：融合自然语言 Embedding、结巴与 ASCII 关键字分词（`RagQueryTokenizer`）、类型优先（method/class）及双重命中加权算法。
+  - 结构化检索结果格式化器 `SearchResultFormatter`：CLI 友好卡片摘要与代码片段安全截断。
+  - 只读 Agent 工具 `search_code`：作为自然语言代码探索入口注册到 `ToolRegistry`，并更新 Agent System Prompt。
+  - CLI 交互指令支持：`/index [status|clean]`、`/search <query>` 与精确正则搜索 `/search-text <pattern>`。
+  - 多 Provider 向量客户端 `EmbeddingClient`（Fake/Ollama/OpenAI/智谱），支持 100% 离线确定性单元测试。
+  - 全套 24 项 RAG 专项测试与端到端黄金评测集 `CodeRetrieverGoldenSetTest`，全量测试 223 项全部通过。
+  - 技术设计与评测报告 `docs/engineering/codebase-rag-evaluation.md`。
+
+## [0.4.0] - 2026-09-07
 
 ### Added
 - **Code Search** (Phase 06):
   - 全面扩充代码检索 Golden Set 评测集至 7 大真实场景（类定义、接口实现、方法调用、配置键、测试、入口函数、不存在符号安全负向用例），双引擎通过率 100%。
   - `GrepCodeTool` 无结果智能建议：依据当前搜索参数自动提示放宽大小写敏感、移除 glob 或缩短 pattern。
-  - CLI 人工调试指令 `/search-text <pattern>` 与 `/search <pattern>`：终端直出高亮检索结果与 suggested_reads，无需消耗大模型 Token。
+  - CLI 人工调试指令 `/search-text <pattern>`：终端直出高亮检索结果与 suggested_reads，无需消耗大模型 Token。
   - Agent System Prompt 核心检索流水线强化：明确 `glob_files -> grep_code -> read_file` 代码探索路径，强制本地代码首选原则，杜绝误触发网络搜索。
   - 发布交付物报告 `docs/engineering/code-search-golden-set.md`。
 

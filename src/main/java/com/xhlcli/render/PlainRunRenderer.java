@@ -59,6 +59,9 @@ public final class PlainRunRenderer {
         out.println("  /help     Show this help");
         out.println("  /config   Show non-secret configuration");
         out.println("  /clear    Clear conversation history");
+        out.println("  /index [status|clean]  Build, check, or clean codebase index");
+        out.println("  /search <query>        Semantic & hybrid code search");
+        out.println("  /search-text <pattern> Exact regex/text code search");
         out.println("  /exit     Exit XhlCLI");
         out.println("  Ctrl+C    Cancel the active run");
     }

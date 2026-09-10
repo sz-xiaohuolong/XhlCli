@@ -19,7 +19,9 @@ public final class ChatCommandParser {
             case "/compact" -> ChatCommand.COMPACT;
             case "/save" -> ChatCommand.SAVE;
             case "/memory" -> ChatCommand.MEMORY;
-            case "/search-text", "/search" -> ChatCommand.SEARCH_TEXT;
+            case "/search-text" -> ChatCommand.SEARCH_TEXT;
+            case "/index" -> ChatCommand.INDEX;
+            case "/search" -> ChatCommand.SEARCH;
             default -> ChatCommand.UNKNOWN;
         };
     }
