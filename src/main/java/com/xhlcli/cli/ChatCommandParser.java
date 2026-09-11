@@ -22,6 +22,7 @@ public final class ChatCommandParser {
             case "/search-text" -> ChatCommand.SEARCH_TEXT;
             case "/index" -> ChatCommand.INDEX;
             case "/search" -> ChatCommand.SEARCH;
+            case "/plan" -> ChatCommand.PLAN;
             default -> ChatCommand.UNKNOWN;
         };
     }

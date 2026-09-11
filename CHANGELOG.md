@@ -2,6 +2,20 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] - 2026-09-11
+
+### Added
+- **Plan-and-Execute 智能规划** (Phase 08):
+  - 核心领域模型与任务单元 `Task`：支持 `PLANNING`、`FILE_READ`、`FILE_WRITE`、`COMMAND`、`ANALYSIS`、`VERIFICATION` 六大任务类型与严密生命周期状态跃迁。
+  - 执行计划聚合根 `ExecutionPlan`：实现 DFS 三色标记拓扑排序与严格有向环检测（Cycle Detection），杜绝非法/循环依赖任务进入执行层。
+  - Kahn 分层批次算法（`getExecutionBatches`）：实现 DAG 拓扑分层推进、ASCII 边框可视化（`visualize`）与紧凑折叠摘要（`summarize`）。
+  - 智能规划器 `Planner`：内置单步轻量任务快速识别与规则短路（`isSimpleGoal`），复杂任务 LLM 两遍建图解析，支持错误驱动的自适应重规划（`replan`）。
+  - 人机协同审阅交互（HITL Review）：提供 `PlanReviewInputParser` 与 `PlanReviewHandler`，支持回车/run 确认执行、cancel/esc 零副作用取消、输入补充约束触发结合新条件的重新规划。
+  - 执行引擎 `PlanExecuteAgent`（实现 `AgentRunner`）：DAG 拓扑分层调度，单任务主线程直跑，多任务受控并发（最多 4 线程）与独立内存缓冲流（`ByteArrayOutputStream`）日志隔离，彻底根除并发日志交错；单步任务受限 ReAct 循环（最多 5 轮）；具备 `MAX_REPLAN_ATTEMPTS = 2` 失败重排熔断保护与短期记忆自动回写。
+  - CLI 指令打通：`/plan` 与 `/plan <任务描述>`，支持终端交互式任务规划与审阅。
+  - 全套新增 31 项单元测试与端到端集成测试，全量 246 项测试 100% 绿灯。
+  - 技术架构设计规范 `docs/superpowers/specs/2026-09-11-phase-08-plan-and-execute-design.md` 与评测报告 `docs/engineering/plan-and-execute-evaluation.md`。
+
 ## [0.5.0] - 2026-09-10
 
 ### Added

@@ -20,12 +20,14 @@ public final class ChatLoop {
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
     private com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool;
     private java.nio.file.Path projectDirectory;
+    private com.xhlcli.agent.PlanExecuteAgent planAgent;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
     public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) { this.compactor = compactor; }
     public void setGrepCodeTool(com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool) { this.grepCodeTool = grepCodeTool; }
     public void setProjectDirectory(java.nio.file.Path projectDirectory) { this.projectDirectory = projectDirectory; }
+    public void setPlanAgent(com.xhlcli.agent.PlanExecuteAgent planAgent) { this.planAgent = planAgent; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -198,6 +200,40 @@ public final class ChatLoop {
             renderer.printMessage("❌ 检索失败: " + e.getMessage());
         }
     }
+
+    private void handlePlan(String input) {
+        if (planAgent == null) {
+            renderer.printMessage("Plan 模式未配置或不可用。");
+            return;
+        }
+        String trimmed = input.trim();
+        int firstSpace = trimmed.indexOf(' ');
+        String goal;
+        if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
+            try {
+                goal = inputReader.readLine("Plan 任务目标 > ");
+            } catch (Exception e) {
+                return;
+            }
+        } else {
+            goal = trimmed.substring(firstSpace + 1).trim();
+        }
+
+        if (goal.isBlank()) {
+            renderer.printMessage("任务目标不能为空。用法: /plan <任务描述>");
+            return;
+        }
+
+        CancellationToken token = new CancellationToken();
+        if (!activeResponse.compareAndSet(null, token)) {
+            throw new IllegalStateException("A response is already active");
+        }
+        try {
+            planAgent.run(goal, renderer::accept, token);
+        } finally {
+            activeResponse.compareAndSet(token, null);
+        }
+    }
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -258,6 +294,7 @@ public final class ChatLoop {
                 case SEARCH_TEXT -> searchText(input);
                 case INDEX -> handleIndex(input);
                 case SEARCH -> searchSemantic(input);
+                case PLAN -> handlePlan(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

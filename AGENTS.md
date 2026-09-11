@@ -20,10 +20,10 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 07 代码库 RAG (Codebase RAG) 已交付；下一阶段为 Phase 08 智能规划 (Plan-and-Execute)。
-- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，9 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`, `search_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、嵌入式 SQLite (`sqlite-jdbc`) 与 Java AST 解析 (`javaparser-core`)、基于 SHA-256 的确定性增量索引引擎 `CodeIndex`、语义与混合检索器 `CodeRetriever`、结构化摘要格式化器 `SearchResultFormatter`、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环，上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆 (`MemoryManager`)、会话自动压缩 (`ConversationHistoryCompactor`)，CLI 指令 (`/index`, `/search`, `/search-text`, `/context`, `/compact`, `/save`, `/memory`) 及 223 项全量自动化测试。
-- 当前已发布：Phase 01 `v0.2.0`，Phase 05 `v0.3.0`，Phase 06 `v0.4.0`，Phase 07 `v0.5.0`。
-- 当前未交付：MCP、Plan 模式、并行工具、Multi-Agent 和 Phase 08–18 的其他运行能力。
+- 当前阶段：Phase 08 智能规划 (Plan-and-Execute) 已交付；下一阶段为 Phase 09 有界并发执行 (Bounded Parallelism)。
+- 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，9 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`, `search_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、嵌入式 SQLite (`sqlite-jdbc`) 与 Java AST 解析 (`javaparser-core`)、基于 SHA-256 的确定性增量索引引擎 `CodeIndex`、语义与混合检索器 `CodeRetriever`、结构化摘要格式化器 `SearchResultFormatter`、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环，上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆 (`MemoryManager`)、会话自动压缩 (`ConversationHistoryCompactor`)，CLI 指令 (`/index`, `/search`, `/search-text`, `/context`, `/compact`, `/save`, `/memory`, `/plan`)，以及 Plan 核心领域模型 (`Task`, `ExecutionPlan`)、DFS 三色标记拓扑排序与环检测、Kahn 算法分层批次、`Planner` 简单短路与重规划、人机审阅处理器 (`PlanReviewInputParser`, `PlanReviewHandler`)、分层执行引擎 `PlanExecuteAgent`（日志隔离缓冲、重排熔断保护）及 246 项全量自动化测试。
+- 当前已发布：Phase 01 `v0.2.0`，Phase 05 `v0.3.0`，Phase 06 `v0.4.0`，Phase 07 `v0.5.0`，Phase 08 `v0.6.0`。
+- 当前未交付：MCP、有界并行工具、Multi-Agent 和 Phase 09–18 的其他运行能力。
 
 每完成一期必须更新本节。不要提前列出后续能力。
 

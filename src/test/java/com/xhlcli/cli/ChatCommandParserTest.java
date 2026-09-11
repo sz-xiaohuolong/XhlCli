@@ -21,6 +21,8 @@ class ChatCommandParserTest {
         assertEquals(ChatCommand.INDEX, parser.parse("/index"));
         assertEquals(ChatCommand.INDEX, parser.parse("/index status"));
         assertEquals(ChatCommand.INDEX, parser.parse("/index clean"));
+        assertEquals(ChatCommand.PLAN, parser.parse("/plan"));
+        assertEquals(ChatCommand.PLAN, parser.parse("/plan 查看代码"));
     }
 
     @Test

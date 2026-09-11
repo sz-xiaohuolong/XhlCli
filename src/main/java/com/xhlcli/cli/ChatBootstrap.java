@@ -149,6 +149,30 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setCompactor(compactor);
             loop.setGrepCodeTool(grepCodeTool);
             loop.setProjectDirectory(projectDirectory);
+
+            com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
+                out.println(plan.summarize());
+                out.println("📝 计划已生成。");
+                out.println("   - 回车 / y / run：按当前计划执行");
+                out.println("   - cancel / esc：取消本次计划");
+                out.println("   - 输入文本：补充要求后重新规划\n");
+                try {
+                    String reviewInput = terminal.readLine("审阅 > ");
+                    com.xhlcli.cli.PlanReviewInputParser.Decision decision =
+                            com.xhlcli.cli.PlanReviewInputParser.parse(reviewInput);
+                    return switch (decision.type()) {
+                        case EXECUTE -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.execute();
+                        case CANCEL -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
+                        case SUPPLEMENT -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.supplement(decision.feedback());
+                    };
+                } catch (Exception e) {
+                    return com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
+                }
+            };
+            com.xhlcli.agent.PlanExecuteAgent planAgent = new com.xhlcli.agent.PlanExecuteAgent(
+                    client, executor, registry.definitions(), null, memoryManager, reviewHandler, out);
+            loop.setPlanAgent(planAgent);
+
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {

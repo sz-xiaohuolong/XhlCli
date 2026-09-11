@@ -68,6 +68,33 @@ class ChatLoopTest {
     }
 
     @Test
+    void routesPlanCommandToPlanAgent() {
+        FakeAgent agent = new FakeAgent();
+        Harness harness = new Harness(new ListInput(List.of(
+                "/plan 查看测试代码",
+                "/exit")), agent);
+
+        com.xhlcli.plan.Planner stubPlanner = new com.xhlcli.plan.Planner(null) {
+            @Override
+            public com.xhlcli.plan.ExecutionPlan createPlan(String goal, CancellationToken cancellationToken) {
+                com.xhlcli.plan.ExecutionPlan plan = new com.xhlcli.plan.ExecutionPlan("plan-test", goal);
+                plan.addTask(new com.xhlcli.plan.Task("task_1", "只读步骤", com.xhlcli.plan.Task.TaskType.ANALYSIS));
+                plan.computeExecutionOrder();
+                return plan;
+            }
+        };
+        com.xhlcli.agent.PlanExecuteAgent planAgent = new com.xhlcli.agent.PlanExecuteAgent(
+                null, null, List.of(), stubPlanner, null,
+                (goal, plan) -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.execute(),
+                new PrintStream(new ByteArrayOutputStream())
+        );
+        harness.loop.setPlanAgent(planAgent);
+
+        assertEquals(0, harness.loop.run());
+        assertEquals(2, planAgent.history().size());
+    }
+
+    @Test
     void eofAndIdleInterruptAreNormalInteractiveEvents() {
         Harness eof = new Harness(prompt -> { throw new InputEndOfFileException(); }, new FakeAgent());
         assertEquals(0, eof.loop.run());
