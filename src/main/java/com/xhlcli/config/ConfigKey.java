@@ -9,5 +9,7 @@ public enum ConfigKey {
     REQUEST_TIMEOUT,
     AGENT_MAX_ITERATIONS,
     AGENT_TIMEOUT,
+    MAX_CONCURRENCY,
+    TOOL_TIMEOUT,
     LOG_LEVEL
 }

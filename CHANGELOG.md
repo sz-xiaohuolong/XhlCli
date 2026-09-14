@@ -2,6 +2,20 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.7.0] - 2026-09-14
+
+### Added
+- **并行执行（Bounded Parallelism）** (Phase 09):
+  - 有界并发执行器 `BoundedParallelExecutor`：基于 Java 21 平台线程池受控并发，实现单批次工具并发加速，并发度限制支持 1-16（默认 4）。
+  - 并发资格与资源互斥检测 `ParallelEligibilityDecider` / `ResourceAccess`：严格遵循“读读共享、读写互斥、写写互斥”原则，对只读且显式声明 `allowsParallel` 的工具开放并发，写操作、命令执行、未声明工具及同文件操作强制串行。
+  - 批次划分调度器 `ParallelBatchScheduler`：贪心将模型单轮次返回的多个工具调用切分为连续的并行批次与串行批次，精确记录原始索引 `IndexedToolCall`。
+  - 乱序保序归并（In-order Merge）：多线程异步完成的工具结果在主线程按原始下标保序重构，确保 Prompt 上下文与 Observation 序列的绝对确定性。
+  - 失败隔离与协作式取消（Fault Isolation & Cooperative Cancellation）：单工具超时（`toolTimeout`，默认 60s）转化为结构化错误，不波及同批次其他成功工具；Run 级 `CancellationToken` 协作式中断运行中与未启动任务。
+  - `ReactAgent` 与 `PlanExecuteAgent` 深度整合：`EventSequencer` 线程安全升级，DAG 任务层支持受控有界并发度分块。
+  - 配置与 CLI 选项扩展：支持 `--max-concurrency <1-16>` 与 `--tool-timeout <seconds>`，对应环境变量 `XHLCLI_MAX_CONCURRENCY`、`XHLCLI_TOOL_TIMEOUT_SECONDS` 及配置文件。
+  - 全套新增 25 项单元与集成测试（全量 271 项测试 100% 绿灯）。
+  - 产出性能评测基准报告 `docs/engineering/parallel-execution-benchmark.md`。
+
 ## [0.6.0] - 2026-09-11
 
 ### Added

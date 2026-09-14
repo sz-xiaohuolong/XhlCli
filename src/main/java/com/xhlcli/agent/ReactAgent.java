@@ -65,6 +65,21 @@ public final class ReactAgent implements AgentRunner {
         this.memorySupplier = memorySupplier;
     }
 
+    private com.xhlcli.parallel.BoundedParallelExecutor parallelExecutor;
+    private int maxConcurrency = 4;
+    private java.time.Duration toolTimeout = java.time.Duration.ofSeconds(60);
+
+    public void setParallelExecutor(com.xhlcli.parallel.BoundedParallelExecutor parallelExecutor) {
+        this.parallelExecutor = parallelExecutor;
+    }
+
+    public void setConcurrencyLimits(int maxConcurrency, java.time.Duration toolTimeout) {
+        this.maxConcurrency = maxConcurrency;
+        if (toolTimeout != null) {
+            this.toolTimeout = toolTimeout;
+        }
+    }
+
     public ReactAgent(
             ChatMessage systemMessage,
             LlmClient client,
@@ -301,39 +316,74 @@ public final class ReactAgent implements AgentRunner {
                 workingHistory.add(ChatMessage.assistant(response.content(), response.toolCalls()));
                 lifecycle.transitionTo(RunStatus.CALLING_TOOL);
                 List<ToolResult> results = new ArrayList<>();
-                for (ToolCall call : response.toolCalls()) {
-                    RunResult stoppedBeforeTool = finishIfStopped(
-                            lifecycle, sequencer, runId, gate, iterations, usage);
-                    if (stoppedBeforeTool != null) {
-                        return stoppedBeforeTool;
-                    }
-                    int toolIteration = iterations;
-                    gateHook.beforePermit(GatePoint.TOOL_START);
-                    if (!gate.permitStart()) {
-                        RunResult stoppedAtToolStart = finishIfStopped(
+                List<com.xhlcli.parallel.ParallelBatch> batches = com.xhlcli.parallel.ParallelBatchScheduler.schedule(
+                        response.toolCalls(), toolDefinitions, maxConcurrency);
+                com.xhlcli.parallel.BoundedParallelExecutor activeParallelExecutor = parallelExecutor;
+                boolean shouldCloseExecutor = false;
+                if (activeParallelExecutor == null) {
+                    activeParallelExecutor = new com.xhlcli.parallel.BoundedParallelExecutor(maxConcurrency);
+                    shouldCloseExecutor = true;
+                }
+
+                try {
+                    for (com.xhlcli.parallel.ParallelBatch batch : batches) {
+                        RunResult stoppedBeforeBatch = finishIfStopped(
                                 lifecycle, sequencer, runId, gate, iterations, usage);
-                        return stoppedAtToolStart != null ? stoppedAtToolStart
-                                : finish(lifecycle, sequencer, runId, RunStatus.FAILED,
-                                "INTERNAL_ERROR", "", iterations, usage);
+                        if (stoppedBeforeBatch != null) {
+                            return stoppedBeforeBatch;
+                        }
+
+                        int currentIteration = iterations;
+                        List<ToolResult> batchResults = activeParallelExecutor.executeBatch(
+                                batch,
+                                indexedCall -> {
+                                    ToolCall call = indexedCall.call();
+                                    gateHook.beforePermit(GatePoint.TOOL_START);
+                                    if (!gate.permitStart()) {
+                                        return null;
+                                    }
+                                    gateHook.afterPermit(GatePoint.TOOL_START);
+                                    lifecycle.requireActive();
+                                    sequencer.emit(new RunEvent.ToolStarted(
+                                            sequencer.metadata(currentIteration),
+                                            call.name(),
+                                            summarize(call.argumentsJson())));
+                                    ToolResult result = executor.execute(call, operationCancellation);
+                                    if (result != null) {
+                                        sequencer.emit(new RunEvent.ToolCompleted(
+                                                sequencer.metadata(currentIteration),
+                                                result.toolName(),
+                                                result.status(),
+                                                result.elapsedMillis(),
+                                                result.summary()));
+                                    }
+                                    return result;
+                                },
+                                toolTimeout,
+                                operationCancellation
+                        );
+
+                        RunResult stoppedAfterBatch = finishIfStopped(
+                                lifecycle, sequencer, runId, gate, iterations, usage);
+                        if (stoppedAfterBatch != null) {
+                            return stoppedAfterBatch;
+                        }
+
+                        for (int bIdx = 0; bIdx < batch.calls().size(); bIdx++) {
+                            com.xhlcli.parallel.IndexedToolCall indexedCall = batch.calls().get(bIdx);
+                            ToolResult result = batchResults.get(bIdx);
+                            if (result == null) {
+                                return finish(lifecycle, sequencer, runId, RunStatus.FAILED,
+                                        "INTERNAL_ERROR", "", iterations, usage);
+                            }
+                            results.add(result);
+                            workingHistory.add(ChatMessage.tool(indexedCall.call().id(), result.observationJson(mapper)));
+                        }
                     }
-                    gateHook.afterPermit(GatePoint.TOOL_START);
-                    lifecycle.requireActive();
-                    sequencer.emit(new RunEvent.ToolStarted(sequencer.metadata(toolIteration),
-                            call.name(), summarize(call.argumentsJson())));
-                    ToolResult result = executor.execute(call, operationCancellation);
-                    RunResult stoppedAfterTool = finishIfStopped(
-                            lifecycle, sequencer, runId, gate, iterations, usage);
-                    if (stoppedAfterTool != null) {
-                        return stoppedAfterTool;
+                } finally {
+                    if (shouldCloseExecutor) {
+                        activeParallelExecutor.close();
                     }
-                    if (result == null) {
-                        return finish(lifecycle, sequencer, runId, RunStatus.FAILED,
-                                "INTERNAL_ERROR", "", iterations, usage);
-                    }
-                    results.add(result);
-                    sequencer.emit(new RunEvent.ToolCompleted(sequencer.metadata(iterations),
-                            result.toolName(), result.status(), result.elapsedMillis(), result.summary()));
-                    workingHistory.add(ChatMessage.tool(call.id(), result.observationJson(mapper)));
                 }
                 lifecycle.transitionTo(RunStatus.OBSERVING);
                 iterations++;
@@ -564,8 +614,8 @@ public final class ReactAgent implements AgentRunner {
         private final Function<String, String> sanitizer;
         private final Supplier<StreamingSecretRedactor> streamingSanitizerSupplier;
         private StreamingSecretRedactor streamingSanitizer;
-        private long sequence;
-        private boolean textDeltaEmitted;
+        private final java.util.concurrent.atomic.AtomicLong sequence = new java.util.concurrent.atomic.AtomicLong();
+        private volatile boolean textDeltaEmitted;
 
         private EventSequencer(
                 String runId,
@@ -580,11 +630,11 @@ public final class ReactAgent implements AgentRunner {
             this.streamingSanitizerSupplier = streamingSanitizerSupplier;
         }
 
-        private RunEvent.Metadata metadata(int iteration) {
-            return new RunEvent.Metadata(runId, ++sequence, Instant.now(clock), iteration);
+        private synchronized RunEvent.Metadata metadata(int iteration) {
+            return new RunEvent.Metadata(runId, sequence.incrementAndGet(), Instant.now(clock), iteration);
         }
 
-        private void emit(RunEvent event) {
+        private synchronized void emit(RunEvent event) {
             if (event instanceof RunEvent.TextDelta) {
                 textDeltaEmitted = true;
             }
@@ -625,7 +675,7 @@ public final class ReactAgent implements AgentRunner {
             return textDeltaEmitted;
         }
 
-        private void emitTerminal(RunEvent event) {
+        private synchronized void emitTerminal(RunEvent event) {
             try {
                 sink.accept(sanitize(event));
             } catch (RuntimeException ignored) {

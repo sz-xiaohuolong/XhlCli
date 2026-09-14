@@ -77,6 +77,8 @@ public final class PlainRunRenderer {
         out.println("requestTimeout=" + config.requestTimeout().toSeconds() + "s");
         out.println("agentMaxIterations=" + config.agentSettings().maxIterations() + " (" + config.source(ConfigKey.AGENT_MAX_ITERATIONS) + ")");
         out.println("agentTimeout=" + config.agentSettings().timeout().toSeconds() + "s (" + config.source(ConfigKey.AGENT_TIMEOUT) + ")");
+        out.println("maxConcurrency=" + config.agentSettings().maxConcurrency() + " (" + config.source(ConfigKey.MAX_CONCURRENCY) + ")");
+        out.println("toolTimeout=" + config.agentSettings().toolTimeout().toSeconds() + "s (" + config.source(ConfigKey.TOOL_TIMEOUT) + ")");
         out.println("logLevel=" + config.logLevel());
     }
 

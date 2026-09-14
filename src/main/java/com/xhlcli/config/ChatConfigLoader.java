@@ -112,8 +112,26 @@ public final class ChatConfigLoader {
                 dotEnv,
                 userConfig.agentTimeoutSeconds(),
                 AgentSettings.DEFAULT_TIMEOUT.toSeconds());
+        Resolved<String> maxConcurrency = resolveSetting(
+                ConfigKey.MAX_CONCURRENCY,
+                "XHLCLI_MAX_CONCURRENCY",
+                cli,
+                environment,
+                dotEnv,
+                userConfig.maxConcurrency(),
+                AgentSettings.DEFAULT_MAX_CONCURRENCY);
+        Resolved<String> toolTimeout = resolveSetting(
+                ConfigKey.TOOL_TIMEOUT,
+                "XHLCLI_TOOL_TIMEOUT_SECONDS",
+                cli,
+                environment,
+                dotEnv,
+                userConfig.toolTimeoutSeconds(),
+                AgentSettings.DEFAULT_TOOL_TIMEOUT.toSeconds());
         sources.put(ConfigKey.AGENT_MAX_ITERATIONS, agentMaxIterations.source());
         sources.put(ConfigKey.AGENT_TIMEOUT, agentTimeout.source());
+        sources.put(ConfigKey.MAX_CONCURRENCY, maxConcurrency.source());
+        sources.put(ConfigKey.TOOL_TIMEOUT, toolTimeout.source());
 
         Resolved<String> logLevel = firstNonBlank(
                 resolved(cli.get(ConfigKey.LOG_LEVEL), ConfigSource.CLI),
@@ -133,7 +151,9 @@ public final class ChatConfigLoader {
                 LogLevel.parse(logLevel.value()),
                 new AgentSettings(
                         (int) parseRange(agentMaxIterations.value(), "Agent max iterations", 1, 100),
-                        Duration.ofSeconds(parseRange(agentTimeout.value(), "Agent timeout", 1, 3600))),
+                        Duration.ofSeconds(parseRange(agentTimeout.value(), "Agent timeout", 1, 3600)),
+                        (int) parseRange(maxConcurrency.value(), "Max concurrency", 1, 16),
+                        Duration.ofSeconds(parseRange(toolTimeout.value(), "Tool timeout", 1, 3600))),
                 sources);
     }
 
@@ -148,6 +168,8 @@ public final class ChatConfigLoader {
                 case "--request-timeout" -> ConfigKey.REQUEST_TIMEOUT;
                 case "--max-iterations" -> ConfigKey.AGENT_MAX_ITERATIONS;
                 case "--agent-timeout" -> ConfigKey.AGENT_TIMEOUT;
+                case "--max-concurrency" -> ConfigKey.MAX_CONCURRENCY;
+                case "--tool-timeout" -> ConfigKey.TOOL_TIMEOUT;
                 case "--log-level" -> ConfigKey.LOG_LEVEL;
                 default -> throw new ConfigurationException("Unknown option: " + args[index]);
             };
@@ -331,9 +353,11 @@ public final class ChatConfigLoader {
             Long requestTimeoutSeconds,
             Long agentMaxIterations,
             Long agentTimeoutSeconds,
-            String logLevel) {
+            String logLevel,
+            Long maxConcurrency,
+            Long toolTimeoutSeconds) {
         static UserConfig empty() {
-            return new UserConfig(null, null, null, null, null, null, null, null);
+            return new UserConfig(null, null, null, null, null, null, null, null, null, null);
         }
     }
 }

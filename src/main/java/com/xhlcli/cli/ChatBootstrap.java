@@ -142,6 +142,7 @@ public final class ChatBootstrap implements ChatRunner {
             agent.setContextAssembler(contextAssembler);
             agent.setCompactor(compactor);
             agent.setMemorySupplier(memoryManager::loadAll);
+            agent.setConcurrencyLimits(config.agentSettings().maxConcurrency(), config.agentSettings().toolTimeout());
             PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
             ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
             loop.setMemoryManager(memoryManager);

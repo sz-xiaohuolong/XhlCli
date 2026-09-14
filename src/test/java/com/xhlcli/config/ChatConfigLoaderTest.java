@@ -203,6 +203,35 @@ class ChatConfigLoaderTest {
         assertEquals("timeout must be between 1 and 3600 seconds", overHour.getMessage());
     }
 
+    @Test
+    void loadsConcurrencyAndToolTimeoutFromCliAndEnvironment() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project-conc"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home-conc"));
+
+        ChatConfig config = ChatConfigLoader.load(
+                new String[]{"--max-concurrency", "8", "--tool-timeout", "45"},
+                Map.of(),
+                projectDir,
+                userHome);
+
+        assertEquals(8, config.agentSettings().maxConcurrency());
+        assertEquals(Duration.ofSeconds(45), config.agentSettings().toolTimeout());
+        assertEquals(ConfigSource.CLI, config.source(ConfigKey.MAX_CONCURRENCY));
+        assertEquals(ConfigSource.CLI, config.source(ConfigKey.TOOL_TIMEOUT));
+    }
+
+    @Test
+    void agentSettingsRejectInvalidConcurrencyAndToolTimeout() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofSeconds(60), 0, Duration.ofSeconds(60)));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofSeconds(60), 17, Duration.ofSeconds(60)));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofSeconds(60), 4, Duration.ofMillis(500)));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentSettings(10, Duration.ofSeconds(60), 4, Duration.ofSeconds(3601)));
+    }
+
     private void writeUserConfig(Path userHome, String json) throws Exception {
         Path configDir = Files.createDirectories(userHome.resolve(".xhlcli"));
         Files.writeString(configDir.resolve("config.json"), json);

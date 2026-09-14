@@ -86,6 +86,15 @@ public class PlanExecuteAgent implements AgentRunner {
     private final PrintStream out;
     private final ObjectMapper mapper = new ObjectMapper();
     private final List<ChatMessage> committedHistory = new ArrayList<>();
+    private int maxConcurrency = 4;
+
+    public void setMaxConcurrency(int maxConcurrency) {
+        this.maxConcurrency = Math.max(1, Math.min(16, maxConcurrency));
+    }
+
+    public int getMaxConcurrency() {
+        return maxConcurrency;
+    }
 
     public PlanExecuteAgent(LlmClient llmClient) {
         this(llmClient, (goal, plan) -> PlanReviewDecision.execute());
@@ -289,12 +298,24 @@ public class PlanExecuteAgent implements AgentRunner {
             }
         }
 
+        // 若可执行任务数超出 maxConcurrency，分批次调度执行
+        if (executableTasks.size() > maxConcurrency) {
+            List<TaskExecutionResult> combinedResults = new ArrayList<>(executableTasks.size());
+            for (int i = 0; i < executableTasks.size(); i += maxConcurrency) {
+                int end = Math.min(i + maxConcurrency, executableTasks.size());
+                List<Task> chunk = executableTasks.subList(i, end);
+                combinedResults.addAll(executeTaskBatch(plan, chunk, cancellationToken));
+            }
+            return combinedResults;
+        }
+
         String parallelTaskIds = executableTasks.stream()
                 .map(Task::getId)
                 .collect(Collectors.joining(", "));
         out.println("⚡ 本轮并行执行 " + executableTasks.size() + " 个任务: " + parallelTaskIds);
 
-        ExecutorService executor = Executors.newFixedThreadPool(Math.min(executableTasks.size(), 4), r -> {
+        int poolSize = Math.min(executableTasks.size(), maxConcurrency);
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize, r -> {
             Thread t = new Thread(r, "xhlcli-plan-worker");
             t.setDaemon(true);
             return t;
