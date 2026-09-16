@@ -349,7 +349,7 @@ public final class ReactAgent implements AgentRunner {
                                             call.name(),
                                             summarize(call.argumentsJson())));
                                     ToolResult result = executor.execute(call, operationCancellation);
-                                    if (result != null) {
+                                    if (result != null && gate.stopReason() == StopReason.NONE && !operationCancellation.isCancelled()) {
                                         sequencer.emit(new RunEvent.ToolCompleted(
                                                 sequencer.metadata(currentIteration),
                                                 result.toolName(),
@@ -616,6 +616,7 @@ public final class ReactAgent implements AgentRunner {
         private StreamingSecretRedactor streamingSanitizer;
         private final java.util.concurrent.atomic.AtomicLong sequence = new java.util.concurrent.atomic.AtomicLong();
         private volatile boolean textDeltaEmitted;
+        private volatile boolean terminalEmitted;
 
         private EventSequencer(
                 String runId,
@@ -635,6 +636,9 @@ public final class ReactAgent implements AgentRunner {
         }
 
         private synchronized void emit(RunEvent event) {
+            if (terminalEmitted) {
+                return;
+            }
             if (event instanceof RunEvent.TextDelta) {
                 textDeltaEmitted = true;
             }
@@ -665,10 +669,11 @@ public final class ReactAgent implements AgentRunner {
             }
         }
 
-        private void emitSafeText(int iteration, String text) {
-            if (!text.isEmpty()) {
-                sink.accept(new RunEvent.TextDelta(metadata(iteration), sanitize(text)));
+        private synchronized void emitSafeText(int iteration, String text) {
+            if (terminalEmitted || text.isEmpty()) {
+                return;
             }
+            sink.accept(new RunEvent.TextDelta(metadata(iteration), sanitize(text)));
         }
 
         private boolean hasTextDelta() {
@@ -676,6 +681,10 @@ public final class ReactAgent implements AgentRunner {
         }
 
         private synchronized void emitTerminal(RunEvent event) {
+            if (terminalEmitted) {
+                return;
+            }
+            terminalEmitted = true;
             try {
                 sink.accept(sanitize(event));
             } catch (RuntimeException ignored) {
