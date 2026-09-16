@@ -14,5 +14,6 @@ public enum ChatCommand {
     SEARCH_TEXT,
     INDEX,
     SEARCH,
-    PLAN
+    PLAN,
+    TEAM
 }

@@ -95,6 +95,40 @@ class ChatLoopTest {
     }
 
     @Test
+    void routesTeamCommandToTeamOrchestrator() {
+        FakeAgent agent = new FakeAgent();
+        Harness harness = new Harness(new ListInput(List.of(
+                "/team",
+                "重构架构",
+                "/exit")), agent);
+
+        String planJson = "{\"summary\":\"测试\",\"steps\":[{\"id\":\"s1\",\"description\":\"测试步骤\",\"type\":\"CODE\",\"dependencies\":[]}]}";
+        String reviewJson = "{\"approved\":true,\"summary\":\"OK\",\"issues\":[]}";
+
+        com.xhlcli.llm.LlmClient stubLlm = new com.xhlcli.llm.LlmClient() {
+            private int call = 0;
+            @Override
+            public com.xhlcli.model.ChatResponse stream(
+                    List<ChatMessage> messages,
+                    List<com.xhlcli.model.ToolDefinition> tools,
+                    com.xhlcli.llm.StreamListener listener,
+                    CancellationToken cancellationToken) {
+                call++;
+                String content = (call == 1) ? planJson : (call == 2 ? "执行成功" : reviewJson);
+                if (listener != null) listener.onTextDelta(content);
+                return new com.xhlcli.model.ChatResponse(content, List.of(), new TokenUsage(10, 10, true));
+            }
+        };
+
+        com.xhlcli.team.TeamOrchestrator orchestrator = new com.xhlcli.team.TeamOrchestrator(
+                stubLlm, null, List.of(), null, new PrintStream(new ByteArrayOutputStream()));
+        harness.loop.setTeamOrchestrator(orchestrator);
+
+        assertEquals(0, harness.loop.run());
+        assertEquals(2, orchestrator.history().size());
+    }
+
+    @Test
     void eofAndIdleInterruptAreNormalInteractiveEvents() {
         Harness eof = new Harness(prompt -> { throw new InputEndOfFileException(); }, new FakeAgent());
         assertEquals(0, eof.loop.run());

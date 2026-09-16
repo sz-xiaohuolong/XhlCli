@@ -174,6 +174,10 @@ public final class ChatBootstrap implements ChatRunner {
                     client, executor, registry.definitions(), null, memoryManager, reviewHandler, out);
             loop.setPlanAgent(planAgent);
 
+            com.xhlcli.team.TeamOrchestrator teamOrchestrator = new com.xhlcli.team.TeamOrchestrator(
+                    client, executor, registry.definitions(), memoryManager, out);
+            loop.setTeamOrchestrator(teamOrchestrator);
+
             terminal.bind(loop);
             return loop.run();
         } catch (IOException failure) {

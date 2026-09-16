@@ -23,6 +23,8 @@ class ChatCommandParserTest {
         assertEquals(ChatCommand.INDEX, parser.parse("/index clean"));
         assertEquals(ChatCommand.PLAN, parser.parse("/plan"));
         assertEquals(ChatCommand.PLAN, parser.parse("/plan 查看代码"));
+        assertEquals(ChatCommand.TEAM, parser.parse("/team"));
+        assertEquals(ChatCommand.TEAM, parser.parse("/team 开发新模块"));
     }
 
     @Test

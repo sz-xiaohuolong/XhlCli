@@ -63,6 +63,7 @@ public final class PlainRunRenderer {
         out.println("  /search <query>        Semantic & hybrid code search");
         out.println("  /search-text <pattern> Exact regex/text code search");
         out.println("  /plan [goal]           Plan-and-Execute structured task");
+        out.println("  /team <goal>           Multi-Agent collaborative team task (Planner + Workers + Reviewer)");
         out.println("  /exit     Exit XhlCLI");
         out.println("  Ctrl+C    Cancel the active run");
     }

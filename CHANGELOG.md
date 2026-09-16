@@ -2,6 +2,22 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.8.0] - 2026-09-16
+
+### Added
+- **Multi-Agent 协作架构（Multi-Agent Collaboration）** (Phase 10):
+  - 专职角色架构（1+2+1 体系）：明确划分 `PLANNER`（专职规划解耦，严禁工具调用）、`WORKER`（池化执行单元，持有完整开发工具与多轮 ReAct 能力）、`REVIEWER`（专职质量审查，纯逻辑审查无写工具）与 `TeamOrchestrator`（统筹编排调度，对全局目标负责）。
+  - 角色提示词工程 `TeamPrompts`：针对规划者、执行者、审查者深度定制 System Prompt，强制规范 JSON 协议输出与 Local Code First 原则。
+  - 最小化上下文交接包 `HandoverPackage`：规范 Agent 间任务交接标准，仅传递当前步骤目标、依赖结果摘要、验收标准与文件改动，杜绝全量对话历史交叉污染。
+  - 结构化质量审查与容错降级 `ReviewResult`：支持标准 JSON 审查报告（approved, summary, issues, suggestions）解析与文本启发式容错降级，具备保守性安全兜底。
+  - 有限重试与熔断保护机制：执行质量不达标时条目化反馈打回 Worker 修正，单步支持最多重试 2 次（`MAX_RETRIES = 2`），超出立即熔断终止，杜绝死循环与 Token 浪费。
+  - 独立专职子代理 `SubAgent`：具备独立会话生命周期、`clearHistory` 历史复位与工具权限动态下发控制，支持流式日志重定向输出。
+  - 无依赖步骤受控并发（Worker 池排他调度）：复用 `BlockingQueue<SubAgent>` 保证 Worker 实例互斥借用，每个并发步骤使用独立内存流（`ByteArrayOutputStream`）缓冲输出，批次完成后按步骤保序 flush 到终端，彻底根除多 Agent 并发控制台交错乱序。
+  - 交付汇总看板：汇总各步骤状态、重试次数、审查结论与最终交付物明细，自动沉淀至项目级长期记忆（`MemoryManager`）。
+  - CLI 指令打通：支持 `/team` 交互式提示与 `/team <任务描述>` 一键拉起，内置极简轻量任务降级引导提示。
+  - 全套新增 20 项 Multi-Agent 专项单元测试，全量 291 项测试 100% 绿灯。
+  - 产出评测报告 `docs/engineering/multi-agent-evaluation.md`。
+
 ## [0.7.0] - 2026-09-14
 
 ### Added

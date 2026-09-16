@@ -21,6 +21,7 @@ public final class ChatLoop {
     private com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool;
     private java.nio.file.Path projectDirectory;
     private com.xhlcli.agent.PlanExecuteAgent planAgent;
+    private com.xhlcli.team.TeamOrchestrator teamOrchestrator;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
@@ -28,6 +29,7 @@ public final class ChatLoop {
     public void setGrepCodeTool(com.xhlcli.tool.local.search.GrepCodeTool grepCodeTool) { this.grepCodeTool = grepCodeTool; }
     public void setProjectDirectory(java.nio.file.Path projectDirectory) { this.projectDirectory = projectDirectory; }
     public void setPlanAgent(com.xhlcli.agent.PlanExecuteAgent planAgent) { this.planAgent = planAgent; }
+    public void setTeamOrchestrator(com.xhlcli.team.TeamOrchestrator teamOrchestrator) { this.teamOrchestrator = teamOrchestrator; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -234,6 +236,46 @@ public final class ChatLoop {
             activeResponse.compareAndSet(token, null);
         }
     }
+
+    private void handleTeam(String input) {
+        if (teamOrchestrator == null) {
+            renderer.printMessage("TeamOrchestrator 未就绪。");
+            return;
+        }
+
+        String trimmed = input.trim();
+        int firstSpace = trimmed.indexOf(' ');
+        String goal;
+        if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
+            try {
+                goal = inputReader.readLine("Team 任务目标 > ");
+            } catch (Exception e) {
+                return;
+            }
+        } else {
+            goal = trimmed.substring(firstSpace + 1).trim();
+        }
+
+        if (goal.isBlank()) {
+            renderer.printMessage("任务目标不能为空。用法: /team <任务描述>");
+            return;
+        }
+
+        if (goal.length() <= 6 && (goal.contains("你好") || goal.contains("hi") || goal.contains("测试") || goal.contains("1+1"))) {
+            renderer.printMessage("💡 提示：检测到极简任务，Multi-Agent 团队协同更适合多模块重构与跨文件复杂任务。已启动协同处理...");
+        }
+
+        CancellationToken token = new CancellationToken();
+        if (!activeResponse.compareAndSet(null, token)) {
+            throw new IllegalStateException("A response is already active");
+        }
+        try {
+            teamOrchestrator.run(goal, renderer::accept, token);
+        } finally {
+            activeResponse.compareAndSet(token, null);
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -278,6 +320,9 @@ public final class ChatLoop {
                 case CONFIG -> renderer.printConfig(config);
                 case CLEAR -> {
                     agent.clearHistory();
+                    if (teamOrchestrator != null) {
+                        teamOrchestrator.clearHistory();
+                    }
                     if (hitlHandler != null) {
                         hitlHandler.clearApprovedAll();
                     }
@@ -295,6 +340,7 @@ public final class ChatLoop {
                 case INDEX -> handleIndex(input);
                 case SEARCH -> searchSemantic(input);
                 case PLAN -> handlePlan(input);
+                case TEAM -> handleTeam(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
