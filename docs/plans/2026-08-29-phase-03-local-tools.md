@@ -1,6 +1,6 @@
 # Phase 03 本地工具集 (Local Tools) 实施计划与记录
 
-> **对应设计：** `docs/superpowers/specs/2026-08-29-phase-03-local-tools-design.md`
+> **对应设计：** `docs/specs/2026-08-29-phase-03-local-tools-design.md`
 > **对应需求：** `docs/prd/phase-03-local-tools.md`
 
 ## 1. 任务拆分与执行状态

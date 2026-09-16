@@ -1,7 +1,7 @@
 # Phase 06: 代码精确检索 实施计划
 
 > 日期：2026-09-07
-> 对应技术设计：`docs/superpowers/specs/2026-09-07-phase-06-code-search-design.md`
+> 对应技术设计：`docs/specs/2026-09-07-phase-06-code-search-design.md`
 
 ## 1. 任务分解
 

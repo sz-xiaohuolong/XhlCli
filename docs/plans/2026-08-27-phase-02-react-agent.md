@@ -8,7 +8,7 @@
 
 **Tech Stack:** Java 21, Maven Wrapper, Jackson 2.22.2, OkHttp/MockWebServer 5.5.0, JLine 4.3.1, JUnit 5.10.2.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-phase-02-react-agent-design.md`
+**Spec:** `docs/specs/2026-08-27-phase-02-react-agent-design.md`
 
 ## Global Constraints
 
@@ -623,8 +623,8 @@ git commit -m "feat: integrate react agent terminal sessions"
 - Modify: `CHANGELOG.md`
 - Modify: `docs/prd/phase-02-react-agent.md`
 - Modify: `docs/engineering/source-adoption-map.md`
-- Keep: `docs/superpowers/specs/2026-08-27-phase-02-react-agent-design.md`
-- Keep: `docs/superpowers/plans/2026-08-27-phase-02-react-agent.md`
+- Keep: `docs/specs/2026-08-27-phase-02-react-agent-design.md`
+- Keep: `docs/plans/2026-08-27-phase-02-react-agent.md`
 
 **Interfaces:**
 
@@ -669,8 +669,7 @@ Expected: build success, help lists Agent settings without secrets, version is `
 ```bash
 rg -n 'TODO|TBD|待补充|占位符' \
   --glob '!target/**' \
-  --glob '!docs/plans/**' \
-  --glob '!docs/superpowers/plans/**' .
+  --glob '!docs/plans/**' .
 
 rg -n 'com\.paicli|~/.paicli|\.paicli/' \
   src pom.xml README.md CHANGELOG.md ROADMAP.md
@@ -694,8 +693,8 @@ Map every FR-02-01 through FR-02-08, every PRD acceptance criterion, every non-g
 ```bash
 git add AGENTS.md README.md TECH_DESIGN.md ROADMAP.md CHANGELOG.md \
   docs/prd/phase-02-react-agent.md docs/engineering/source-adoption-map.md \
-  docs/superpowers/specs/2026-08-27-phase-02-react-agent-design.md \
-  docs/superpowers/plans/2026-08-27-phase-02-react-agent.md
+  docs/specs/2026-08-27-phase-02-react-agent-design.md \
+  docs/plans/2026-08-27-phase-02-react-agent.md
 git commit -m "docs: mark phase two react agent verified"
 ```
 

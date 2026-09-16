@@ -1,6 +1,6 @@
 # Phase 04 安全策略与人工审批 (Safety and Approval) 实施计划与记录
 
-> **对应设计：** `docs/superpowers/specs/2026-08-30-phase-04-safety-and-approval-design.md`  
+> **对应设计：** `docs/specs/2026-08-30-phase-04-safety-and-approval-design.md`  
 > **对应需求：** `docs/prd/phase-04-safety-and-approval.md`  
 
 ## 1. 任务拆分与执行状态

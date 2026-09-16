@@ -107,9 +107,12 @@ java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
 
 ## 文档导航
 
+- [项目全局定位与资产映射 (Vibe Document Map)](docs/PROJECT.md)
 - [产品总 PRD](docs/PRD.md)
-- [路线图](docs/ROADMAP.md)
-- [全局技术设计](docs/TECH_DESIGN.md)
+- [路线图与交付状态](docs/ROADMAP.md)
+- [真实技术架构基线](docs/TECH_DESIGN.md)
+- [技术方案设计规范索引 (Specs)](docs/specs/README.md)
+- [实施路线任务清单索引 (Plans)](docs/plans/README.md)
 - [立项需求研究](docs/RESEARCH.md)
 - [授权源码采用地图](docs/engineering/source-adoption-map.md)
 - [Phase 10 Multi-Agent 评测报告](docs/engineering/multi-agent-evaluation.md)

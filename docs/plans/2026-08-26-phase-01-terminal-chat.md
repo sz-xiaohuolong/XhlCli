@@ -10,7 +10,7 @@
 
 **Tech Stack:** Java 21, Maven Wrapper, OkHttp 5.5.0, Jackson Databind 2.22.2, JLine 4.3.1, JUnit 5.10.2, MockWebServer 5.5.0, Maven Shade Plugin 3.6.2.
 
-**Spec:** `docs/superpowers/specs/2026-08-26-phase-01-terminal-chat-design.md`
+**Spec:** `docs/specs/2026-08-26-phase-01-terminal-chat-design.md`
 
 ## Global Constraints
 

@@ -1,7 +1,7 @@
 # Phase 07: 代码库 RAG 实施计划
 
 > 日期：2026-09-10  
-> 对应设计：`docs/superpowers/specs/2026-09-10-phase-07-codebase-rag-design.md`
+> 对应设计：`docs/specs/2026-09-10-phase-07-codebase-rag-design.md`
 
 ## 1. 任务拆解
 

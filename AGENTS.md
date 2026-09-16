@@ -11,7 +11,7 @@
 3. 对应阶段子 PRD (`docs/prd/phase-XX-*.md`)。
 4. `docs/TECH_DESIGN.md`。
 5. 总 `docs/PRD.md`。
-6. `docs/RESEARCH.md`。
+6. `docs/PROJECT.md` 与 `docs/RESEARCH.md`。
 7. `docs/ROADMAP.md` 与 README 中的计划内容。
 
 计划能力不等于已交付能力。不得根据 PRD 或路线图声称代码已经实现。
@@ -30,12 +30,13 @@
 ## 3. 首读顺序
 
 1. `AGENTS.md`
-2. `docs/PRD.md`
-3. 当前阶段 `docs/prd/phase-XX-*.md`
-4. `docs/TECH_DESIGN.md`
-5. 当前阶段 `docs/plans/*.md` 或 `docs/superpowers/plans/*.md`
-6. 与任务相关的源码和测试
-7. `docs/engineering/source-adoption-map.md`，仅在迁移授权源码时阅读
+2. `docs/PROJECT.md`
+3. `docs/PRD.md`
+4. 当前阶段 `docs/prd/phase-XX-*.md`
+5. `docs/TECH_DESIGN.md`
+6. 当前阶段 `docs/specs/*.md` 与 `docs/plans/*.md`
+7. 与任务相关的源码和测试
+8. `docs/engineering/source-adoption-map.md`，仅在迁移授权源码时阅读
 
 ## 4. 标准开发流程
 
@@ -43,8 +44,7 @@
 
 ```text
 Research → PRD → Tech Design → Implementation Plan
-→ Test First → Minimal Migration/Implementation
-→ Verification → Docs → Real Commit → Tag & CI Update
+         → TDD / 迁移 → 验证 / 评测 → 版本升级与 Tag 发布 → 文档持续同步闭环
 ```
 
 > [!IMPORTANT]
@@ -53,6 +53,8 @@ Research → PRD → Tech Design → Implementation Plan
 > 2. **文档持续同步与闭环（开发进度与文档内容必须严格统一）**：阶段开发结束后，**必须持续、全面更新相对应的技术与路线图文档**，包括但不限于：
 >    - `docs/TECH_DESIGN.md`：同步更新“实现状态”章节，将当期已交付的架构、模块与接口基线纳入现实能力，杜绝停留旧阶段。
 >    - `docs/ROADMAP.md`：同步更新路线图各阶段的交付状态、发布日期与版本号。
+>    - `docs/PROJECT.md`：同步更新当前 Release 状态、Document Map 与追溯链矩阵。
+>    - `docs/specs/` 与 `docs/plans/`：封存当期已交付的设计规约与实施路线。
 >    - `docs/engineering/*-evaluation.md`：产出当期客观基准评测报告与验证物证。
 >    - `CHANGELOG.md`：按 Keep a Changelog 规范更新版本发布履历。
 >    - `AGENTS.md`：同步更新当前阶段状态与已交付能力清单。

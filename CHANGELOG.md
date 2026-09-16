@@ -14,9 +14,9 @@
   - 独立专职子代理 `SubAgent`：具备独立会话生命周期、`clearHistory` 历史复位与工具权限动态下发控制，支持流式日志重定向输出。
   - 无依赖步骤受控并发（Worker 池排他调度）：复用 `BlockingQueue<SubAgent>` 保证 Worker 实例互斥借用，每个并发步骤使用独立内存流（`ByteArrayOutputStream`）缓冲输出，批次完成后按步骤保序 flush 到终端，彻底根除多 Agent 并发控制台交错乱序。
   - 交付汇总看板：汇总各步骤状态、重试次数、审查结论与最终交付物明细，自动沉淀至项目级长期记忆（`MemoryManager`）。
-  - CLI 指令打通：支持 `/team` 交互式提示与 `/team <任务描述>` 一键拉起，内置极简轻量任务降级引导提示。
+  - CLI 指令打通：`/team` 交互式提示与 `/team <任务描述>` 一键拉起，内置极简轻量任务降级引导提示。
   - 全套新增 20 项 Multi-Agent 专项单元测试，全量 291 项测试 100% 绿灯。
-  - 产出评测报告 `docs/engineering/multi-agent-evaluation.md`。
+  - 产出设计规范 `docs/specs/2026-09-16-phase-10-multi-agent-design.md`、实施计划 `docs/plans/2026-09-16-phase-10-multi-agent.md` 与评测报告 `docs/engineering/multi-agent-evaluation.md`。
 
 ## [0.7.0] - 2026-09-14
 
@@ -30,13 +30,13 @@
   - `ReactAgent` 与 `PlanExecuteAgent` 深度整合：`EventSequencer` 线程安全升级，DAG 任务层支持受控有界并发度分块。
   - 配置与 CLI 选项扩展：支持 `--max-concurrency <1-16>` 与 `--tool-timeout <seconds>`，对应环境变量 `XHLCLI_MAX_CONCURRENCY`、`XHLCLI_TOOL_TIMEOUT_SECONDS` 及配置文件。
   - 全套新增 25 项单元与集成测试（全量 271 项测试 100% 绿灯）。
-  - 产出性能评测基准报告 `docs/engineering/parallel-execution-benchmark.md`。
+  - 产出设计规范 `docs/specs/2026-09-14-phase-09-parallel-execution-design.md`、实施计划 `docs/plans/2026-09-14-phase-09-parallel-execution.md` 与基准报告 `docs/engineering/parallel-execution-benchmark.md`。
 
 ## [0.6.0] - 2026-09-11
 
 ### Added
-- **Plan-and-Execute 智能规划** (Phase 08):
-  - 核心领域模型与任务单元 `Task`：支持 `PLANNING`、`FILE_READ`、`FILE_WRITE`、`COMMAND`、`ANALYSIS`、`VERIFICATION` 六大任务类型与严密生命周期状态跃迁。
+- **智能规划（Plan-and-Execute）** (Phase 08):
+  - 任务领域模型 `Task`：支持多任务类型与生命周期状态，细粒度依赖绑定（`dependencies` / `dependents`）。
   - 执行计划聚合根 `ExecutionPlan`：实现 DFS 三色标记拓扑排序与严格有向环检测（Cycle Detection），杜绝非法/循环依赖任务进入执行层。
   - Kahn 分层批次算法（`getExecutionBatches`）：实现 DAG 拓扑分层推进、ASCII 边框可视化（`visualize`）与紧凑折叠摘要（`summarize`）。
   - 智能规划器 `Planner`：内置单步轻量任务快速识别与规则短路（`isSimpleGoal`），复杂任务 LLM 两遍建图解析，支持错误驱动的自适应重规划（`replan`）。
@@ -44,7 +44,7 @@
   - 执行引擎 `PlanExecuteAgent`（实现 `AgentRunner`）：DAG 拓扑分层调度，单任务主线程直跑，多任务受控并发（最多 4 线程）与独立内存缓冲流（`ByteArrayOutputStream`）日志隔离，彻底根除并发日志交错；单步任务受限 ReAct 循环（最多 5 轮）；具备 `MAX_REPLAN_ATTEMPTS = 2` 失败重排熔断保护与短期记忆自动回写。
   - CLI 指令打通：`/plan` 与 `/plan <任务描述>`，支持终端交互式任务规划与审阅。
   - 全套新增 31 项单元测试与端到端集成测试，全量 246 项测试 100% 绿灯。
-  - 技术架构设计规范 `docs/superpowers/specs/2026-09-11-phase-08-plan-and-execute-design.md` 与评测报告 `docs/engineering/plan-and-execute-evaluation.md`。
+  - 技术架构设计规范 `docs/specs/2026-09-11-phase-08-plan-and-execute-design.md`、实施计划 `docs/plans/2026-09-11-phase-08-plan-and-execute.md` 与评测报告 `docs/engineering/plan-and-execute-evaluation.md`。
 
 ## [0.5.0] - 2026-09-10
 
