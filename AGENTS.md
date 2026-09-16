@@ -8,11 +8,11 @@
 
 1. 当前代码和测试的实际行为。
 2. `AGENTS.md`。
-3. 对应阶段子 PRD。
-4. `TECH_DESIGN.md`。
-5. 总 `PRD.md`。
-6. `RESEARCH.md`。
-7. `ROADMAP.md` 与 README 中的计划内容。
+3. 对应阶段子 PRD (`docs/prd/phase-XX-*.md`)。
+4. `docs/TECH_DESIGN.md`。
+5. 总 `docs/PRD.md`。
+6. `docs/RESEARCH.md`。
+7. `docs/ROADMAP.md` 与 README 中的计划内容。
 
 计划能力不等于已交付能力。不得根据 PRD 或路线图声称代码已经实现。
 
@@ -20,7 +20,7 @@
 
 - 产品：XhlCLI，本地智能终端 Coding Agent。
 - 技术基线：Java 21、Maven、终端优先、本地优先。
-- 当前阶段：Phase 10 Multi-Agent 协作 (Multi-Agent Collaboration) 已交付；下一阶段为 Phase 11 MCP 协议集成 (Model Context Protocol)。
+- 当前阶段：Phase 10 Multi-Agent 协作 (Multi-Agent Collaboration) 已交付；下一阶段为 Phase 11 多模型适配 (Multi-Model) 与 Phase 12 MCP 协议集成。
 - 当前已实现：Java 21 Maven 工程、可执行 JAR、DeepSeek 流式对话、进程内多轮历史、基础聊天命令、结构化 Tool Call/Observation ReAct 循环、Ctrl+C 取消、安全配置与脱敏、错误分类、统一 `RunEvent`，9 个本地开发工具 (`list_dir`, `read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `glob_files`, `grep_code`, `search_code`)、工作区路径越界防护 `WorkspacePathResolver`、纯 Java 降级与 Ripgrep 双搜索引擎、嵌入式 SQLite (`sqlite-jdbc`) 与 Java AST 解析 (`javaparser-core`)、基于 SHA-256 的确定性增量索引引擎 `CodeIndex`、语义与混合检索器 `CodeRetriever`、结构化摘要格式化器 `SearchResultFormatter`、Golden Set 评测集，以及系统硬策略 (`PathGuard`, `CommandGuard`)、脱敏审计日志 (`AuditLog`)、风险分级与人工审批 (`ApprovalPolicy`, `TerminalHitlHandler`)、`DefaultToolExecutor` 安全编排闭环，上下文预算管理 (`TokenBudget`)、层级上下文组装 (`ContextAssembler`)、长期记忆 (`MemoryManager`)、会话自动压缩 (`ConversationHistoryCompactor`)，CLI 指令 (`/index`, `/search`, `/search-text`, `/context`, `/compact`, `/save`, `/memory`, `/plan`, `/team`)，以及 Plan 核心领域模型 (`Task`, `ExecutionPlan`)、DFS 三色标记拓扑排序与环检测、Kahn 算法分层批次、`Planner` 简单短路与重规划、人机审阅处理器 (`PlanReviewInputParser`, `PlanReviewHandler`)、分层执行引擎 `PlanExecuteAgent`（日志隔离缓冲、重排熔断保护），以及有界并发执行器 `BoundedParallelExecutor`、并发资格与资源互斥检测 `ParallelEligibilityDecider` / `ResourceAccess`、批次调度器 `ParallelBatchScheduler`、乱序保序归并、超时与失败隔离、协作式取消传播、ReactAgent & PlanExecuteAgent 并发调度打通、CLI 参数 `--max-concurrency` / `--tool-timeout`，以及 Multi-Agent 协作角色体系（`TeamRole`: Planner / Worker 池 / Reviewer）、`TeamPrompts` 专职提示词、最小化上下文交接包 `HandoverPackage`、结构化质量审查与容错降级 `ReviewResult`、打回重试与熔断保护机制（最多 2 次重试）、专职独立子代理 `SubAgent`、团队编排器 `TeamOrchestrator`（无依赖步骤受控并发借用 Worker、独立内存流隔离日志、保序 flush、交付汇总看板、长期记忆沉淀）及 291 项全量自动化测试。
 - 当前已发布：Phase 01 `v0.2.0`，Phase 05 `v0.3.0`，Phase 06 `v0.4.0`，Phase 07 `v0.5.0`，Phase 08 `v0.6.0`，Phase 09 `v0.7.0`，Phase 10 `v0.8.0`。
 - 当前未交付：MCP、Skills 与 Phase 11–18 的其他扩展运行能力。
@@ -30,10 +30,10 @@
 ## 3. 首读顺序
 
 1. `AGENTS.md`
-2. `PRD.md`
+2. `docs/PRD.md`
 3. 当前阶段 `docs/prd/phase-XX-*.md`
-4. `TECH_DESIGN.md`
-5. 当前阶段 `docs/plans/*.md`
+4. `docs/TECH_DESIGN.md`
+5. 当前阶段 `docs/plans/*.md` 或 `docs/superpowers/plans/*.md`
 6. 与任务相关的源码和测试
 7. `docs/engineering/source-adoption-map.md`，仅在迁移授权源码时阅读
 
@@ -48,7 +48,15 @@ Research → PRD → Tech Design → Implementation Plan
 ```
 
 > [!IMPORTANT]
-> **阶段交付铁律**：每完成一个阶段的开发，必须将 pom.xml / 代码中的版本升级并打上对应的 Git Tag（如 `v0.5.0`）推送到 GitHub，同时确保 CI 配置中的命令与 JAR 产物动态匹配，杜绝版本硬编码失效。
+> **阶段交付铁律**：
+> 1. **代码与版本**：每完成一个阶段的开发，必须将 `pom.xml` / 代码中的版本升级并打上对应的 Git Tag（如 `v0.8.0`）推送到 GitHub，同时确保 CI 配置中的命令与 JAR 产物动态匹配，杜绝版本硬编码失效。
+> 2. **文档持续同步与闭环（开发进度与文档内容必须严格统一）**：阶段开发结束后，**必须持续、全面更新相对应的技术与路线图文档**，包括但不限于：
+>    - `docs/TECH_DESIGN.md`：同步更新“实现状态”章节，将当期已交付的架构、模块与接口基线纳入现实能力，杜绝停留旧阶段。
+>    - `docs/ROADMAP.md`：同步更新路线图各阶段的交付状态、发布日期与版本号。
+>    - `docs/engineering/*-evaluation.md`：产出当期客观基准评测报告与验证物证。
+>    - `CHANGELOG.md`：按 Keep a Changelog 规范更新版本发布履历。
+>    - `AGENTS.md`：同步更新当前阶段状态与已交付能力清单。
+>    - 严禁代码已交付但文档仍处于“规划中”或旧版本描述的脱节状态！保证开发进度与文档事实源绝对一致。
 
 开始编码前必须确认：
 

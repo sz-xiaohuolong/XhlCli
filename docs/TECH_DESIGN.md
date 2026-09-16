@@ -3,10 +3,10 @@
 > 文档状态：已确认，可用于分期实现
 > 设计版本：v1.0
 > Java 基线：21
-> 更新日期：2026-08-27
+> 更新日期：2026-09-16
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-08-27）：Phase 02 已交付受控 ReAct 基线；后续章节中的 Plan、MCP、RAG、Policy/HITL、审计和本地工具仍为目标架构，不应当被理解为现有能力。
+> 实现状态（2026-09-16）：已完成 Phase 00~10 的完整交付（v0.8.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism) 以及 Multi-Agent 专职协作架构。后续章节中的多模型路由、MCP、Web 浏览器与 Skills 仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,13 +22,21 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 Phase 02 已实现基线
+## 2.1 当前已交付技术基线 (Phase 10, v0.8.0)
 
-- `ReactAgent` 仅依赖 `LlmClient`、`ToolExecutor` 和不可变消息/工具协议，按模型响应中的结构化 `tool_calls` 驱动串行 ReAct 循环；不解析自然语言 `Thought:`。
-- `ChatMessage`、`ToolCall`、`ToolResult` 和 `ToolDefinition` 使 assistant Tool Call 与 `tool_call_id` Observation 保持原始顺序关联。OpenAI-compatible SSE 按调用 index 累积碎片。
-- `RunLifecycle` 和统一的 sealed `RunEvent` 负责状态、严格递增序号和用户可见时间线；Plain Renderer 只投影安全摘要，且不输出 ANSI、reasoning 或未脱敏凭据。
-- 当前注册的仅是进程内 `echo_text` 与 `current_time` 演示工具。默认 10 次迭代、600 秒整体超时；取消、超时、两次空响应、连续三轮相同调用/结果和终态竞争均阻止后续模型或工具启动。
-- 本期尚未接入真实文件系统、Shell、Git、Policy/HITL、审计、Plan、并行、Multi-Agent、MCP、RAG、持久 Run 或崩溃恢复；这些项目保留在各自后续阶段。
+- **核心 Agent 架构**：
+  - `ReactAgent`：基于不可变 `ChatMessage`、`ToolCall`、`ToolResult` 协议驱动串行/并行 ReAct 循环，集成 `RunLifecycle`、严格递增序号事件流与取消/超时保护。
+  - `PlanExecuteAgent`：基于 Kahn 算法与 DAG 拓扑排序实现分层批次推进，支持终端 HITL 人机审阅交互、重排熔断与短期记忆自动回写。
+  - `TeamOrchestrator`：实现 1+2+1 专职协作架构（Planner 纯规划无工具、Worker 池化排他借用持完整工具、Reviewer 质量审查无写工具），基于最小化上下文交接包 `HandoverPackage` 与结构化审查重试熔断闭环，支持无依赖步骤受控并发借用与独立内存流隔离日志，批次完成后保序 flush 到终端。
+- **本地工具与安全审计**：
+  - 注册 9 个本地开发工具（`read_file`, `write_file`, `apply_patch`, `git_diff`, `execute_command`, `list_dir`, `glob_files`, `grep_code`, `search_code`）。
+  - 工作区路径越界防护 `WorkspacePathResolver`、硬策略围栏（`PathGuard`, `CommandGuard`）、脱敏审计日志 `AuditLog` 与终端交互审批 `TerminalHitlHandler`。
+- **上下文、检索与并发**：
+  - Token 预算控制 `TokenBudget`、层级上下文组装 `ContextAssembler`、长期记忆 `MemoryManager`、历史会话压缩 `ConversationHistoryCompactor`。
+  - Ripgrep/Java 双引擎精准搜索与 SQLite + AST 增量语义向量检索引擎 `CodeIndex` / `CodeRetriever`。
+  - 有界并发执行器 `BoundedParallelExecutor`：读读共享/读写互斥检测、乱序保序归并、故障超时隔离与协作式取消。
+- **CLI 交互打通**：
+  - JLine 终端会话集成，支持交互式指令：`/help`, `/config`, `/clear`, `/context`, `/compact`, `/save`, `/memory`, `/search-text`, `/index`, `/search`, `/plan`, `/team`。
 
 ## 3. 非目标
 

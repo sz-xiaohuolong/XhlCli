@@ -107,16 +107,15 @@ java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
 
 ## 文档导航
 
-- [产品总 PRD](PRD.md)
-- [Phase 02 PRD](docs/prd/phase-02-react-agent.md)
-- [Phase 02 技术设计](docs/superpowers/specs/2026-08-27-phase-02-react-agent-design.md)
-- [Phase 02 实施计划](docs/superpowers/plans/2026-08-27-phase-02-react-agent.md)
-- [Phase 01 PRD](docs/prd/phase-01-terminal-chat.md)
-- [Phase 01 技术设计](docs/superpowers/specs/2026-08-26-phase-01-terminal-chat-design.md)
-- [Phase 01 实施计划](docs/plans/2026-08-26-phase-01-terminal-chat.md)
-- [路线图](ROADMAP.md)
-- [全局技术设计](TECH_DESIGN.md)
+- [产品总 PRD](docs/PRD.md)
+- [路线图](docs/ROADMAP.md)
+- [全局技术设计](docs/TECH_DESIGN.md)
+- [立项需求研究](docs/RESEARCH.md)
 - [授权源码采用地图](docs/engineering/source-adoption-map.md)
+- [Phase 10 Multi-Agent 评测报告](docs/engineering/multi-agent-evaluation.md)
+- [Phase 09 并行执行评测报告](docs/engineering/parallel-execution-benchmark.md)
+- [Phase 08 规划与执行评测报告](docs/engineering/plan-and-execute-evaluation.md)
+- [Phase 07 代码库 RAG 评测报告](docs/engineering/codebase-rag-evaluation.md)
 - [安全策略](SECURITY.md)
 
 ## 当前验收状态

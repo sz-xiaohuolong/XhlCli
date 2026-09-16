@@ -168,9 +168,9 @@
 
 - 产品范围：[`PRD.md`](PRD.md)
 - 技术方案：[`TECH_DESIGN.md`](TECH_DESIGN.md)
-- AI 开发规则：[`AGENTS.md`](AGENTS.md)
-- 参考实现迁移地图：[`docs/engineering/source-adoption-map.md`](docs/engineering/source-adoption-map.md)
-- Phase 00 实施计划：[`docs/plans/2026-08-25-phase-00-project-foundation.md`](docs/plans/2026-08-25-phase-00-project-foundation.md)
+- AI 开发规则：[`../AGENTS.md`](../AGENTS.md)
+- 参考实现迁移地图：[`engineering/source-adoption-map.md`](engineering/source-adoption-map.md)
+- Phase 00 实施计划：[`plans/2026-08-25-phase-00-project-foundation.md`](plans/2026-08-25-phase-00-project-foundation.md)
 
 ## 11. 变更记录
 
