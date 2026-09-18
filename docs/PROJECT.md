@@ -26,7 +26,7 @@
 | :--- | :--- | :--- |
 | **Agent 行为准则与入口** | [`AGENTS.md`](../AGENTS.md) | Agent 长期行为规则、事实优先级、开发流程与阶段交付铁律 |
 | **项目定位与资产映射** | [`docs/PROJECT.md`](PROJECT.md) | 当前定位、Release 状态、文档地图与追溯索引 |
-| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 10 基线) |
+| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 11 基线) |
 | **总览需求与边界** | [`docs/PRD.md`](PRD.md) | 总体产品定位、能力矩阵与跨阶段规划 |
 | **路线图与交付状态** | [`docs/ROADMAP.md`](ROADMAP.md) | 全阶段（Phase 00 ~ 18）交付状态、交付日期与版本履历 |
 | **技术预研与竞品分析** | [`docs/RESEARCH.md`](RESEARCH.md) | 竞品分析 (Claude Code, Cline 等) 与关键技术选型 |
@@ -60,7 +60,8 @@
 | **Phase 08** 规划执行 | [phase-08](prd/phase-08-plan-and-execute.md) | [2026-09-11-phase-08](specs/2026-09-11-phase-08-plan-and-execute-design.md) | [2026-09-11-phase-08](plans/2026-09-11-phase-08-plan-and-execute.md) | [plan-and-execute-evaluation](engineering/plan-and-execute-evaluation.md) | `v0.6.0` | 已封存 |
 | **Phase 09** 并发执行 | [phase-09](prd/phase-09-parallel-execution.md) | [2026-09-14-phase-09](specs/2026-09-14-phase-09-parallel-execution-design.md) | [2026-09-14-phase-09](plans/2026-09-14-phase-09-parallel-execution.md) | [parallel-execution-benchmark](engineering/parallel-execution-benchmark.md) | `v0.7.0` | 已封存 |
 | **Phase 10** Multi-Agent | [phase-10](prd/phase-10-multi-agent.md) | [2026-09-16-phase-10](specs/2026-09-16-phase-10-multi-agent-design.md) | [2026-09-16-phase-10](plans/2026-09-16-phase-10-multi-agent.md) | [multi-agent-evaluation](engineering/multi-agent-evaluation.md) | `v0.8.0` | 已封存 |
-| **Phase 11** 多模型路由 | [phase-11](prd/phase-11-multi-model.md) | 待设计 | 待制定 | 待评测 | 规划中 | 下一阶段 |
+| **Phase 11** 多模型路由 | [phase-11](prd/phase-11-multi-model.md) | [2026-09-18-phase-11](specs/2026-09-18-phase-11-multi-model-design.md) | [2026-09-18-phase-11](plans/2026-09-18-phase-11-multi-model.md) | [multi-model-evaluation](engineering/multi-model-evaluation.md) | `v0.9.0` | 已封存 |
+| **Phase 12** MCP 扩展协议 | [phase-12](prd/phase-12-mcp-extensibility.md) | 待设计 | 待制定 | 待评测 | 规划中 | 下一阶段 |
 
 ---
 
@@ -69,7 +70,7 @@
 | 目的 | 命令 | 备注 |
 | :--- | :--- | :--- |
 | **环境检查** | `java -version` | 必须为 Java 21+ (`export JAVA_HOME=/opt/homebrew/opt/openjdk`) |
-| **全量自动化测试** | `mvn clean test` | 291 项自动化测试（单元、集成与 Golden Set） |
+| **全量自动化测试** | `mvn clean test` | 305 项自动化测试（单元、集成、契约与 Golden Set） |
 | **单测运行** | `mvn test -Dtest=<TestClass>` | 运行指定测试类 |
-| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.8.0-SNAPSHOT.jar` 可执行 Fat JAR |
-| **运行 CLI** | `java -jar target/xhlcli-0.8.0-SNAPSHOT.jar` | 启动交互式终端 Agent |
+| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.9.0-SNAPSHOT.jar` 可执行 Fat JAR |
+| **运行 CLI** | `java -jar target/xhlcli-0.9.0-SNAPSHOT.jar` | 启动交互式终端 Agent |

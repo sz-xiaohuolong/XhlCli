@@ -18,10 +18,14 @@ import java.util.function.Supplier;
  * 规划器 - 使用 LLM 将复杂任务分解为执行计划
  */
 public class Planner {
-    private final LlmClient llmClient;
+    private volatile LlmClient llmClient;
     private final PrintStream out;
     private final ObjectMapper mapper = new ObjectMapper();
     private Supplier<String> projectMemorySupplier = () -> "";
+
+    public void setClient(LlmClient client) {
+        this.llmClient = Objects.requireNonNull(client, "client");
+    }
 
     private static final String PLANNER_SYSTEM_PROMPT = """
             ## Mode: Plan Builder

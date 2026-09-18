@@ -37,7 +37,7 @@ public final class ReactAgent implements AgentRunner {
     private static final Supplier<StreamingSecretRedactor> DEFAULT_STREAM_SANITIZER =
             () -> new StreamingSecretRedactor(null);
     private final ChatMessage systemMessage;
-    private final LlmClient client;
+    private volatile LlmClient client;
     private final ToolExecutor executor;
     private final List<ToolDefinition> toolDefinitions;
     private final RunLimits limits;
@@ -59,6 +59,14 @@ public final class ReactAgent implements AgentRunner {
 
     public void setCompactor(com.xhlcli.memory.ConversationHistoryCompactor compactor) {
         this.compactor = compactor;
+    }
+
+    public void setClient(LlmClient client) {
+        this.client = Objects.requireNonNull(client, "client");
+    }
+
+    public LlmClient getClient() {
+        return client;
     }
 
     public void setMemorySupplier(java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier) {
@@ -204,6 +212,11 @@ public final class ReactAgent implements AgentRunner {
             }
             if (gate.stopReason() != StopReason.NONE) {
                 return finishForStop(lifecycle, sequencer, runId, gate.stopReason(), iterations, usage);
+            }
+            if (!toolDefinitions.isEmpty() && !client.capabilities().supportsTools()) {
+                String msg = "当前模型 [" + client.modelName() + "] 不支持工具调用 (supportsTools = false)。如需使用 Agent 执行任务，请使用 /model use 切换至支持工具的模型。";
+                sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(0), msg));
+                return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "MODEL_UNSUPPORTED_TOOLS", msg, iterations, usage);
             }
             workingHistory.add(ChatMessage.user(input));
             RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);

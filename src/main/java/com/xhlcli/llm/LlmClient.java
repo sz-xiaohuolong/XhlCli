@@ -20,6 +20,18 @@ public interface LlmClient extends AutoCloseable {
         return stream(messages, List.of(), listener, cancellationToken);
     }
 
+    default String providerName() {
+        return "unknown";
+    }
+
+    default String modelName() {
+        return "unknown";
+    }
+
+    default ModelCapabilities capabilities() {
+        return ModelCapabilities.openAiDefault();
+    }
+
     @Override
     default void close() {}
 }

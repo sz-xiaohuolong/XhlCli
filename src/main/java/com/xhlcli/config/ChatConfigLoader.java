@@ -181,7 +181,7 @@ public final class ChatConfigLoader {
         return values;
     }
 
-    private static Map<String, String> readDotEnv(Path path) throws ConfigurationException {
+    public static Map<String, String> readDotEnv(Path path) throws ConfigurationException {
         if (!Files.isRegularFile(path)) {
             return Map.of();
         }

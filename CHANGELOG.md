@@ -2,6 +2,22 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.9.0] - 2026-09-18
+
+### Added
+- **多模型路由与能力声明（Multi-Model Adaptation & Capability Declarations）** (Phase 11):
+  - 核心领域模型与能力元信息 `ModelCapabilities`：解耦并精确声明最大上下文窗口、工具调用支持（`supportsTools`）、视觉多模态支持（`supportsImageInput` / `supportsVision()`）、Prompt Cache 模式（`promptCacheMode`）及推理模型标记（`requiresReasoningEffort`）。
+  - 通用 LLM 抽象接口扩展 `LlmClient`：解耦 Provider 名称（`providerName()`）、模型名称（`modelName()`）与模型能力元信息（`capabilities()`）。
+  - 统一 OpenAI-compatible 族适配：抽象出可复用的 `AbstractOpenAiCompatibleClient`，重构 `DeepSeekClient`，并新增 `OpenAiClient`（标准 OpenAI `/v1/chat/completions` 协议），支持 `gpt-4o`、`o1`、`o3-mini` 及推理模型特性识别。
+  - 原生 Anthropic 协议适配器 `AnthropicClaudeClient` 与流式解析器 `AnthropicSseParser`：支持原生 `/v1/messages` 协议、顶层 `system` 拆分、Anthropic 格式工具声明（`input_schema`）与双向转化（`tool_use` / `tool_result`）、多事件 SSE 增量解析（`content_block_delta`、`input_json_delta`）及自动重试与鉴权。
+  - 本地隐私优先 Ollama 适配器 `OllamaClient`：本地免 Key 直连 `/api/chat`，原生逐行 NDJSON 流式解析与工具调用双向映射。
+  - Provider 注册中心与模型工厂 `LlmProviderRegistry`：统一注册与管理 deepseek、openai、anthropic、ollama 等多 Provider，支持环境变量与 `.env` 凭据自动探测、模型别名模糊匹配（`claude-3-7-sonnet` -> `claude-3-7-sonnet-20250219`、`gpt-4o`、`deepseek-chat` 等）与运行时代工实例化。
+  - 上下文预算动态联动与超限告警：模型切换触发 `TokenBudget.updateContextWindow()` 动态重算分层配额，当历史对话超出新模型容量时发出结构化超限预警并建议执行 `/compact`。
+  - 工具能力硬拦截与防御护栏：在 `ReactAgent`、`PlanExecuteAgent`、`Planner` 与 `TeamOrchestrator` 中引入 `supportsTools` 前置能力校验，拦截无工具调用能力模型（如 `o1`、轻量无 tool 权重）的无效 Agent/Plan/Team 执行请求并给出明确指导。
+  - 终端命令与交互增强：新增 `/model` 指令族（`/model list` 查看可用模型与凭据探测状态，`/model status` 查看当前激活模型及其详细能力参数，`/model use <model>` 运行时动态热切换）。
+  - 全套新增 14 项专项契约测试与集成测试（`LlmProviderContractTest`, `AnthropicClaudeClientTest`, `OllamaClientTest`, `LlmProviderRegistryTest`, `ModelSwitchingIntegrationTest`），全量 305 项自动化测试 100% 绿灯。
+  - 产出设计规范 `docs/specs/2026-09-18-phase-11-multi-model-design.md`、实施计划 `docs/plans/2026-09-18-phase-11-multi-model.md` 与评测报告 `docs/engineering/multi-model-evaluation.md`。
+
 ## [0.8.0] - 2026-09-16
 
 ### Added

@@ -77,10 +77,21 @@ public class PlanExecuteAgent implements AgentRunner {
         }
     }
 
-    private final LlmClient llmClient;
+    private volatile LlmClient llmClient;
     private final ToolExecutor toolExecutor;
     private final List<ToolDefinition> toolDefinitions;
     private final Planner planner;
+
+    public void setClient(LlmClient client) {
+        this.llmClient = Objects.requireNonNull(client, "client");
+        if (this.planner != null) {
+            this.planner.setClient(client);
+        }
+    }
+
+    public LlmClient getClient() {
+        return llmClient;
+    }
     private final PlanReviewHandler reviewHandler;
     private final MemoryManager memoryManager;
     private final PrintStream out;
@@ -147,6 +158,11 @@ public class PlanExecuteAgent implements AgentRunner {
         committedHistory.add(ChatMessage.user(input));
         if (cancellationToken != null && cancellationToken.isCancelled()) {
             return new RunResult(runId, RunStatus.CANCELED, "⏹️ 已取消当前计划执行。", "Cancelled", 0, TokenUsage.unknown());
+        }
+        if (!toolDefinitions.isEmpty() && !llmClient.capabilities().supportsTools()) {
+            String msg = "当前模型 [" + llmClient.modelName() + "] 不支持工具调用，无法执行 Plan 任务。请使用 /model use 切换模型。";
+            events.accept(new RunEvent.TextDelta(new RunEvent.Metadata(runId, 1, java.time.Instant.now(), 0), msg));
+            return new RunResult(runId, RunStatus.FAILED, msg, "MODEL_UNSUPPORTED_TOOLS", 0, TokenUsage.unknown());
         }
 
         try {

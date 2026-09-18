@@ -77,10 +77,25 @@ public class TeamOrchestrator implements AgentRunner {
         }
     }
 
-    private final LlmClient llmClient;
+    private volatile LlmClient llmClient;
     private final ToolExecutor toolExecutor;
     private final List<ToolDefinition> toolDefinitions;
     private final MemoryManager memoryManager;
+
+    public void setClient(LlmClient newClient) {
+        this.llmClient = Objects.requireNonNull(newClient, "newClient cannot be null");
+        if (this.planner != null) this.planner.setClient(newClient);
+        if (this.workers != null) {
+            for (SubAgent w : this.workers) {
+                w.setClient(newClient);
+            }
+        }
+        if (this.reviewer != null) this.reviewer.setClient(newClient);
+    }
+
+    public LlmClient getClient() {
+        return llmClient;
+    }
     private final PrintStream out;
     private final int maxRetriesPerStep;
     private final SubAgent planner;
@@ -145,6 +160,12 @@ public class TeamOrchestrator implements AgentRunner {
         committedHistory.add(ChatMessage.user(input));
         if (cancellationToken != null && cancellationToken.isCancelled()) {
             return new RunResult(runId, RunStatus.CANCELED, "⏹️ 已取消当前团队任务。", "Cancelled", 0, TokenUsage.unknown());
+        }
+        if (!toolDefinitions.isEmpty() && !llmClient.capabilities().supportsTools()) {
+            String msg = "当前模型 [" + llmClient.modelName() + "] 不支持工具调用，无法启动 Multi-Agent 团队协作。请使用 /model use 切换模型。";
+            out.println("❌ " + msg);
+            events.accept(new RunEvent.TextDelta(new RunEvent.Metadata(runId, 1, java.time.Instant.now(), 0), msg));
+            return new RunResult(runId, RunStatus.FAILED, msg, "MODEL_UNSUPPORTED_TOOLS", 0, TokenUsage.unknown());
         }
 
         // ==========================================

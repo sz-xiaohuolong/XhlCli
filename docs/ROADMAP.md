@@ -15,7 +15,7 @@
 | P1 | [Phase 08](prd/phase-08-plan-and-execute.md) | 已交付（2026-09-11，v0.6.0） | DAG 拓扑分层调度、Kahn 算法批次、HITL 审阅交互、重排熔断保护与 `/plan` |
 | P1 | [Phase 09](prd/phase-09-parallel-execution.md) | 已交付（2026-09-14，v0.7.0） | 有界受控并发调度 (Bounded Parallelism)、乱序执行保序归并、超时隔离与取消传播 |
 | P1 | [Phase 10](prd/phase-10-multi-agent.md) | 已交付（2026-09-16，v0.8.0） | Multi-Agent 协作（1+2+1 体系、最小交接包、审查熔断循环、Worker 池并发与 `/team`） |
-| P1 | [Phase 11](prd/phase-11-multi-model.md) | 规划中 | 多模型路由与能力声明 |
+| P1 | [Phase 11](prd/phase-11-multi-model.md) | 已交付（2026-09-18，v0.9.0） | 多模型路由与能力声明（OpenAI/Anthropic/Ollama、ModelCapabilities、注册中心与 `/model`） |
 | P1 | [Phase 12](prd/phase-12-mcp.md) | 规划中 | MCP 协议集成、工具发现与调用 |
 | P2 | [Phase 13](prd/phase-13-web-and-browser.md) | 规划中 | Web 检索与浏览器能力 |
 | P2 | [Phase 14](prd/phase-14-skills-and-prompts.md) | 规划中 | Skill 与 Prompt 管理 |

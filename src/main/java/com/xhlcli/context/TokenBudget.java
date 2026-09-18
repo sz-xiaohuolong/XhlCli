@@ -10,10 +10,10 @@ import java.util.List;
  * 负责估算并维护单次请求的上下文资源限制。
  */
 public class TokenBudget {
-    private final int contextWindow;
-    private final int reservedForResponse;
-    private final int reservedForSystem;
-    private final int reservedForTools;
+    private volatile int contextWindow;
+    private volatile int reservedForResponse;
+    private volatile int reservedForSystem;
+    private volatile int reservedForTools;
 
     public TokenBudget(int contextWindow, int reservedForResponse, int reservedForSystem, int reservedForTools) {
         this.contextWindow = contextWindow;
@@ -24,6 +24,22 @@ public class TokenBudget {
     
     public TokenBudget(int contextWindow) {
         this(contextWindow, 2000, 500, 1000);
+    }
+
+    public void updateContextWindow(int newContextWindow) {
+        if (newContextWindow <= 0) {
+            throw new IllegalArgumentException("newContextWindow must be positive: " + newContextWindow);
+        }
+        this.contextWindow = newContextWindow;
+        if (newContextWindow <= 16384) {
+            this.reservedForResponse = Math.min(2000, newContextWindow / 4);
+            this.reservedForSystem = Math.min(500, newContextWindow / 8);
+            this.reservedForTools = Math.min(1000, newContextWindow / 8);
+        } else {
+            this.reservedForResponse = 2000;
+            this.reservedForSystem = 500;
+            this.reservedForTools = 1000;
+        }
     }
 
     public int getContextWindow() {

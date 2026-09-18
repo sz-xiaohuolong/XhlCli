@@ -7,6 +7,7 @@ import com.xhlcli.model.ChatResponse;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class ConversationHistoryCompactor {
 
@@ -16,10 +17,18 @@ public class ConversationHistoryCompactor {
             不要省略任何未完成的任务或之前约定的代码约束。
             """;
 
-    private final LlmClient llmClient;
+    private volatile LlmClient llmClient;
 
     public ConversationHistoryCompactor(LlmClient llmClient) {
         this.llmClient = llmClient;
+    }
+
+    public void setClient(LlmClient client) {
+        this.llmClient = Objects.requireNonNull(client, "client");
+    }
+
+    public LlmClient getClient() {
+        return llmClient;
     }
 
     /**

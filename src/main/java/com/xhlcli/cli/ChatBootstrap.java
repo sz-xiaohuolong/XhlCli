@@ -133,10 +133,18 @@ public final class ChatBootstrap implements ChatRunner {
                     mapper, Clock.systemUTC(), () -> UUID.randomUUID().toString(),
                     value -> SecretRedactor.redact(value, config.apiKey()),
                     () -> new StreamingSecretRedactor(config.apiKey()));
+            Map<String, String> dotEnv = Map.of();
+            try {
+                dotEnv = ChatConfigLoader.readDotEnv(projectDirectory.resolve(".env"));
+            } catch (Exception ignored) {}
+            Map<String, String> mergedEnv = new java.util.HashMap<>(dotEnv);
+            mergedEnv.putAll(environment);
+            com.xhlcli.llm.LlmProviderRegistry providerRegistry = new com.xhlcli.llm.LlmProviderRegistry(mergedEnv);
+
             Path globalMemoryDir = userHome.resolve(".xhlcli").resolve("memory");
             Path projectMemoryDir = projectDirectory.resolve(".xhlcli").resolve("memory");
             com.xhlcli.memory.MemoryManager memoryManager = new com.xhlcli.memory.MemoryManager(globalMemoryDir, projectMemoryDir);
-            com.xhlcli.context.TokenBudget budget = new com.xhlcli.context.TokenBudget(100000);
+            com.xhlcli.context.TokenBudget budget = new com.xhlcli.context.TokenBudget(client.capabilities().maxContextWindow());
             com.xhlcli.context.ContextAssembler contextAssembler = new com.xhlcli.context.ContextAssembler(budget);
             com.xhlcli.memory.ConversationHistoryCompactor compactor = new com.xhlcli.memory.ConversationHistoryCompactor(client);
             agent.setContextAssembler(contextAssembler);
@@ -150,6 +158,9 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setCompactor(compactor);
             loop.setGrepCodeTool(grepCodeTool);
             loop.setProjectDirectory(projectDirectory);
+            loop.setLlmClient(client);
+            loop.setProviderRegistry(providerRegistry);
+            loop.setDiagnostics(diagnostics);
 
             com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
                 out.println(plan.summarize());

@@ -3,10 +3,10 @@
 > 文档状态：已确认，可用于分期实现
 > 设计版本：v1.0
 > Java 基线：21
-> 更新日期：2026-09-16
+> 更新日期：2026-09-18
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-09-16）：已完成 Phase 00~10 的完整交付（v0.8.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism) 以及 Multi-Agent 专职协作架构。后续章节中的多模型路由、MCP、Web 浏览器与 Skills 仍为目标架构。
+> 实现状态（2026-09-18）：已完成 Phase 00~11 的完整交付（v0.9.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构，以及多模型路由适配层（DeepSeek、OpenAI、Anthropic Claude 原生 Messages 协议、本地 Ollama 原生 NDJSON 协议与能力声明/护栏）。后续章节中的 MCP、Web 浏览器与 Skills 仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,17 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 10, v0.8.0)
+## 2.1 当前已交付技术基线 (Phase 11, v0.9.0)
 
+- **多模型路由与能力声明 (Phase 11)**：
+  - `ModelCapabilities`：模型能力元信息统一声明（上下文窗口、工具支持、多模态视觉、Prompt 缓存模式、思考链要求）。
+  - 多协议适配层：
+    - OpenAI-compatible 族：`AbstractOpenAiCompatibleClient`, `DeepSeekClient`, `OpenAiClient`；
+    - 协议差异 Provider 1：`AnthropicClaudeClient` 与 `AnthropicSseParser`（原生 `/v1/messages` 协议、顶级 `system` 拆分、`input_schema`、`tool_use`/`tool_result` 块）；
+    - 协议差异 Provider 2：`OllamaClient`（本地 `/api/chat` 原生 NDJSON 逐行流式解析、免 API Key）；
+  - `LlmProviderRegistry` 与 `ModelDescriptor`：支持环境变量/`.env` 凭据探测、模型别名模糊匹配与安全工厂实例化；
+  - 终端运行时动态模型切换（`/model list`、`/model use <model>`、`/model status`），自动联动更新 `TokenBudget` / `ContextAssembler` 上下文预算并提供超额预警；
+  - 工具能力安全护栏：不支持工具调用的模型在 Agent/Plan/Team 模式启动前提前拦截拒绝，杜绝无效与不兼容请求。
 - **核心 Agent 架构**：
   - `ReactAgent`：基于不可变 `ChatMessage`、`ToolCall`、`ToolResult` 协议驱动串行/并行 ReAct 循环，集成 `RunLifecycle`、严格递增序号事件流与取消/超时保护。
   - `PlanExecuteAgent`：基于 Kahn 算法与 DAG 拓扑排序实现分层批次推进，支持终端 HITL 人机审阅交互、重排熔断与短期记忆自动回写。
@@ -36,7 +45,7 @@
   - Ripgrep/Java 双引擎精准搜索与 SQLite + AST 增量语义向量检索引擎 `CodeIndex` / `CodeRetriever`。
   - 有界并发执行器 `BoundedParallelExecutor`：读读共享/读写互斥检测、乱序保序归并、故障超时隔离与协作式取消。
 - **CLI 交互打通**：
-  - JLine 终端会话集成，支持交互式指令：`/help`, `/config`, `/clear`, `/context`, `/compact`, `/save`, `/memory`, `/search-text`, `/index`, `/search`, `/plan`, `/team`。
+  - JLine 终端会话集成，支持交互式指令：`/help`, `/config`, `/clear`, `/context`, `/compact`, `/save`, `/memory`, `/search-text`, `/index`, `/search`, `/plan`, `/team`, `/model`。
 
 ## 3. 非目标
 

@@ -6,14 +6,15 @@ import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 
 import java.util.List;
+import java.util.Locale;
 
-public final class DeepSeekClient extends AbstractOpenAiCompatibleClient {
+public final class OpenAiClient extends AbstractOpenAiCompatibleClient {
 
-    public DeepSeekClient(ChatConfig config, DiagnosticSink diagnostics) {
+    public OpenAiClient(ChatConfig config, DiagnosticSink diagnostics) {
         this(config, clientFor(config), new ObjectMapper(), Thread::sleep, diagnostics);
     }
 
-    DeepSeekClient(
+    OpenAiClient(
             ChatConfig config,
             OkHttpClient httpClient,
             ObjectMapper mapper,
@@ -33,11 +34,20 @@ public final class DeepSeekClient extends AbstractOpenAiCompatibleClient {
 
     @Override
     public String providerName() {
-        return "deepseek";
+        return "openai";
     }
 
     @Override
     public ModelCapabilities capabilities() {
-        return ModelCapabilities.deepseekDefault();
+        String model = config.model().toLowerCase(Locale.ROOT);
+        boolean isReasoning = model.startsWith("o1") || model.startsWith("o3");
+        return new ModelCapabilities(
+                128_000,
+                true,
+                true,
+                false,
+                "none",
+                isReasoning
+        );
     }
 }

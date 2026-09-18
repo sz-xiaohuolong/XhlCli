@@ -22,6 +22,9 @@ public final class ChatLoop {
     private java.nio.file.Path projectDirectory;
     private com.xhlcli.agent.PlanExecuteAgent planAgent;
     private com.xhlcli.team.TeamOrchestrator teamOrchestrator;
+    private com.xhlcli.llm.LlmClient currentClient;
+    private com.xhlcli.llm.LlmProviderRegistry providerRegistry;
+    private com.xhlcli.llm.DiagnosticSink diagnostics;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
@@ -30,6 +33,10 @@ public final class ChatLoop {
     public void setProjectDirectory(java.nio.file.Path projectDirectory) { this.projectDirectory = projectDirectory; }
     public void setPlanAgent(com.xhlcli.agent.PlanExecuteAgent planAgent) { this.planAgent = planAgent; }
     public void setTeamOrchestrator(com.xhlcli.team.TeamOrchestrator teamOrchestrator) { this.teamOrchestrator = teamOrchestrator; }
+    public void setLlmClient(com.xhlcli.llm.LlmClient client) { this.currentClient = client; }
+    public void setProviderRegistry(com.xhlcli.llm.LlmProviderRegistry registry) { this.providerRegistry = registry; }
+    public void setDiagnostics(com.xhlcli.llm.DiagnosticSink diagnostics) { this.diagnostics = diagnostics; }
+    public com.xhlcli.llm.LlmClient getLlmClient() { return this.currentClient; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -276,6 +283,99 @@ public final class ChatLoop {
         }
     }
 
+    private void handleModel(String input) {
+        String trimmed = input.trim();
+        String[] parts = trimmed.split("\\s+");
+        String subcmd = parts.length > 1 ? parts[1].toLowerCase(java.util.Locale.ROOT) : "list";
+
+        if (providerRegistry == null) {
+            renderer.printMessage("模型注册中心未初始化。");
+            return;
+        }
+
+        switch (subcmd) {
+            case "list" -> {
+                var models = providerRegistry.listModels();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🤖 可用模型与 Provider 矩阵：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                for (var m : models) {
+                    boolean isCurrent = currentClient != null && (m.id().equalsIgnoreCase(currentClient.providerName() + ":" + currentClient.modelName()) || m.matches(currentClient.modelName()));
+                    String marker = isCurrent ? "[✓]" : "[ ]";
+                    String window = (m.capabilities().maxContextWindow() / 1000) + "k";
+                    String tools = m.capabilities().supportsTools() ? "Yes" : "No";
+                    String status = m.provider().equals("ollama") ? "Local" : (m.configured() ? "Configured" : "Missing Key");
+                    renderer.printMessage(String.format("%s %-36s Provider: %-10s Window: %-5s Tools: %-4s Status: %s",
+                            marker, m.id(), m.provider(), window, tools, status));
+                }
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("💡 提示：使用 '/model use <model_or_alias>' 切换模型，使用 '/model status' 查看当前详情。");
+            }
+            case "status" -> {
+                if (currentClient == null) {
+                    renderer.printMessage("当前无活动模型。");
+                    return;
+                }
+                var caps = currentClient.capabilities();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🎯 当前活动模型状态：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                renderer.printMessage("Provider:         " + currentClient.providerName());
+                renderer.printMessage("Model:            " + currentClient.modelName());
+                renderer.printMessage("Context Window:   " + caps.maxContextWindow() + " tokens");
+                renderer.printMessage("Supports Tools:   " + (caps.supportsTools() ? "Yes" : "No"));
+                renderer.printMessage("Supports Vision:  " + (caps.supportsImageInput() ? "Yes" : "No"));
+                renderer.printMessage("Prompt Cache:     " + (caps.supportsPromptCaching() ? ("Yes (" + caps.promptCacheMode() + ")") : "No"));
+                renderer.printMessage("Reasoning Effort: " + (caps.requiresReasoningEffort() ? "Yes" : "No"));
+                renderer.printMessage("=========================================================================================");
+            }
+            case "use" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /model use <model_name_or_alias>");
+                    return;
+                }
+                String target = parts[2];
+                var optDesc = providerRegistry.findModel(target);
+                if (optDesc.isEmpty()) {
+                    renderer.printMessage("❌ 未找到匹配的模型或别名: '" + target + "'。输入 '/model list' 查看可用模型列表。");
+                    return;
+                }
+                var desc = optDesc.get();
+                try {
+                    com.xhlcli.llm.LlmClient newClient = providerRegistry.createClient(desc, diagnostics != null ? diagnostics : (msg, data) -> {});
+                    this.currentClient = newClient;
+                    if (agent instanceof com.xhlcli.agent.ReactAgent ra) {
+                        ra.setClient(newClient);
+                    }
+                    if (planAgent != null) {
+                        planAgent.setClient(newClient);
+                    }
+                    if (teamOrchestrator != null) {
+                        teamOrchestrator.setClient(newClient);
+                    }
+                    if (compactor != null) {
+                        compactor.setClient(newClient);
+                    }
+                    if (contextAssembler != null) {
+                        contextAssembler.getBudget().updateContextWindow(newClient.capabilities().maxContextWindow());
+                        int historyTokens = com.xhlcli.context.TokenBudget.estimateTokens(agent.history());
+                        int available = contextAssembler.getBudget().getAvailableForConversation();
+                        if (historyTokens > available) {
+                            renderer.printMessage(String.format("⚠️ 警告：当前会话历史 (约 %d tokens) 已超出新模型可用预算 (%d tokens)。建议使用 /compact 压缩历史或 /clear 开启新会话。", historyTokens, available));
+                        }
+                    }
+                    renderer.printMessage(String.format("✅ 已成功切换至模型 [%s] (Provider: %s, 窗口: %dk, 工具支持: %s)",
+                            newClient.modelName(), newClient.providerName(),
+                            newClient.capabilities().maxContextWindow() / 1000,
+                            newClient.capabilities().supportsTools() ? "是" : "否"));
+                } catch (com.xhlcli.llm.LlmException failure) {
+                    renderer.printMessage("❌ 切换模型失败: " + failure.getMessage());
+                }
+            }
+            default -> renderer.printMessage("未知子命令。用法: /model [list|use <model>|status]");
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -341,6 +441,7 @@ public final class ChatLoop {
                 case SEARCH -> searchSemantic(input);
                 case PLAN -> handlePlan(input);
                 case TEAM -> handleTeam(input);
+                case MODEL -> handleModel(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

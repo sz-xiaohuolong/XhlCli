@@ -36,8 +36,16 @@ public class SubAgent {
 
     private final String name;
     private final TeamRole role;
-    private final LlmClient llmClient;
+    private volatile LlmClient llmClient;
     private final ToolExecutor toolExecutor;
+
+    public void setClient(LlmClient client) {
+        this.llmClient = Objects.requireNonNull(client, "client");
+    }
+
+    public LlmClient getClient() {
+        return llmClient;
+    }
     private final List<ToolDefinition> toolDefinitions;
     private final List<ChatMessage> conversationHistory;
     private final ObjectMapper mapper;

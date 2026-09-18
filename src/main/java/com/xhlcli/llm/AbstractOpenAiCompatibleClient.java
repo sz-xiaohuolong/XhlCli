@@ -63,7 +63,7 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         Objects.requireNonNull(cancellationToken, "cancellationToken");
         if (!config.hasApiKey()) {
             throw new LlmException(LlmErrorType.MISSING_CONFIGURATION,
-                    "DEEPSEEK_API_KEY is not configured.", false, false);
+                    providerName().toUpperCase(java.util.Locale.ROOT) + "_API_KEY is not configured.", false, false);
         }
         if (messages.isEmpty()) {
             throw new LlmException(LlmErrorType.INVALID_CONFIGURATION,
@@ -244,7 +244,16 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
                 "Unable to reach the provider.", true, partialResponse, failure);
     }
 
-    protected abstract String providerName();
+    @Override
+    public abstract String providerName();
+
+    @Override
+    public String modelName() {
+        return config.model();
+    }
+
+    @Override
+    public abstract ModelCapabilities capabilities();
 
     @FunctionalInterface
     interface Sleeper {
