@@ -79,7 +79,7 @@ public class PlanExecuteAgent implements AgentRunner {
 
     private volatile LlmClient llmClient;
     private final ToolExecutor toolExecutor;
-    private final List<ToolDefinition> toolDefinitions;
+    private volatile List<ToolDefinition> toolDefinitions;
     private final Planner planner;
 
     public void setClient(LlmClient client) {
@@ -87,6 +87,10 @@ public class PlanExecuteAgent implements AgentRunner {
         if (this.planner != null) {
             this.planner.setClient(client);
         }
+    }
+
+    public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
+        this.toolDefinitions = toolDefinitions != null ? List.copyOf(toolDefinitions) : List.of();
     }
 
     public LlmClient getClient() {

@@ -2,6 +2,23 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.10.0] - 2026-09-21
+
+### Added
+- **Model Context Protocol (MCP) 生态扩展（MCP Extensibility Subsystem）** (Phase 12):
+  - 核心协议模型与 JSON-RPC 2.0 序列化：实现标准 JSON-RPC 2.0 协议包（`JsonRpcRequest`, `JsonRpcResponse`, `JsonRpcNotification`, `JsonRpcError`）及 MCP 2024-11-05 规约模型（`McpToolDefinition`, `McpResource`, `McpResourceContent`, `McpCallResult` 等）。
+  - 双通道传输抽象与实现：
+    - `StdioMcpTransport`：利用 `ProcessBuilder` 与 UTF-8 管道与本地子进程交互，非协议行文本隔离过滤，64KB 循环缓冲环捕获 stderr 崩溃诊断，结合 `CancellationToken` 支持协作式销毁。
+    - `StreamableHttpMcpTransport`：基于 OkHttp 实现 HTTP POST / SSE 通信，支持自定义 Header 与 Bearer Token 注入，支持 Socket 取消断开。
+  - 两级配置安全合并与环境变量解析器 `McpConfigLoader`：用户全局 `~/.xhlcli/mcp.json` 与项目级 `.xhlcli/mcp.json` 双层解析，项目配置就近覆盖，严格支持 `${ENV}` 变量插值与默认值语法；缺失未定义环境变量抛出 `UnresolvedEnvException` 并隔离标记故障服务器，绝不阻断系统启动。
+  - 工具发现与命名空间适配器 `McpToolAdapter`：动态映射工具至 `mcp__{server}__{tool}` 隔离命名空间，自动清洗 inputSchema（剥离 `$schema`/`definitions` 冗余约束），映射 Text 与 Image（转为安全摘要描述），接入 `ToolRegistry` 实现热加载与并发线程安全查询。
+  - 安全沙箱与人机确认联动：所有 MCP 动态工具默认评定为 `RiskLevel.MEDIUM_RISK`，支持 `trustedReadOnly` 白名单放行机制；调用入参与出参经 `StreamingSecretRedactor` 自动脱敏并存入 `AuditLog`。
+  - 资源读取协议支持：实现 `resources/list`、`resources/read` 接口，支持文本与 base64 二进制资源提取与终端展示。
+  - 服务器生命周期管理与启动预算 `McpServerManager`：支持启动、停止、重启、日志查看；内置 3 秒并发拉起启动预算（`DEFAULT_STARTUP_BUDGET = Duration.ofSeconds(3)`），启动超时自动降级；监听 `notifications/tools/list_changed` 通知并实时热刷新工具列表。
+  - 交互终端命令族扩展：新增 `/mcp` 命令族（`/mcp list`、`/mcp status <server>`、`/mcp tools`、`/mcp resources`、`/mcp read <uri>`、`/mcp restart <server>`、`/mcp stop <server>`、`/mcp start <server>`、`/mcp logs <server>`）。
+  - 全套新增 24 项专项单元测试与端到端集成测试（`McpIntegrationTest`, `McpCliIntegrationTest` 等），全量 329 项自动化测试 100% 绿灯。
+  - 产出设计规范 `docs/specs/2026-09-21-phase-12-mcp-design.md`、实施计划 `docs/plans/2026-09-21-phase-12-mcp.md` 与评测报告 `docs/engineering/mcp-evaluation.md`。
+
 ## [0.9.0] - 2026-09-18
 
 ### Added

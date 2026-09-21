@@ -46,7 +46,13 @@ public class SubAgent {
     public LlmClient getClient() {
         return llmClient;
     }
-    private final List<ToolDefinition> toolDefinitions;
+    private volatile List<ToolDefinition> toolDefinitions;
+
+    public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
+        if (role == TeamRole.WORKER) {
+            this.toolDefinitions = toolDefinitions != null ? List.copyOf(toolDefinitions) : List.of();
+        }
+    }
     private final List<ChatMessage> conversationHistory;
     private final ObjectMapper mapper;
     private final int maxIterations;

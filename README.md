@@ -115,6 +115,7 @@ java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
 - [实施路线任务清单索引 (Plans)](docs/plans/README.md)
 - [立项需求研究](docs/RESEARCH.md)
 - [授权源码采用地图](docs/engineering/source-adoption-map.md)
+- [Phase 12 MCP 扩展评测报告](docs/engineering/mcp-evaluation.md)
 - [Phase 11 多模型评测报告](docs/engineering/multi-model-evaluation.md)
 - [Phase 10 Multi-Agent 评测报告](docs/engineering/multi-agent-evaluation.md)
 - [Phase 09 并行执行评测报告](docs/engineering/parallel-execution-benchmark.md)

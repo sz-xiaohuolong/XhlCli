@@ -15,8 +15,10 @@ import java.util.regex.Pattern;
 public final class ToolRegistry {
     private static final Pattern TOOL_NAME = Pattern.compile("[a-z][a-z0-9_]*");
 
-    private final Map<String, Tool> tools;
-    private final List<ToolDefinition> definitions;
+    private final Map<String, Tool> builtInTools;
+    private final List<ToolDefinition> builtInDefinitions;
+    private final Map<String, Tool> dynamicTools = new LinkedHashMap<>();
+    private volatile List<ToolDefinition> combinedDefinitions;
 
     public ToolRegistry(List<? extends Tool> registeredTools) {
         Objects.requireNonNull(registeredTools, "registeredTools");
@@ -31,16 +33,43 @@ public final class ToolRegistry {
             }
             orderedDefinitions.add(definition);
         }
-        this.tools = Collections.unmodifiableMap(new LinkedHashMap<>(orderedTools));
-        this.definitions = List.copyOf(orderedDefinitions);
+        this.builtInTools = Collections.unmodifiableMap(new LinkedHashMap<>(orderedTools));
+        this.builtInDefinitions = List.copyOf(orderedDefinitions);
+        this.combinedDefinitions = this.builtInDefinitions;
+    }
+
+    public synchronized void updateDynamicTools(List<? extends Tool> newDynamicTools) {
+        dynamicTools.clear();
+        List<ToolDefinition> dynamicDefs = new ArrayList<>();
+        if (newDynamicTools != null) {
+            for (Tool tool : newDynamicTools) {
+                Tool nonNullTool = Objects.requireNonNull(tool, "dynamic tool");
+                ToolDefinition definition = nonNullTool.definition();
+                validateDefinition(definition);
+                if (builtInTools.containsKey(definition.name())) {
+                    throw new IllegalArgumentException("Dynamic tool conflicts with built-in tool: " + definition.name());
+                }
+                dynamicTools.put(definition.name(), nonNullTool);
+                dynamicDefs.add(definition);
+            }
+        }
+        List<ToolDefinition> combined = new ArrayList<>(builtInDefinitions);
+        combined.addAll(dynamicDefs);
+        this.combinedDefinitions = List.copyOf(combined);
     }
 
     public Optional<Tool> find(String name) {
-        return Optional.ofNullable(tools.get(name));
+        Tool tool = builtInTools.get(name);
+        if (tool != null) {
+            return Optional.of(tool);
+        }
+        synchronized (this) {
+            return Optional.ofNullable(dynamicTools.get(name));
+        }
     }
 
     public List<ToolDefinition> definitions() {
-        return definitions;
+        return combinedDefinitions;
     }
 
     private static void validateDefinition(ToolDefinition definition) {

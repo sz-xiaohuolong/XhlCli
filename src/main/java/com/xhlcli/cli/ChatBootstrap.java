@@ -189,8 +189,26 @@ public final class ChatBootstrap implements ChatRunner {
                     client, executor, registry.definitions(), memoryManager, out);
             loop.setTeamOrchestrator(teamOrchestrator);
 
+            // MCP Extension initialization
+            Path userMcpFile = userHome.resolve(".xhlcli").resolve("mcp.json");
+            Path projectMcpFile = projectDirectory.resolve(".xhlcli").resolve("mcp.json");
+            com.xhlcli.mcp.config.McpConfigLoader mcpLoader = new com.xhlcli.mcp.config.McpConfigLoader(mapper);
+            com.xhlcli.mcp.config.McpConfigLoader.LoadResult mcpLoadResult = mcpLoader.load(userMcpFile, projectMcpFile, mergedEnv);
+
+            com.xhlcli.mcp.manager.McpServerManager mcpManager = new com.xhlcli.mcp.manager.McpServerManager(registry, projectDirectory, mapper);
+            mcpManager.registerServers(mcpLoadResult);
+            mcpManager.addToolsUpdatedListener(defs -> {
+                agent.setToolDefinitions(defs);
+                planAgent.setToolDefinitions(defs);
+                teamOrchestrator.setToolDefinitions(defs);
+            });
+            mcpManager.startAll(java.time.Duration.ofMillis(3000));
+            loop.setMcpServerManager(mcpManager);
+
             terminal.bind(loop);
-            return loop.run();
+            int exitCode = loop.run();
+            mcpManager.close();
+            return exitCode;
         } catch (IOException failure) {
             err.println("Unable to initialize the terminal: " + failure.getMessage());
             return 3;

@@ -3,10 +3,10 @@
 > 文档状态：已确认，可用于分期实现
 > 设计版本：v1.0
 > Java 基线：21
-> 更新日期：2026-09-18
+> 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-09-18）：已完成 Phase 00~11 的完整交付（v0.9.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构，以及多模型路由适配层（DeepSeek、OpenAI、Anthropic Claude 原生 Messages 协议、本地 Ollama 原生 NDJSON 协议与能力声明/护栏）。后续章节中的 MCP、Web 浏览器与 Skills 仍为目标架构。
+> 实现状态（2026-09-21）：已完成 Phase 00~12 的完整交付（v0.10.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层，以及 Model Context Protocol (MCP) 生态扩展子系统（JSON-RPC 2.0 协议层、stdio/http 双通道、两级配置合并与环境变量安全解析、工具发现与清洗、资源管理、隔离生命周期管理与 /mcp 终端控制台）。后续章节中的 Web 浏览器与 Skills 仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,18 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 11, v0.9.0)
+## 2.1 当前已交付技术基线 (Phase 12, v0.10.0)
 
+- **MCP 生态扩展子系统 (Phase 12)**：
+  - **协议层**：基于 JSON-RPC 2.0 规范，完整实现 MCP 2024-11-05 协议握手、版本协商、双向请求/响应与单向通知机制。
+  - **双通道传输 (Transports)**：
+    - `StdioMcpTransport`：通过 Java `ProcessBuilder` 与子进程 UTF-8 管道全双工交互，具备标准非协议行日志过滤、64KB 循环缓冲环提取 stderr 异常，以及协作式中断取消能力。
+    - `StreamableHttpMcpTransport`：基于 OkHttp 实现 HTTP POST/SSE 通信，支持自定义 Headers 与 Bearer Token 注入。
+  - **两级配置与环境变量安全解析**：`McpConfigLoader` 实现全局 `~/.xhlcli/mcp.json` 与项目级 `.xhlcli/mcp.json` 覆盖合并，严格解析 `${VAR}` 与 `${VAR:-default}`；未定义变量自动隔离对应服务并标记 `ERROR`，绝不造成进程崩溃。
+  - **工具发现与动态适配**：`McpToolAdapter` 将 MCP 工具映射至 `mcp__{server}__{tool}` 隔离命名空间，自动清洗 inputSchema，映射多模态结果（Image 转为安全元数据文本），并在 `ToolRegistry` 中实现并发安全动态注入与 Agent 全局同步。
+  - **资源管理**：支持 `resources/list` 与 `resources/read` 协议操作，实现文本与二进制资源读取与终端展现。
+  - **生命周期与启动预算**：`McpServerManager` 管理服务启动、停止、重启与状态追踪，施加 3 秒启动硬性预算控制（超时降级），支持监听 `notifications/tools/list_changed` 动态热更新工具。
+  - **安全沙箱与人机审批**：MCP 外部工具默认评定为 `MEDIUM_RISK`，在交互式终端强制触发 HITL 确认，支持 `trustedReadOnly` 白名单放行；敏感凭证由 `StreamingSecretRedactor` 深度脱敏。
 - **多模型路由与能力声明 (Phase 11)**：
   - `ModelCapabilities`：模型能力元信息统一声明（上下文窗口、工具支持、多模态视觉、Prompt 缓存模式、思考链要求）。
   - 多协议适配层：
@@ -45,7 +55,7 @@
   - Ripgrep/Java 双引擎精准搜索与 SQLite + AST 增量语义向量检索引擎 `CodeIndex` / `CodeRetriever`。
   - 有界并发执行器 `BoundedParallelExecutor`：读读共享/读写互斥检测、乱序保序归并、故障超时隔离与协作式取消。
 - **CLI 交互打通**：
-  - JLine 终端会话集成，支持交互式指令：`/help`, `/config`, `/clear`, `/context`, `/compact`, `/save`, `/memory`, `/search-text`, `/index`, `/search`, `/plan`, `/team`, `/model`。
+  - JLine 终端会话集成，支持交互式指令：`/help`, `/config`, `/clear`, `/context`, `/compact`, `/save`, `/memory`, `/search-text`, `/index`, `/search`, `/plan`, `/team`, `/model`, `/mcp`。
 
 ## 3. 非目标
 

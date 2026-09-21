@@ -65,6 +65,7 @@ public final class PlainRunRenderer {
         out.println("  /plan [goal]           Plan-and-Execute structured task");
         out.println("  /team <goal>           Multi-Agent collaborative team task (Planner + Workers + Reviewer)");
         out.println("  /model [list|use|status] Manage and switch models & providers");
+        out.println("  /mcp [list|status|tools|resources|read|restart] Model Context Protocol management");
         out.println("  /exit     Exit XhlCLI");
         out.println("  Ctrl+C    Cancel the active run");
     }

@@ -79,7 +79,7 @@ public class TeamOrchestrator implements AgentRunner {
 
     private volatile LlmClient llmClient;
     private final ToolExecutor toolExecutor;
-    private final List<ToolDefinition> toolDefinitions;
+    private volatile List<ToolDefinition> toolDefinitions;
     private final MemoryManager memoryManager;
 
     public void setClient(LlmClient newClient) {
@@ -91,6 +91,15 @@ public class TeamOrchestrator implements AgentRunner {
             }
         }
         if (this.reviewer != null) this.reviewer.setClient(newClient);
+    }
+
+    public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
+        this.toolDefinitions = toolDefinitions == null ? List.of() : List.copyOf(toolDefinitions);
+        if (this.workers != null) {
+            for (SubAgent w : this.workers) {
+                w.setToolDefinitions(this.toolDefinitions);
+            }
+        }
     }
 
     public LlmClient getClient() {

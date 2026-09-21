@@ -39,7 +39,7 @@ public final class ReactAgent implements AgentRunner {
     private final ChatMessage systemMessage;
     private volatile LlmClient client;
     private final ToolExecutor executor;
-    private final List<ToolDefinition> toolDefinitions;
+    private volatile List<ToolDefinition> toolDefinitions;
     private final RunLimits limits;
     private final TimeoutScheduler timeoutScheduler;
     private final ObjectMapper mapper;
@@ -71,6 +71,10 @@ public final class ReactAgent implements AgentRunner {
 
     public void setMemorySupplier(java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier) {
         this.memorySupplier = memorySupplier;
+    }
+
+    public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
+        this.toolDefinitions = toolDefinitions != null ? List.copyOf(toolDefinitions) : List.of();
     }
 
     private com.xhlcli.parallel.BoundedParallelExecutor parallelExecutor;

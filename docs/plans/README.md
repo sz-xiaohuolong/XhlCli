@@ -19,3 +19,5 @@
 | **Phase 09** | [`2026-09-14-phase-09-parallel-execution.md`](2026-09-14-phase-09-parallel-execution.md) | `v0.7.0` | [`2026-09-14-phase-09-parallel-execution-design.md`](../specs/2026-09-14-phase-09-parallel-execution-design.md) | 已交付封存 |
 | **Phase 10** | [`2026-09-16-phase-10-multi-agent.md`](2026-09-16-phase-10-multi-agent.md) | `v0.8.0` | [`2026-09-16-phase-10-multi-agent-design.md`](../specs/2026-09-16-phase-10-multi-agent-design.md) | 已交付封存 |
 | **Phase 11** | [`2026-09-18-phase-11-multi-model.md`](2026-09-18-phase-11-multi-model.md) | `v0.9.0` | [`2026-09-18-phase-11-multi-model-design.md`](../specs/2026-09-18-phase-11-multi-model-design.md) | 已交付封存 |
+| **Phase 12** | [`2026-09-21-phase-12-mcp.md`](2026-09-21-phase-12-mcp.md) | `v0.10.0` | [`2026-09-21-phase-12-mcp-design.md`](../specs/2026-09-21-phase-12-mcp-design.md) | 已交付封存 |
+

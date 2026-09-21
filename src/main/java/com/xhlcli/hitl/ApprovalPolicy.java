@@ -32,7 +32,42 @@ public final class ApprovalPolicy {
             "execute_command"
     );
 
+    private static final java.util.Set<String> TRUSTED_MCP_SERVERS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Set<String> TRUSTED_MCP_TOOLS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private ApprovalPolicy() {
+    }
+
+    public static void registerTrustedMcpServer(String serverName) {
+        if (serverName != null && !serverName.isBlank()) {
+            TRUSTED_MCP_SERVERS.add(serverName.toLowerCase());
+        }
+    }
+
+    public static void registerTrustedMcpTool(String toolName) {
+        if (toolName != null && !toolName.isBlank()) {
+            TRUSTED_MCP_TOOLS.add(toolName);
+        }
+    }
+
+    public static void clearTrustedMcp() {
+        TRUSTED_MCP_SERVERS.clear();
+        TRUSTED_MCP_TOOLS.clear();
+    }
+
+    public static boolean isTrustedMcp(String toolName) {
+        if (toolName == null || !toolName.startsWith("mcp__")) {
+            return false;
+        }
+        if (TRUSTED_MCP_TOOLS.contains(toolName)) {
+            return true;
+        }
+        String[] parts = toolName.split("__");
+        if (parts.length >= 2) {
+            String server = parts[1].toLowerCase();
+            return TRUSTED_MCP_SERVERS.contains(server);
+        }
+        return false;
     }
 
     /**
@@ -42,7 +77,10 @@ public final class ApprovalPolicy {
         if (toolName == null || toolName.isBlank()) {
             return true;
         }
-        return !READ_ONLY_TOOLS.contains(toolName);
+        if (READ_ONLY_TOOLS.contains(toolName) || isTrustedMcp(toolName)) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -52,7 +90,7 @@ public final class ApprovalPolicy {
         if (toolName == null || toolName.isBlank()) {
             return RiskLevel.HIGH_RISK;
         }
-        if (READ_ONLY_TOOLS.contains(toolName)) {
+        if (READ_ONLY_TOOLS.contains(toolName) || isTrustedMcp(toolName)) {
             return RiskLevel.READ_ONLY;
         }
         if (MEDIUM_RISK_TOOLS.contains(toolName)) {
@@ -60,6 +98,10 @@ public final class ApprovalPolicy {
         }
         if (HIGH_RISK_TOOLS.contains(toolName)) {
             return RiskLevel.HIGH_RISK;
+        }
+        // MCP 工具默认划分为中危（FR-12-05）
+        if (toolName.startsWith("mcp__")) {
+            return RiskLevel.MEDIUM_RISK;
         }
         // 未知工具默认按高风险处理
         return RiskLevel.HIGH_RISK;

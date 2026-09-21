@@ -25,6 +25,7 @@ public final class ChatCommandParser {
             case "/plan" -> ChatCommand.PLAN;
             case "/team" -> ChatCommand.TEAM;
             case "/model" -> ChatCommand.MODEL;
+            case "/mcp" -> ChatCommand.MCP;
             default -> ChatCommand.UNKNOWN;
         };
     }

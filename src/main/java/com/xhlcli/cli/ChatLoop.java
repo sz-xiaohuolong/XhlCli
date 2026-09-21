@@ -376,6 +376,216 @@ public final class ChatLoop {
         }
     }
 
+    private com.xhlcli.mcp.manager.McpServerManager mcpServerManager;
+
+    public void setMcpServerManager(com.xhlcli.mcp.manager.McpServerManager mcpServerManager) {
+        this.mcpServerManager = mcpServerManager;
+    }
+
+    public com.xhlcli.mcp.manager.McpServerManager getMcpServerManager() {
+        return mcpServerManager;
+    }
+
+    private void handleMcp(String input) {
+        String trimmed = input.trim();
+        String[] parts = trimmed.split("\\s+");
+        String subcmd = parts.length > 1 ? parts[1].toLowerCase(java.util.Locale.ROOT) : "list";
+
+        if (mcpServerManager == null) {
+            renderer.printMessage("MCP 管理器未初始化。");
+            return;
+        }
+
+        switch (subcmd) {
+            case "list" -> {
+                var servers = mcpServerManager.listServers();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🔌 MCP Servers 状态列表：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                if (servers.isEmpty()) {
+                    renderer.printMessage("（未配置任何 MCP Server。可在 ~/.xhlcli/mcp.json 或 .xhlcli/mcp.json 中配置）");
+                } else {
+                    for (var entry : servers.entrySet()) {
+                        String name = entry.getKey();
+                        var srv = entry.getValue();
+                        String statusStr = "[" + srv.status().name().toLowerCase() + "]";
+                        String type = srv.config().transportType().name().toLowerCase();
+                        int toolCount = srv.tools().size();
+                        int resCount = srv.resources().size();
+                        String details = switch (srv.status()) {
+                            case READY -> String.format("%d tools, %d resources", toolCount, resCount);
+                            case ERROR -> "Error: " + srv.errorMessage();
+                            case DISABLED -> "Disabled";
+                            case STARTING -> "Starting...";
+                            case STOPPED -> "Stopped";
+                        };
+                        renderer.printMessage(String.format("%-11s %-16s (%-5s) - %s (source: %s)",
+                                statusStr, name, type, details, srv.config().sourcePath()));
+                    }
+                }
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("💡 提示：使用 '/mcp status <server>' 查看详情，'/mcp tools' 列出可用工具，'/mcp resources' 列出外部资源。");
+            }
+            case "status" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp status <server_name>");
+                    return;
+                }
+                String srvName = parts[2];
+                var srv = mcpServerManager.getServer(srvName);
+                if (srv == null) {
+                    renderer.printMessage("❌ 未找到指定的 MCP Server: '" + srvName + "'");
+                    return;
+                }
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🔍 MCP Server 详情: " + srvName);
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                renderer.printMessage("Status:           " + srv.status());
+                renderer.printMessage("Transport:        " + srv.config().transportType());
+                if (srv.config().transportType() == com.xhlcli.mcp.model.McpTransportType.STDIO) {
+                    renderer.printMessage("Command:          " + srv.config().command() + " " + String.join(" ", srv.config().args()));
+                } else {
+                    renderer.printMessage("URL:              " + srv.config().url());
+                }
+                renderer.printMessage("Trusted ReadOnly: " + (srv.config().trustedReadOnly() ? "Yes" : "No"));
+                renderer.printMessage("Config Source:    " + srv.config().sourcePath());
+                renderer.printMessage("Tools Count:      " + srv.tools().size());
+                renderer.printMessage("Resources Count:  " + srv.resources().size());
+                if (srv.errorMessage() != null) {
+                    renderer.printMessage("Error Message:    " + srv.errorMessage());
+                }
+                var logs = srv.getRecentLogs();
+                if (!logs.isEmpty()) {
+                    renderer.printMessage("Recent Logs (last " + Math.min(logs.size(), 5) + "):");
+                    for (int i = Math.max(0, logs.size() - 5); i < logs.size(); i++) {
+                        renderer.printMessage("  " + logs.get(i));
+                    }
+                }
+                renderer.printMessage("=========================================================================================");
+            }
+            case "tools" -> {
+                String filterServer = parts.length > 2 ? parts[2] : null;
+                var tools = mcpServerManager.getAllTools();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🛠️ MCP 可用工具清单：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                int count = 0;
+                for (var tool : tools) {
+                    if (filterServer == null || tool.serverName().equalsIgnoreCase(filterServer)) {
+                        renderer.printMessage("- " + tool.definition().name() + " [Server: " + tool.serverName() + "]");
+                        renderer.printMessage("  描述: " + tool.definition().description());
+                        count++;
+                    }
+                }
+                if (count == 0) {
+                    renderer.printMessage("（当前无可用 MCP 工具）");
+                }
+                renderer.printMessage("=========================================================================================");
+            }
+            case "resources" -> {
+                String filterServer = parts.length > 2 ? parts[2] : null;
+                var resources = mcpServerManager.getAllResources();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("📦 MCP 外部资源清单：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                int count = 0;
+                for (var res : resources) {
+                    renderer.printMessage("- " + res.uri() + " (" + res.mimeType() + ")");
+                    renderer.printMessage("  名称: " + res.name() + " | 描述: " + res.description());
+                    count++;
+                }
+                if (count == 0) {
+                    renderer.printMessage("（当前无可用 MCP 资源）");
+                }
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("💡 提示：使用 '/mcp read <uri>' 读取具体资源内容。");
+            }
+            case "read" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp read <resource_uri>");
+                    return;
+                }
+                String uri = parts[2];
+                try {
+                    var contents = mcpServerManager.readResource(uri, null, java.time.Duration.ofSeconds(10));
+                    renderer.printMessage("=========================================================================================");
+                    renderer.printMessage("📄 资源内容: " + uri);
+                    renderer.printMessage("-----------------------------------------------------------------------------------------");
+                    for (var c : contents) {
+                        if (c.text() != null) {
+                            renderer.printMessage(c.text());
+                        } else if (c.blob() != null) {
+                            renderer.printMessage("[Binary Blob: " + c.mimeType() + ", size=" + c.blob().length + " bytes]");
+                        }
+                    }
+                    renderer.printMessage("=========================================================================================");
+                } catch (Exception e) {
+                    renderer.printMessage("❌ 读取资源失败: " + e.getMessage());
+                }
+            }
+            case "restart" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp restart <server_name>");
+                    return;
+                }
+                String srvName = parts[2];
+                try {
+                    mcpServerManager.restartServer(srvName, java.time.Duration.ofSeconds(5));
+                    renderer.printMessage("🔄 Server [" + srvName + "] 已重启。当前状态: " + mcpServerManager.getServer(srvName).status());
+                } catch (Exception e) {
+                    renderer.printMessage("❌ 重启失败: " + e.getMessage());
+                }
+            }
+            case "stop" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp stop <server_name>");
+                    return;
+                }
+                String srvName = parts[2];
+                try {
+                    mcpServerManager.stopServer(srvName);
+                    renderer.printMessage("⏹️ Server [" + srvName + "] 已停止。");
+                } catch (Exception e) {
+                    renderer.printMessage("❌ 停止失败: " + e.getMessage());
+                }
+            }
+            case "start" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp start <server_name>");
+                    return;
+                }
+                String srvName = parts[2];
+                try {
+                    mcpServerManager.startServer(srvName, java.time.Duration.ofSeconds(5));
+                    renderer.printMessage("▶️ Server [" + srvName + "] 已启动。当前状态: " + mcpServerManager.getServer(srvName).status());
+                } catch (Exception e) {
+                    renderer.printMessage("❌ 启动失败: " + e.getMessage());
+                }
+            }
+            case "logs" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /mcp logs <server_name>");
+                    return;
+                }
+                String srvName = parts[2];
+                var srv = mcpServerManager.getServer(srvName);
+                if (srv == null) {
+                    renderer.printMessage("❌ 未找到指定的 MCP Server: '" + srvName + "'");
+                    return;
+                }
+                var logs = srv.getRecentLogs();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("📜 Server 日志: " + srvName + " (共 " + logs.size() + " 条)");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                for (String line : logs) {
+                    renderer.printMessage(line);
+                }
+                renderer.printMessage("=========================================================================================");
+            }
+            default -> renderer.printMessage("未知子命令。用法: /mcp [list|status <server>|tools|resources|read <uri>|restart <server>|stop <server>|start <server>|logs <server>]");
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -442,6 +652,7 @@ public final class ChatLoop {
                 case PLAN -> handlePlan(input);
                 case TEAM -> handleTeam(input);
                 case MODEL -> handleModel(input);
+                case MCP -> handleMcp(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
