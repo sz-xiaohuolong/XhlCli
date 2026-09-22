@@ -29,6 +29,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
     private final PathGuard pathGuard;
     private final HitlHandler hitlHandler;
     private final AuditLog auditLog;
+    private final com.xhlcli.browser.BrowserGuard browserGuard;
 
     public DefaultToolExecutor(
             ToolRegistry registry,
@@ -36,7 +37,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
             ToolResultBudget resultBudget,
             ObjectMapper mapper,
             LongSupplier nanoTime) {
-        this(registry, schemaValidator, resultBudget, mapper, nanoTime, null, null, null);
+        this(registry, schemaValidator, resultBudget, mapper, nanoTime, null, null, null, null);
     }
 
     public DefaultToolExecutor(
@@ -48,6 +49,19 @@ public final class DefaultToolExecutor implements ToolExecutor {
             PathGuard pathGuard,
             HitlHandler hitlHandler,
             AuditLog auditLog) {
+        this(registry, schemaValidator, resultBudget, mapper, nanoTime, pathGuard, hitlHandler, auditLog, null);
+    }
+
+    public DefaultToolExecutor(
+            ToolRegistry registry,
+            ToolSchemaValidator schemaValidator,
+            ToolResultBudget resultBudget,
+            ObjectMapper mapper,
+            LongSupplier nanoTime,
+            PathGuard pathGuard,
+            HitlHandler hitlHandler,
+            AuditLog auditLog,
+            com.xhlcli.browser.BrowserGuard browserGuard) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.schemaValidator = Objects.requireNonNull(schemaValidator, "schemaValidator");
         this.resultBudget = Objects.requireNonNull(resultBudget, "resultBudget");
@@ -56,6 +70,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
         this.pathGuard = pathGuard;
         this.hitlHandler = hitlHandler;
         this.auditLog = auditLog;
+        this.browserGuard = browserGuard;
     }
 
     @Override
@@ -90,15 +105,18 @@ public final class DefaultToolExecutor implements ToolExecutor {
             JsonNode parsedArguments = validation.arguments();
 
             // 2. 系统硬策略检查 (Hard Policy)
-            String policyViolation = checkHardPolicies(toolName, parsedArguments);
+            String policyViolation = checkHardPolicies(toolName, parsedArguments, argsJson);
             if (policyViolation != null) {
                 recordAudit(AuditLog.AuditEntry.denyByPolicy(toolName, argsJson, policyViolation, elapsedMillis(startedAt)));
                 return finish(startedAt, callId, toolName, ToolResultStatus.EXECUTION_ERROR, "[POLICY] 策略拒绝: " + policyViolation);
             }
 
             // 3. 人工审批 (HITL)
-            if (hitlHandler != null && hitlHandler.isEnabled() && ApprovalPolicy.requiresApproval(toolName)) {
-                if (!hitlHandler.isApprovedAllByTool(toolName)) {
+            com.xhlcli.browser.BrowserCheckResult browserCheck = browserGuard != null ? browserGuard.check(toolName, argsJson, false) : null;
+            boolean browserForceApproval = browserCheck != null && browserCheck.requiresPerCallApproval();
+            boolean needsApproval = ApprovalPolicy.requiresApproval(toolName) || browserForceApproval;
+            if (hitlHandler != null && hitlHandler.isEnabled() && needsApproval) {
+                if (browserForceApproval || !hitlHandler.isApprovedAllByTool(toolName)) {
                     ApprovalRequest request = ApprovalRequest.of(toolName, argsJson);
                     ApprovalResult approval = hitlHandler.requestApproval(request);
 
@@ -123,7 +141,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
                             return finish(startedAt, callId, toolName, ToolResultStatus.VALIDATION_ERROR,
                                     "用户修改后的参数不合法: " + modifiedValidation.error());
                         }
-                        String modifiedViolation = checkHardPolicies(toolName, modifiedValidation.arguments());
+                        String modifiedViolation = checkHardPolicies(toolName, modifiedValidation.arguments(), modifiedArgs);
                         if (modifiedViolation != null) {
                             recordAudit(AuditLog.AuditEntry.denyByPolicy(toolName, modifiedArgs, modifiedViolation, elapsedMillis(startedAt)));
                             return finish(startedAt, callId, toolName, ToolResultStatus.EXECUTION_ERROR,
@@ -142,6 +160,9 @@ public final class DefaultToolExecutor implements ToolExecutor {
             // 4. 执行工具
             ToolOutput output = tool.execute(parsedArguments, cancellationToken);
             recordAudit(AuditLog.AuditEntry.allow(toolName, argsJson, elapsedMillis(startedAt)));
+            if (browserGuard != null) {
+                browserGuard.applyAfterExecution(toolName, argsJson, output.summary());
+            }
 
             return finish(startedAt, callId, toolName, ToolResultStatus.SUCCESS, output.summary(), output.data(), output.continueHint());
         } catch (PolicyException policyEx) {
@@ -153,7 +174,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
         }
     }
 
-    private String checkHardPolicies(String toolName, JsonNode arguments) {
+    private String checkHardPolicies(String toolName, JsonNode arguments, String argsJson) {
         if ("execute_command".equals(toolName) && arguments.has("command")) {
             String command = arguments.get("command").asText();
             String denyReason = CommandGuard.check(command);
@@ -167,6 +188,13 @@ public final class DefaultToolExecutor implements ToolExecutor {
             String denyReason = pathGuard.checkSafe(path);
             if (denyReason != null) {
                 return denyReason;
+            }
+        }
+
+        if (browserGuard != null) {
+            com.xhlcli.browser.BrowserCheckResult browserCheck = browserGuard.check(toolName, argsJson, false);
+            if (browserCheck.blocked()) {
+                return browserCheck.reason();
             }
         }
 

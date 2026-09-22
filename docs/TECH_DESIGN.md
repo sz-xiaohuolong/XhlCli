@@ -6,7 +6,7 @@
 > 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-09-21）：已完成 Phase 00~12 的完整交付（v0.10.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层，以及 Model Context Protocol (MCP) 生态扩展子系统（JSON-RPC 2.0 协议层、stdio/http 双通道、两级配置合并与环境变量安全解析、工具发现与清洗、资源管理、隔离生命周期管理与 /mcp 终端控制台）。后续章节中的 Web 浏览器与 Skills 仍为目标架构。
+> 实现状态（2026-09-22）：已完成 Phase 00~13 的完整交付（v0.11.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统，以及 Web 检索与浏览器安全沙箱子系统（SSRF 安全围栏与限流、多搜索引擎抽象与免 Key 降级、Readability 正文提取、浏览器 ISOLATED/SHARED 模式分层、敏感页面写操作硬审批、宿主标签页防误关保护与 /browser 终端控制台）。后续章节中的 Skills 仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,14 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 12, v0.10.0)
+## 2.1 当前已交付技术基线 (Phase 13, v0.11.0)
 
+- **Web 检索与浏览器安全沙箱子系统 (Phase 13)**：
+  - **网络安全围栏 (`NetworkPolicy`)**：强制实施协议白名单（仅允许 `http`, `https`），通过 DNS 解析深度拦截私网 IPv4/IPv6、Loopback (`127.0.0.1`, `localhost`)、Link-Local (`169.254.x.x`) 与 `0.0.0.0`；重定向跃点全链路动态校验防 SSRF 穿透；内置 Token Bucket 算法执行 30 次/60 秒速率控制。
+  - **多源搜索引擎抽象与降级 (`SearchProvider`)**：统一领域抽象 `SearchResult` 与 `SearchProvider` 接口，完整实现 `SerpApiSearchProvider` (Google Search)、`SearxngSearchProvider` (开源元搜索)、`ZhipuSearchProvider` (智谱 Web Search) 以及零配置免 Key 的 `DuckDuckGoSearchProvider` 兜底降级方案，通过 `SearchProviderFactory` 根据环境配置自动组装最佳 Provider。
+  - **网页正文抓取与 Readability 抽取 (`WebFetcher` + `HtmlExtractor`)**：5MB 受限流式读取防 OOM，智能响应头及 HTML Meta 编码嗅探；基于 Jsoup 清理 `<script>`、`<style>`、`<nav>`、`<footer>` 等噪声标签与广告容器，结合语义节点与文本密度打分算法提取正文，并精细转换为格式规范的 Markdown（标题、段落、列表、表格、代码块及缩进）；反爬/空内容页面自动提示浏览器工具降级。
+  - **浏览器沙箱分层与安全守护 (`BrowserGuard` + `BrowserSession`)**：默认处于 `ISOLATED` 独立物理沙箱模式；支持通过 CDP 协议连接宿主已打开调试端口的 Chrome 进入 `SHARED` 共享模式；`SensitivePagePolicy` 建立银行、支付、云控制台规则库并支持用户自定义扩展；`BrowserGuard` 在 `SHARED` 模式下严禁关闭非 Agent 自建的宿主标签页，对敏感页面的写操作（`click`, `fill`, `evaluate_script` 等）强制触发单步 HITL 审批，即使用户在会话中配置全部放行（approve-all）亦绝对无法穿透。
+  - **本地工具与终端指令打通**：向 `ToolRegistry` 注入 `web_search`、`web_fetch`、`browser_connect`、`browser_disconnect`、`browser_status` 工具，并在终端主循环挂载 `/browser [status|connect|disconnect|tabs]` 命令族。
 - **MCP 生态扩展子系统 (Phase 12)**：
   - **协议层**：基于 JSON-RPC 2.0 规范，完整实现 MCP 2024-11-05 协议握手、版本协商、双向请求/响应与单向通知机制。
   - **双通道传输 (Transports)**：

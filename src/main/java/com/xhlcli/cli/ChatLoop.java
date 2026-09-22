@@ -25,6 +25,7 @@ public final class ChatLoop {
     private com.xhlcli.llm.LlmClient currentClient;
     private com.xhlcli.llm.LlmProviderRegistry providerRegistry;
     private com.xhlcli.llm.DiagnosticSink diagnostics;
+    private com.xhlcli.browser.BrowserConnector browserConnector;
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
@@ -36,6 +37,8 @@ public final class ChatLoop {
     public void setLlmClient(com.xhlcli.llm.LlmClient client) { this.currentClient = client; }
     public void setProviderRegistry(com.xhlcli.llm.LlmProviderRegistry registry) { this.providerRegistry = registry; }
     public void setDiagnostics(com.xhlcli.llm.DiagnosticSink diagnostics) { this.diagnostics = diagnostics; }
+    public void setBrowserConnector(com.xhlcli.browser.BrowserConnector browserConnector) { this.browserConnector = browserConnector; }
+    public com.xhlcli.browser.BrowserConnector getBrowserConnector() { return this.browserConnector; }
     public com.xhlcli.llm.LlmClient getLlmClient() { return this.currentClient; }
 
     private void printContext() {
@@ -586,6 +589,51 @@ public final class ChatLoop {
         }
     }
 
+    private void handleBrowser(String input) {
+        if (browserConnector == null) {
+            renderer.printMessage("浏览器连接器未初始化。");
+            return;
+        }
+        String[] parts = input.trim().split("\\s+");
+        if (parts.length == 1 || "status".equalsIgnoreCase(parts[1])) {
+            renderer.printMessage(browserConnector.status());
+            return;
+        }
+        String subcmd = parts[1].toLowerCase(java.util.Locale.ROOT);
+        switch (subcmd) {
+            case "connect" -> {
+                int port = 9222;
+                if (parts.length >= 3) {
+                    try {
+                        port = Integer.parseInt(parts[2]);
+                    } catch (NumberFormatException e) {
+                        renderer.printMessage("❌ 端口号无效: " + parts[2]);
+                        return;
+                    }
+                }
+                renderer.printMessage(browserConnector.connect(port));
+            }
+            case "disconnect" -> renderer.printMessage(browserConnector.disconnect());
+            case "tabs" -> {
+                var tabs = browserConnector.listTabs();
+                if (tabs.isEmpty()) {
+                    renderer.printMessage("当前未连接外部浏览器或无打开的标签页。");
+                    return;
+                }
+                renderer.printMessage("📑 打开的标签页清单 (共 " + tabs.size() + " 个):");
+                for (var tab : tabs) {
+                    boolean isAgent = browserConnector.session().isAgentOpenedTab(tab.id());
+                    renderer.printMessage(String.format("- [%s] %s (%s) [%s]",
+                            tab.id(),
+                            tab.title().isBlank() ? "无标题" : tab.title(),
+                            tab.url().isBlank() ? "about:blank" : tab.url(),
+                            isAgent ? "Agent自建" : "宿主现有"));
+                }
+            }
+            default -> renderer.printMessage("未知子命令。用法: /browser [status|connect <port>|disconnect|tabs]");
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -653,6 +701,7 @@ public final class ChatLoop {
                 case TEAM -> handleTeam(input);
                 case MODEL -> handleModel(input);
                 case MCP -> handleMcp(input);
+                case BROWSER -> handleBrowser(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

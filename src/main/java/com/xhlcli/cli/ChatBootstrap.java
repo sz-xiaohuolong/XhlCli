@@ -31,6 +31,16 @@ import com.xhlcli.tool.local.ReadFileTool;
 import com.xhlcli.tool.local.WorkspacePathResolver;
 import com.xhlcli.tool.local.WriteFileTool;
 import com.xhlcli.tool.local.search.GrepCodeTool;
+import com.xhlcli.browser.BrowserConnectivityCheck;
+import com.xhlcli.browser.BrowserGuard;
+import com.xhlcli.browser.BrowserSession;
+import com.xhlcli.browser.DefaultBrowserConnector;
+import com.xhlcli.browser.SensitivePagePolicy;
+import com.xhlcli.browser.tool.BrowserConnectTool;
+import com.xhlcli.browser.tool.BrowserDisconnectTool;
+import com.xhlcli.browser.tool.BrowserStatusTool;
+import com.xhlcli.web.tool.WebFetchTool;
+import com.xhlcli.web.tool.WebSearchTool;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -86,6 +96,14 @@ public final class ChatBootstrap implements ChatRunner {
             AuditLog auditLog = new AuditLog(userHome.resolve(".xhlcli").resolve("audit"));
             TerminalHitlHandler hitlHandler = new TerminalHitlHandler(true);
 
+            BrowserSession browserSession = new BrowserSession();
+            SensitivePagePolicy sensitivePagePolicy = new SensitivePagePolicy(
+                    userHome.resolve(".xhlcli").resolve("sensitive_patterns.txt"));
+            BrowserGuard browserGuard = new BrowserGuard(browserSession, sensitivePagePolicy);
+            BrowserConnectivityCheck connectivityCheck = new BrowserConnectivityCheck();
+            DefaultBrowserConnector browserConnector = new DefaultBrowserConnector(
+                    browserSession, connectivityCheck, sensitivePagePolicy);
+
             GrepCodeTool grepCodeTool = new GrepCodeTool(pathResolver);
             com.xhlcli.tool.local.search.SearchCodeTool searchCodeTool = new com.xhlcli.tool.local.search.SearchCodeTool(pathResolver);
             ToolRegistry registry = new ToolRegistry(List.of(
@@ -99,10 +117,15 @@ public final class ChatBootstrap implements ChatRunner {
                     grepCodeTool,
                     searchCodeTool,
                     new EchoTool(),
-                    new CurrentTimeTool(Clock.systemUTC())));
+                    new CurrentTimeTool(Clock.systemUTC()),
+                    new WebSearchTool(),
+                    new WebFetchTool(),
+                    new BrowserConnectTool(browserConnector),
+                    new BrowserDisconnectTool(browserConnector),
+                    new BrowserStatusTool(browserConnector)));
             DefaultToolExecutor executor = new DefaultToolExecutor(
                     registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
-                    mapper, System::nanoTime, pathGuard, hitlHandler, auditLog);
+                    mapper, System::nanoTime, pathGuard, hitlHandler, auditLog, browserGuard);
             String systemPrompt = """
                     You are XhlCLI, a helpful and precise coding assistant.
                     Please reply in Chinese (中文).
@@ -125,6 +148,12 @@ public final class ChatBootstrap implements ChatRunner {
                     - Use `git_diff` to check unstaged changes in the repository.
                     - Use `execute_command` to run short-running build, test, and shell commands in the project directory.
                     - All file operations are restricted to the project workspace.
+
+                    ## Web & Browser Guidelines
+                    - Use `web_search` to query the public internet for the latest technical documentation, library release notes, or error solutions when not found locally.
+                    - Use `web_fetch` to retrieve readable markdown content of a public URL.
+                    - Local exploration tools (`search_code`, `glob_files`, `grep_code`, `read_file`) must always take precedence when exploring the local repository.
+                    - Browser sessions can be monitored via `browser_status` or connected via `browser_connect`.
                     """;
             ReactAgent agent = new ReactAgent(
                     ChatMessage.system(systemPrompt),
@@ -161,6 +190,7 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setLlmClient(client);
             loop.setProviderRegistry(providerRegistry);
             loop.setDiagnostics(diagnostics);
+            loop.setBrowserConnector(browserConnector);
 
             com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
                 out.println(plan.summarize());

@@ -2,6 +2,42 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.11.0] - 2026-09-22
+
+### Added
+- **Web 检索与浏览器安全沙箱子系统（Web & Browser Integration Subsystem）** (Phase 13):
+  - **网络安全策略与 SSRF 防护围栏 (`NetworkPolicy`)**：
+    - 协议白名单校验：仅允许 `http` 与 `https` 协议，直接拦截 `file:`, `ftp:`, `gopher:` 等危险协议。
+    - 私网与本地 IP 拦截：禁止访问 `localhost`, `0.0.0.0`，解析并拦截 IPv4/IPv6 loopback、any-local、link-local (`169.254.0.0/16`) 与 RFC 1918 私网地址 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)。
+    - 重定向全链路追踪校验：在 HTTP 301/302/307/308 重定向跟随循环中，对每一个跳跃目标 URL 严格二次校验，杜绝通过公网跳转内网的 SSRF 穿透漏洞。
+    - Token Bucket 限流：内置平滑令牌桶算法，对外部 Web 请求实施 30 次/60 秒的速率限制。
+  - **多源搜索引擎抽象与免 Key 降级 (`SearchProvider`)**：
+    - 领域模型与抽象接口：定义不可变 `SearchResult` (title, url, snippet, publishedDate) 与统一 `SearchProvider` 契约。
+    - 四大搜索引擎 Provider：
+      - `SerpApiSearchProvider`：基于 Google Search API 聚合高质量搜索结果；
+      - `SearxngSearchProvider`：支持自建开源隐私元搜索引擎；
+      - `ZhipuSearchProvider`：支持智谱 Web Search API，国内网络通畅；
+      - `DuckDuckGoSearchProvider`：全自动免 Key 零配置 HTML 抓取降级兜底方案。
+    - `SearchProviderFactory`：根据环境变量与配置自动推导并组装最佳可用搜索引擎。
+  - **受限网页抓取与 Readability 正文提取 (`WebFetcher` + `HtmlExtractor`)**：
+    - 5MB 受限流式读取与 OOM 防御，支持 HTTP Content-Type 与 HTML `<meta>` 标签多级字符集编码智能嗅探。
+    - 基于 Jsoup 清理 `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>`, `<aside>` 与常见广告容器，结合语义节点与文本密度打分算法提取主体内容。
+    - 结构化渲染为高质量 Markdown（标题层级、段落、列表、表格、代码块及缩进保留）；反爬或 SPA 空正文时自动输出浏览器工具降级建议。
+  - **浏览器沙箱分层与安全守护者 (`BrowserGuard` + `BrowserSession`)**：
+    - `ISOLATED` (独立沙箱) 与 `SHARED` (共享宿主 Chrome) 双模式切换。
+    - `SensitivePagePolicy`：加载银行、支付（Stripe/Alipay/PayPal）、云控制台（AWS/GCP/Azure/阿里云）等敏感规则库，支持用户自定义 `~/.xhlcli/sensitive_patterns.txt`。
+    - `BrowserGuard`：
+      - 敏感页面写操作（`click`, `fill`, `evaluate_script` 等）强制单步 HITL 审批，会话内 `Approve-All` 无法穿透；
+      - `SHARED` 模式下严禁通过 `close_page` 关闭非 Agent 自身开启的宿主工作标签页；
+      - 自动跟踪会话导航历史与当前活跃页面敏感状态。
+    - `BrowserConnectivityCheck`：本地 9222 等 CDP 端口探活与 Chrome 标签页清单 (`/json/list`) 提取。
+  - **本地工具与终端交互控制台**：
+    - 向 `ToolRegistry` 注入 `web_search`, `web_fetch`, `browser_connect`, `browser_disconnect`, `browser_status` 工具并接入系统提示词与安全审计流。
+    - 新增终端 `/browser` 命令族（`/browser [status|connect <port>|disconnect|tabs]`）。
+  - **测试与评测物证**：
+    - 新增 37 项专项单元与端到端集成测试，全量 366 项自动化测试 100% 绿灯。
+    - 产出设计规范 `docs/specs/2026-09-22-phase-13-web-and-browser-design.md`、实施计划 `docs/plans/2026-09-22-phase-13-web-and-browser.md` 与评测报告 `docs/engineering/web-and-browser-evaluation.md`。
+
 ## [0.10.0] - 2026-09-21
 
 ### Added

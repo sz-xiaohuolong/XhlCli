@@ -8,9 +8,9 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **Current Release**: Phase 12: MCP 生态扩展 (`v0.10.0`, Tag: `v0.10.0`, 2026-09-21)
-- **Next Release**: Phase 13: 跨会话交互与工作区快照恢复 (`docs/prd/phase-13-session-snapshot.md`)
-- **Quality Profile**: Comprehensive（329 项自动化测试 100% 绿灯 + 专项 MCP 规约评测物证 + DoD 铁律闭环）
+- **Current Release**: Phase 13: Web 与浏览器集成 (`v0.11.0`, Tag: `v0.11.0`, 2026-09-22)
+- **Next Release**: Phase 14: 跨会话交互与工作区快照恢复 (`docs/prd/phase-14-session-snapshot.md`)
+- **Quality Profile**: Comprehensive（366 项自动化测试 100% 绿灯 + 专项 Web/浏览器评测物证 + DoD 铁律闭环）
 - **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行与多 Agent 协同能力。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
@@ -26,7 +26,7 @@
 | :--- | :--- | :--- |
 | **Agent 行为准则与入口** | [`AGENTS.md`](../AGENTS.md) | Agent 长期行为规则、事实优先级、开发流程与阶段交付铁律 |
 | **项目定位与资产映射** | [`docs/PROJECT.md`](PROJECT.md) | 当前定位、Release 状态、文档地图与追溯索引 |
-| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 11 基线) |
+| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 13 基线) |
 | **总览需求与边界** | [`docs/PRD.md`](PRD.md) | 总体产品定位、能力矩阵与跨阶段规划 |
 | **路线图与交付状态** | [`docs/ROADMAP.md`](ROADMAP.md) | 全阶段（Phase 00 ~ 18）交付状态、交付日期与版本履历 |
 | **技术预研与竞品分析** | [`docs/RESEARCH.md`](RESEARCH.md) | 竞品分析 (Claude Code, Cline 等) 与关键技术选型 |
@@ -62,6 +62,7 @@
 | **Phase 10** Multi-Agent | [phase-10](prd/phase-10-multi-agent.md) | [2026-09-16-phase-10](specs/2026-09-16-phase-10-multi-agent-design.md) | [2026-09-16-phase-10](plans/2026-09-16-phase-10-multi-agent.md) | [multi-agent-evaluation](engineering/multi-agent-evaluation.md) | `v0.8.0` | 已封存 |
 | **Phase 11** 多模型路由 | [phase-11](prd/phase-11-multi-model.md) | [2026-09-18-phase-11](specs/2026-09-18-phase-11-multi-model-design.md) | [2026-09-18-phase-11](plans/2026-09-18-phase-11-multi-model.md) | [multi-model-evaluation](engineering/multi-model-evaluation.md) | `v0.9.0` | 已封存 |
 | **Phase 12** MCP 扩展协议 | [phase-12](prd/phase-12-mcp.md) | [2026-09-21-phase-12](specs/2026-09-21-phase-12-mcp-design.md) | [2026-09-21-phase-12](plans/2026-09-21-phase-12-mcp.md) | [mcp-evaluation](engineering/mcp-evaluation.md) | `v0.10.0` | 已封存 |
+| **Phase 13** Web 与浏览器 | [phase-13](prd/phase-13-web-and-browser.md) | [2026-09-22-phase-13](specs/2026-09-22-phase-13-web-and-browser-design.md) | [2026-09-22-phase-13](plans/2026-09-22-phase-13-web-and-browser.md) | [web-and-browser-evaluation](engineering/web-and-browser-evaluation.md) | `v0.11.0` | 已封存 |
 
 ---
 
@@ -70,7 +71,7 @@
 | 目的 | 命令 | 备注 |
 | :--- | :--- | :--- |
 | **环境检查** | `java -version` | 必须为 Java 21+ (`export JAVA_HOME=/opt/homebrew/opt/openjdk`) |
-| **全量自动化测试** | `mvn clean test` | 329 项自动化测试（单元、集成、契约与 Golden Set） |
+| **全量自动化测试** | `mvn clean test` | 366 项自动化测试（单元、集成、契约与 Golden Set） |
 | **单测运行** | `mvn test -Dtest=<TestClass>` | 运行指定测试类 |
-| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.10.0-SNAPSHOT.jar` 可执行 Fat JAR |
-| **运行 CLI** | `java -jar target/xhlcli-0.10.0-SNAPSHOT.jar` | 启动交互式终端 Agent |
+| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.11.0-SNAPSHOT.jar` 可执行 Fat JAR |
+| **运行 CLI** | `java -jar target/xhlcli-0.11.0-SNAPSHOT.jar` | 启动交互式终端 Agent |

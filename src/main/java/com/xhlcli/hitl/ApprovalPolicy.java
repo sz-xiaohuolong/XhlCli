@@ -20,12 +20,18 @@ public final class ApprovalPolicy {
             "grep_code",
             "git_diff",
             "echo_text",
-            "current_time"
+            "current_time",
+            "search_code",
+            "web_search",
+            "web_fetch",
+            "browser_status"
     );
 
     private static final Set<String> MEDIUM_RISK_TOOLS = Set.of(
             "write_file",
-            "apply_patch"
+            "apply_patch",
+            "browser_connect",
+            "browser_disconnect"
     );
 
     private static final Set<String> HIGH_RISK_TOOLS = Set.of(

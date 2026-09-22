@@ -17,5 +17,6 @@ public enum ChatCommand {
     PLAN,
     TEAM,
     MODEL,
-    MCP
+    MCP,
+    BROWSER
 }
