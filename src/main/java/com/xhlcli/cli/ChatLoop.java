@@ -634,6 +634,152 @@ public final class ChatLoop {
         }
     }
 
+    private com.xhlcli.skill.SkillRegistry skillRegistry;
+    private com.xhlcli.prompt.LayeredPromptAssembler promptAssembler;
+
+    public void setSkillRegistry(com.xhlcli.skill.SkillRegistry skillRegistry) {
+        this.skillRegistry = skillRegistry;
+    }
+
+    public com.xhlcli.skill.SkillRegistry getSkillRegistry() {
+        return skillRegistry;
+    }
+
+    public void setPromptAssembler(com.xhlcli.prompt.LayeredPromptAssembler promptAssembler) {
+        this.promptAssembler = promptAssembler;
+    }
+
+    public com.xhlcli.prompt.LayeredPromptAssembler getPromptAssembler() {
+        return promptAssembler;
+    }
+
+    private void handleSkill(String input) {
+        if (skillRegistry == null) {
+            renderer.printMessage("Skill 注册中心未初始化。");
+            return;
+        }
+
+        String trimmed = input.trim();
+        String[] parts = trimmed.split("\\s+");
+        String subcmd = parts.length > 1 ? parts[1].toLowerCase(java.util.Locale.ROOT) : "list";
+
+        switch (subcmd) {
+            case "list" -> {
+                var allSkills = skillRegistry.listAll();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("🎯 已安装 Skill 列表：");
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                if (allSkills.isEmpty()) {
+                    renderer.printMessage("（当前没有注册任何 Skill。可在 ~/.xhlcli/skills/ 或 .xhlcli/skills/ 中添加）");
+                } else {
+                    for (var s : allSkills) {
+                        String statusStr = s.isEnabled() ? "[enabled]" : (s.isHealthy() ? "[disabled]" : "[error]");
+                        String src = "(" + s.source().description() + ")";
+                        String desc = s.isHealthy() ? s.description() : ("Parse error: " + s.parseError());
+                        renderer.printMessage(String.format("%-11s %-24s %-16s - %s", statusStr, s.name(), src, desc));
+                    }
+                }
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("💡 提示：使用 '/skill show <name>' 查看详情，'/skill enable|disable <name>' 切换启停，'/skill reload' 热重载。");
+            }
+            case "show" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /skill show <name>");
+                    return;
+                }
+                String name = parts[2].trim();
+                var opt = skillRegistry.find(name);
+                if (opt.isEmpty()) {
+                    renderer.printMessage("未找到 Skill: " + name);
+                    return;
+                }
+                var skill = opt.get();
+                renderer.printMessage("=========================================================================================");
+                renderer.printMessage("📖 Skill 详情: " + skill.name());
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                renderer.printMessage("来源层级: " + skill.source().description());
+                renderer.printMessage("启停状态: " + (skill.isEnabled() ? "已启用" : "已禁用"));
+                renderer.printMessage("健康状态: " + (skill.isHealthy() ? "正常" : ("异常 - " + skill.parseError())));
+                renderer.printMessage("说明描述: " + skill.description());
+                if (!skill.metadata().allowedTools().isEmpty()) {
+                    renderer.printMessage("允许工具: " + String.join(", ", skill.metadata().allowedTools()));
+                }
+                if (skill.directoryPath() != null) {
+                    renderer.printMessage("存放目录: " + skill.directoryPath().toAbsolutePath());
+                }
+                renderer.printMessage("-----------------------------------------------------------------------------------------");
+                renderer.printMessage("指导正文预览：\n" + skill.instructions());
+                renderer.printMessage("=========================================================================================");
+            }
+            case "enable" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /skill enable <name>");
+                    return;
+                }
+                String name = parts[2].trim();
+                if (skillRegistry.enable(name)) {
+                    renderer.printMessage("✅ Skill '" + name + "' 已成功启用。");
+                } else {
+                    renderer.printMessage("❌ 启用失败：未找到 Skill '" + name + "' 或配置存在错误。");
+                }
+            }
+            case "disable" -> {
+                if (parts.length < 3) {
+                    renderer.printMessage("用法: /skill disable <name>");
+                    return;
+                }
+                String name = parts[2].trim();
+                if (skillRegistry.disable(name)) {
+                    renderer.printMessage("✅ Skill '" + name + "' 已成功禁用。");
+                } else {
+                    renderer.printMessage("❌ 禁用失败：未找到 Skill '" + name + "'。");
+                }
+            }
+            case "reload" -> {
+                skillRegistry.scanAndReload();
+                renderer.printMessage("🔄 已完成 Skill 目录热重载，当前共加载 " + skillRegistry.listAll().size() + " 个 Skill。");
+            }
+            default -> renderer.printMessage("未知子命令。用法: /skill [list|show <name>|enable <name>|disable <name>|reload]");
+        }
+    }
+
+    private void handlePrompt(String input) {
+        if (promptAssembler == null) {
+            renderer.printMessage("Prompt 组装器未初始化。");
+            return;
+        }
+
+        String trimmed = input.trim();
+        String[] parts = trimmed.split("\\s+");
+        String subcmd = parts.length > 1 ? parts[1].toLowerCase(java.util.Locale.ROOT) : "show";
+
+        var blocks = promptAssembler.assembleBlocks();
+        switch (subcmd) {
+            case "show" -> {
+                String dumped = com.xhlcli.prompt.PromptExporter.exportToString(blocks, config.apiKey());
+                renderer.printMessage(dumped);
+            }
+            case "export" -> {
+                java.nio.file.Path targetPath;
+                if (parts.length >= 3) {
+                    targetPath = java.nio.file.Path.of(parts[2].trim());
+                    if (!targetPath.isAbsolute() && projectDirectory != null) {
+                        targetPath = projectDirectory.resolve(targetPath);
+                    }
+                } else {
+                    targetPath = (projectDirectory != null ? projectDirectory : java.nio.file.Path.of(".")).resolve("prompt-export.md");
+                }
+                try {
+                    com.xhlcli.prompt.PromptExporter.exportToFile(blocks, targetPath, config.apiKey());
+                    renderer.printMessage("✅ 系统提示词已脱敏导出至: " + targetPath.toAbsolutePath().normalize());
+                } catch (Exception e) {
+                    renderer.printMessage("❌ 导出失败: " + e.getMessage());
+                }
+            }
+            default -> renderer.printMessage("未知子命令。用法: /prompt [show|export [filepath]]");
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -702,6 +848,8 @@ public final class ChatLoop {
                 case MODEL -> handleModel(input);
                 case MCP -> handleMcp(input);
                 case BROWSER -> handleBrowser(input);
+                case SKILL -> handleSkill(input);
+                case PROMPT -> handlePrompt(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }

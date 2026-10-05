@@ -24,7 +24,8 @@ public final class ApprovalPolicy {
             "search_code",
             "web_search",
             "web_fetch",
-            "browser_status"
+            "browser_status",
+            "load_skill"
     );
 
     private static final Set<String> MEDIUM_RISK_TOOLS = Set.of(

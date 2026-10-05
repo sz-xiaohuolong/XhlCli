@@ -6,7 +6,7 @@
 > 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-09-22）：已完成 Phase 00~13 的完整交付（v0.11.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统，以及 Web 检索与浏览器安全沙箱子系统（SSRF 安全围栏与限流、多搜索引擎抽象与免 Key 降级、Readability 正文提取、浏览器 ISOLATED/SHARED 模式分层、敏感页面写操作硬审批、宿主标签页防误关保护与 /browser 终端控制台）。后续章节中的 Skills 仍为目标架构。
+> 实现状态（2026-10-05）：已完成 Phase 00~14 的完整交付（v0.12.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统，以及 Skill 与 Prompt 分层治理子系统（8 层确定性装配、安全底线绝对不可变、三层同名覆盖、渐进式紧凑索引、load_skill 按需激活与单 Run 去重、/skill 与 /prompt 终端控制台及脱敏审计导出）。后续章节中的产品化终态仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,14 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 13, v0.11.0)
+## 2.1 当前已交付技术基线 (Phase 14, v0.12.0)
 
+- **Skill 与 Prompt 分层管理子系统 (Phase 14)**：
+  - **Prompt 确定性 8 层组装引擎 (`LayeredPromptAssembler`)**：建立 Base Identity (1) -> Safety Policy (2, Immutable) -> Agent Mode (3) -> Runtime Context (4) -> Project Rules & Memory (5) -> Skill Index (6) -> Active Skills (7) -> Handover Guidelines (8) 的严格顺序链；`SAFETY_POLICY` 锁定为 `IMMUTABLE`，杜绝任何项目或用户级覆盖穿透；各层配置独立软硬预算配额，超额平滑截断。
+  - **三层 Skill 发现与覆盖机制 (`SkillRegistry`)**：支持内置 (`classpath:/skills/`) < 用户级 (`~/.xhlcli/skills/`) < 项目级 (`.xhlcli/skills/`) 扫描并按同名完全覆盖；支持动态启用、禁用与运行时热重载 (`scanAndReload`)；单个 Skill 解析错误安全隔离，不阻断其他正常技能。
+  - **元数据解析与沙箱化引用 (`SkillParser` + `SkillReferenceResolver`)**：解析 `SKILL.md` 标准 YAML Frontmatter (`name`, `description`, `allowed-tools`, `author`, `tags`) 与 Markdown 正文；相对路径引用严格限制在 Skill 根目录内，彻底拦截 `../` 越界路径逃逸攻击。
+  - **渐进式披露与按需加载 (`SkillIndex` + `LoadSkillTool`)**：启动期向系统提示词仅注入名称与简要描述组成的紧凑索引（< 2500 字符）；模型任务匹配时触发本地工具 `load_skill`，正文按需注入当前上下文，同一 Run 内部自动幂等去重防 Prompt 膨胀。
+  - **终端管理命令与审计脱敏 (`ChatLoop` + `PromptExporter`)**：终端挂载 `/skill [list|show|enable|disable|reload]` 与 `/prompt [show|export]` 指令族；支持完整系统提示词结构化导出，全量脱敏 API Key 与疑似敏感凭据。
 - **Web 检索与浏览器安全沙箱子系统 (Phase 13)**：
   - **网络安全围栏 (`NetworkPolicy`)**：强制实施协议白名单（仅允许 `http`, `https`），通过 DNS 解析深度拦截私网 IPv4/IPv6、Loopback (`127.0.0.1`, `localhost`)、Link-Local (`169.254.x.x`) 与 `0.0.0.0`；重定向跃点全链路动态校验防 SSRF 穿透；内置 Token Bucket 算法执行 30 次/60 秒速率控制。
   - **多源搜索引擎抽象与降级 (`SearchProvider`)**：统一领域抽象 `SearchResult` 与 `SearchProvider` 接口，完整实现 `SerpApiSearchProvider` (Google Search)、`SearxngSearchProvider` (开源元搜索)、`ZhipuSearchProvider` (智谱 Web Search) 以及零配置免 Key 的 `DuckDuckGoSearchProvider` 兜底降级方案，通过 `SearchProviderFactory` 根据环境配置自动组装最佳 Provider。

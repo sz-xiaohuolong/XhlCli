@@ -66,7 +66,7 @@ DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 
 ```bash
 ./mvnw clean verify
-java -jar target/xhlcli-0.3.0-SNAPSHOT.jar
+java -jar target/xhlcli-0.12.0-SNAPSHOT.jar
 ```
 
 如果 macOS 同时安装了多个 JDK：
@@ -79,8 +79,8 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.12.0-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.12.0-SNAPSHOT.jar --version
 ```
 
 可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
@@ -89,9 +89,16 @@ java -jar target/xhlcli-0.3.0-SNAPSHOT.jar --version
 
 | 命令 | 作用 |
 |---|---|
-| `/help` | 显示帮助 |
+| `/help` | 显示帮助信息 |
 | `/config` | 显示非敏感配置与来源 |
 | `/clear` | 清空当前进程内的会话历史 |
+| `/plan [goal]` | 触发 DAG 拓扑分层规划与受控执行 |
+| `/team <goal>` | Multi-Agent 协作团队执行任务（Planner + Workers + Reviewer） |
+| `/model [list\|use\|status]` | 模型与 Provider 动态切换管理 |
+| `/mcp [list\|status\|tools\|resources\|read\|restart]` | MCP 外部工具与资源协议管理 |
+| `/browser [status\|connect\|disconnect\|tabs]` | 浏览器沙箱与 CDP 宿主连接控制台 |
+| `/skill [list\|show\|enable\|disable\|reload]` | 可复用工程技能与工作流管理 |
+| `/prompt [show\|export]` | 查看或脱敏导出分层系统提示词与审计信息 |
 | `/exit` | 安全退出 |
 | Ctrl+C | 取消正在生成的响应 |
 

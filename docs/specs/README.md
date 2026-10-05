@@ -20,4 +20,6 @@
 | **Phase 11** | [`2026-09-18-phase-11-multi-model-design.md`](2026-09-18-phase-11-multi-model-design.md) | `v0.9.0` | [`2026-09-18-phase-11-multi-model.md`](../plans/2026-09-18-phase-11-multi-model.md) | 已交付封存 |
 | **Phase 12** | [`2026-09-21-phase-12-mcp-design.md`](2026-09-21-phase-12-mcp-design.md) | `v0.10.0` | [`2026-09-21-phase-12-mcp.md`](../plans/2026-09-21-phase-12-mcp.md) | 已交付封存 |
 | **Phase 13** | [`2026-09-22-phase-13-web-and-browser-design.md`](2026-09-22-phase-13-web-and-browser-design.md) | `v0.11.0` | [`2026-09-22-phase-13-web-and-browser.md`](../plans/2026-09-22-phase-13-web-and-browser.md) | 已交付封存 |
+| **Phase 14** | [`2026-10-05-phase-14-skills-and-prompts-design.md`](2026-10-05-phase-14-skills-and-prompts-design.md) | `v0.12.0` | [`2026-10-05-phase-14-skills-and-prompts.md`](../plans/2026-10-05-phase-14-skills-and-prompts.md) | 已交付封存 |
+
 

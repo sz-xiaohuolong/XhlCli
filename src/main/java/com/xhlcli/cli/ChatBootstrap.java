@@ -41,6 +41,12 @@ import com.xhlcli.browser.tool.BrowserDisconnectTool;
 import com.xhlcli.browser.tool.BrowserStatusTool;
 import com.xhlcli.web.tool.WebFetchTool;
 import com.xhlcli.web.tool.WebSearchTool;
+import com.xhlcli.prompt.LayeredPromptAssembler;
+import com.xhlcli.prompt.PromptLayer;
+import com.xhlcli.prompt.PromptSource;
+import com.xhlcli.skill.SkillRegistry;
+import com.xhlcli.skill.builtin.BuiltinSkills;
+import com.xhlcli.skill.tool.LoadSkillTool;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -106,6 +112,12 @@ public final class ChatBootstrap implements ChatRunner {
 
             GrepCodeTool grepCodeTool = new GrepCodeTool(pathResolver);
             com.xhlcli.tool.local.search.SearchCodeTool searchCodeTool = new com.xhlcli.tool.local.search.SearchCodeTool(pathResolver);
+            Path userSkillsDir = userHome.resolve(".xhlcli").resolve("skills");
+            Path projectSkillsDir = projectDirectory.resolve(".xhlcli").resolve("skills");
+            SkillRegistry skillRegistry = new SkillRegistry(userSkillsDir, projectSkillsDir, BuiltinSkills.all());
+            skillRegistry.scanAndReload();
+            LoadSkillTool loadSkillTool = new LoadSkillTool(skillRegistry);
+
             ToolRegistry registry = new ToolRegistry(List.of(
                     new ListDirTool(pathResolver),
                     new ReadFileTool(pathResolver),
@@ -122,39 +134,45 @@ public final class ChatBootstrap implements ChatRunner {
                     new WebFetchTool(),
                     new BrowserConnectTool(browserConnector),
                     new BrowserDisconnectTool(browserConnector),
-                    new BrowserStatusTool(browserConnector)));
+                    new BrowserStatusTool(browserConnector),
+                    loadSkillTool));
             DefaultToolExecutor executor = new DefaultToolExecutor(
                     registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
                     mapper, System::nanoTime, pathGuard, hitlHandler, auditLog, browserGuard);
-            String systemPrompt = """
-                    You are XhlCLI, a helpful and precise coding assistant.
-                    Please reply in Chinese (中文).
 
-                    ## Code Exploration Pipeline
-                    0. `search_code`: RAG 语义辅助检索代码库，根据自然语言意图查找可能相关的代码块与模块入口。
-                    1. `glob_files`: Locate candidate filenames or structural patterns (e.g. `**/*Service.java`).
-                    2. `grep_code`: Locate exact symbols, method declarations, configurations, or lines.
-                    3. `read_file`: Read bounded line ranges around matches using suggested `offset` and `limit`. Never read the whole file if nearby lines suffice.
-                    4. When `grep_code` indicates `partial: true`, refine your search with a more specific `path`, `glob`, or `pattern`.
-
-                    ## Local Code First Rule
-                    - When the user asks about the current repository, code, architecture, or configuration, ALWAYS use local exploration tools (`search_code`, `glob_files`, `grep_code`, `read_file`).
-                    - NEVER fabricate file paths or line numbers. Every code claim must cite real relative paths and line numbers verified from tool results.
-                    - NEVER invoke external web searches for questions about current local code.
-
-                    ## Modification Guidelines
-                    - Use `write_file` to create or overwrite files.
-                    - Use `apply_patch` for precise single-occurrence text replacements in existing files.
-                    - Use `git_diff` to check unstaged changes in the repository.
-                    - Use `execute_command` to run short-running build, test, and shell commands in the project directory.
-                    - All file operations are restricted to the project workspace.
-
-                    ## Web & Browser Guidelines
-                    - Use `web_search` to query the public internet for the latest technical documentation, library release notes, or error solutions when not found locally.
-                    - Use `web_fetch` to retrieve readable markdown content of a public URL.
-                    - Local exploration tools (`search_code`, `glob_files`, `grep_code`, `read_file`) must always take precedence when exploring the local repository.
-                    - Browser sessions can be monitored via `browser_status` or connected via `browser_connect`.
-                    """;
+            LayeredPromptAssembler promptAssembler = new LayeredPromptAssembler();
+            promptAssembler.registerBlock(
+                    PromptLayer.RUNTIME_CONTEXT,
+                    PromptSource.BUILTIN,
+                    "## Runtime Context",
+                    String.format("- Workspace: %s%n- Model: %s (Context: %dk)%n- Date: %s",
+                            projectDirectory.toAbsolutePath(),
+                            client.modelName(),
+                            client.capabilities().maxContextWindow() / 1000,
+                            java.time.LocalDate.now())
+            );
+            String skillIndexPrompt = skillRegistry.generateIndexPrompt(2500);
+            if (!skillIndexPrompt.isBlank()) {
+                promptAssembler.registerBlock(
+                        PromptLayer.SKILL_INDEX,
+                        PromptSource.BUILTIN,
+                        "## Available Skills",
+                        skillIndexPrompt
+                );
+            }
+            Path projectRulesFile = projectDirectory.resolve(".xhlcli").resolve("rules.md");
+            if (java.nio.file.Files.exists(projectRulesFile)) {
+                try {
+                    String projectRules = java.nio.file.Files.readString(projectRulesFile, java.nio.charset.StandardCharsets.UTF_8);
+                    promptAssembler.registerBlock(
+                            PromptLayer.PROJECT_RULES_AND_MEMORY,
+                            PromptSource.PROJECT,
+                            "## Project Rules",
+                            projectRules
+                    );
+                } catch (Exception ignored) {}
+            }
+            String systemPrompt = promptAssembler.assembleSystemPrompt();
             ReactAgent agent = new ReactAgent(
                     ChatMessage.system(systemPrompt),
                     client, executor, registry.definitions(),
@@ -191,6 +209,8 @@ public final class ChatBootstrap implements ChatRunner {
             loop.setProviderRegistry(providerRegistry);
             loop.setDiagnostics(diagnostics);
             loop.setBrowserConnector(browserConnector);
+            loop.setSkillRegistry(skillRegistry);
+            loop.setPromptAssembler(promptAssembler);
 
             com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
                 out.println(plan.summarize());

@@ -2,6 +2,37 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.12.0] - 2026-10-05
+
+### Added
+- **Skill 与 Prompt 分层治理子系统（Layered Prompts & On-Demand Skills Subsystem）** (Phase 14):
+  - **Prompt 确定性 8 层组装引擎 (`LayeredPromptAssembler`)**：
+    - 严格确定性装配顺序：Base Identity (1) -> Safety Policy (2, Immutable) -> Agent Mode (3) -> Runtime Context (4) -> Project Rules & Memory (5) -> Skill Index (6) -> Active Skills (7) -> Handover Guidelines (8)。
+    - 系统安全规则绝对不可变性（`IMMUTABLE`）：无论项目级还是用户级配置如何定义，内置核心安全规则绝对不被覆盖或擦除，坚决捍卫本地代码优先、工作区边界与命令审批底线。
+    - 独立分层预算管理（`LayerBudgetConfig`）：各层分配独立软硬字符预算配额，超额平滑截断并标记截断状态。
+  - **三层覆盖继承与健康隔离 (`SkillRegistry`)**：
+    - 支持 `BUILTIN` (classpath:/skills/) < `USER` (~/.xhlcli/skills/) < `PROJECT` (.xhlcli/skills/) 三层扫描；
+    - 同名 Skill 按照高优先级完全覆盖低优先级；
+    - 动态启停切换与状态持久化；
+    - 单个 Skill YAML 解析错误安全隔离在自身状态为 `ERROR`，绝不阻塞应用启动与其他正常技能。
+  - **元数据解析与沙箱化引用隔离 (`SkillParser` + `SkillReferenceResolver`)**：
+    - 支持 `SKILL.md` 标准 YAML Frontmatter 解析（`name`, `description`, `allowed-tools`, `author`, `tags`）与 Markdown 正文分离；
+    - 相对路径参考资料读取（`references/` 与 `scripts/`）严格限制在 Skill 根目录内，彻底拦截 `../` 路径穿越逃逸攻击。
+  - **渐进式披露与按需加载 (`SkillIndex` + `LoadSkillTool`)**：
+    - 启动期向系统提示词仅注入启用的 Skill 紧凑索引（名称与简短描述，< 2500 字符预算），杜绝 Context Debt；
+    - 模型任务匹配时自主调用本地工具 `load_skill`，正文按需激活注入；
+    - 同一 Run 内部自动幂等去重，防止模型重复加载浪费上下文。
+  - **内置高质量开箱即用 Skill**：
+    - `git-feature-workflow`：代码审查、回归测试、Conventional Commits 原子提交与发布流程；
+    - `web-research`：问题拆解、多源搜索、正文提取、交叉验证与决策报告生成。
+  - **终端管理指令与脱敏审计导出 (`ChatLoop` + `PromptExporter`)**：
+    - 扩展终端 `/skill [list|show|enable|disable|reload]` 控制台；
+    - 扩展终端 `/prompt [show|export [filepath]]` 审计导出；
+    - 导出内容按层清晰标注来源与截断指标，并全量调用 `SecretRedactor` 脱敏所有 API Key 与敏感凭据。
+  - **基准测试与 Golden Test 套件**：
+    - `PromptGoldenTest` 固化标准上下文下的 Prompt 分层输出与安全规则不可变断言；
+    - 全量自动化测试套件扩充至 401 项（100% 绿灯）。
+
 ## [0.11.0] - 2026-09-22
 
 ### Added

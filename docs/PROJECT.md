@@ -8,9 +8,9 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **Current Release**: Phase 13: Web 与浏览器集成 (`v0.11.0`, Tag: `v0.11.0`, 2026-09-22)
-- **Next Release**: Phase 14: 跨会话交互与工作区快照恢复 (`docs/prd/phase-14-session-snapshot.md`)
-- **Quality Profile**: Comprehensive（366 项自动化测试 100% 绿灯 + 专项 Web/浏览器评测物证 + DoD 铁律闭环）
+- **Current Release**: Phase 14: Skill 与 Prompt 分层体系 (`v0.12.0`, Tag: `v0.12.0`, 2026-10-05)
+- **Next Release**: Phase 15: 终端交互产品化 (`docs/prd/phase-15-terminal-productization.md`)
+- **Quality Profile**: Comprehensive（401 项自动化测试 100% 绿灯 + 专项 Skill/Prompt 评测物证 + DoD 铁律闭环）
 - **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行与多 Agent 协同能力。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
@@ -63,6 +63,8 @@
 | **Phase 11** 多模型路由 | [phase-11](prd/phase-11-multi-model.md) | [2026-09-18-phase-11](specs/2026-09-18-phase-11-multi-model-design.md) | [2026-09-18-phase-11](plans/2026-09-18-phase-11-multi-model.md) | [multi-model-evaluation](engineering/multi-model-evaluation.md) | `v0.9.0` | 已封存 |
 | **Phase 12** MCP 扩展协议 | [phase-12](prd/phase-12-mcp.md) | [2026-09-21-phase-12](specs/2026-09-21-phase-12-mcp-design.md) | [2026-09-21-phase-12](plans/2026-09-21-phase-12-mcp.md) | [mcp-evaluation](engineering/mcp-evaluation.md) | `v0.10.0` | 已封存 |
 | **Phase 13** Web 与浏览器 | [phase-13](prd/phase-13-web-and-browser.md) | [2026-09-22-phase-13](specs/2026-09-22-phase-13-web-and-browser-design.md) | [2026-09-22-phase-13](plans/2026-09-22-phase-13-web-and-browser.md) | [web-and-browser-evaluation](engineering/web-and-browser-evaluation.md) | `v0.11.0` | 已封存 |
+| **Phase 14** Skill 与 Prompt 分层 | [phase-14](prd/phase-14-skills-and-prompts.md) | [2026-10-05-phase-14](specs/2026-10-05-phase-14-skills-and-prompts-design.md) | [2026-10-05-phase-14](plans/2026-10-05-phase-14-skills-and-prompts.md) | [skill-and-prompt-evaluation](engineering/skill-and-prompt-evaluation.md) | `v0.12.0` | 已封存 |
+
 
 ---
 

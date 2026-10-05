@@ -18,5 +18,7 @@ public enum ChatCommand {
     TEAM,
     MODEL,
     MCP,
-    BROWSER
+    BROWSER,
+    SKILL,
+    PROMPT
 }
