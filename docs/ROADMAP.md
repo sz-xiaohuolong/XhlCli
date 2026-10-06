@@ -18,7 +18,7 @@
 | P1 | [Phase 11](prd/phase-11-multi-model.md) | 已交付（2026-09-18，v0.9.0） | 多模型路由与能力声明（OpenAI/Anthropic/Ollama、ModelCapabilities、注册中心与 `/model`） |
 | P1 | [Phase 12](prd/phase-12-mcp.md) | 已交付（2026-09-21，v0.10.0） | MCP 协议集成、双通道传输、工具发现与调用、生命周期管理与 `/mcp` |
 | P2 | [Phase 14](prd/phase-14-skills-and-prompts.md) | 已交付（2026-10-05，v0.12.0） | Skill 与 Prompt 分层（8 层确定性装配、不可变安全底线、三层覆盖、按需加载与 `/skill` `/prompt`） |
-| P2 | [Phase 15](prd/phase-15-terminal-productization.md) | 规划中 | 终端交互产品化 |
+| P2 | [Phase 15](prd/phase-15-terminal-productization.md) | 已交付（2026-10-06，v0.13.0） | 终端产品化与交互治理（JLine 4 动态状态栏、双模渲染抽象、Markdown 代码框与表格对齐、Git Diff 着色、SafeHistory 与 Tab 补全、HITL 恢复与 `/history`） |
 | P2 | [Phase 16](prd/phase-16-lsp-and-snapshots.md) | 规划中 | LSP、诊断与快照 |
 | P2 | [Phase 17](prd/phase-17-runtime-and-multimodal.md) | 规划中 | Runtime API 与图片输入 |
 | P2 | [Phase 18](prd/phase-18-open-source-release.md) | 规划中 | 开源发行与发布工程 |

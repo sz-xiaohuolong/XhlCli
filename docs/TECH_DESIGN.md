@@ -6,7 +6,7 @@
 > 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-10-05）：已完成 Phase 00~14 的完整交付（v0.12.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统，以及 Skill 与 Prompt 分层治理子系统（8 层确定性装配、安全底线绝对不可变、三层同名覆盖、渐进式紧凑索引、load_skill 按需激活与单 Run 去重、/skill 与 /prompt 终端控制台及脱敏审计导出）。后续章节中的产品化终态仍为目标架构。
+> 实现状态（2026-10-06）：已完成 Phase 00~15 的完整交付（v0.13.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统，以及终端产品化与交互治理子系统（环境感知双模渲染、底部自适应状态栏、代码外框与表格 Markdown 引擎、Unified Diff 着色、敏感脱敏历史、三级命令与 @path 补全、实时语法高亮、无冲突 HITL 会话交互及全量输出收拢）。后续章节中的产品化终态仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,17 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 14, v0.12.0)
+## 2.1 当前已交付技术基线 (Phase 15, v0.13.0)
 
+- **终端产品化与交互治理子系统 (Phase 15)**：
+  - **双模终端渲染契约 (`TerminalRenderer`)**：基于环境自适应探测（`NO_COLOR`, `--plain`, `dumb`, 管道重定向）自动选择 `InlineTerminalRenderer`（行内富文本交互）或 `PlainRunRenderer`（CI/重定向/纯文本模式，严格 0 ANSI 降级、API 敏感凭据脱敏）。
+  - **行内状态栏与宽度计算 (`TerminalStatusBar` + `TerminalWidthCalculator`)**：集成 JLine 4 `org.jline.utils.Status` 底部状态栏；基于 Unicode `WCWidth` 精确计算全角 CJK 与 Emoji 字符宽度；建立 80/120/160 列 P0~P3 优先级动态裁剪策略（Mode/Phase/Model > Tokens > Extensions > Workspace），严格保证单行展示不换行、不扰动输入提示符。
+  - **视觉排版与代码格式化引擎 (`MarkdownRenderer` + `DiffRenderer` + `ToolFoldingManager`)**：实现瑞士风代码块外框（`┌── lang ──`）、动态列宽自适应对齐表格、Unified Diff 语法着色与改动统计（`+N -M`）、超长输出智能折叠与关键信息摘要提取。
+  - **交互输入治理三件套 (`SafeHistory` + `TerminalCompleter` + `TerminalInputHighlighter`)**：
+    - `SafeHistory`：支持敏感凭据（API Keys）静默过滤、连续重复行去重、>4000 字符超长防御及文件持久化异常降级；
+    - `TerminalCompleter`：实现三级命令与动态参数补全（`/model`, `/mcp`, `/skill`, `/history` 等）及 `@path` 本地工作区文件路径感知补全；
+    - `TerminalInputHighlighter`：斜杠命令与文件路径实时语法高亮。
+  - **HITL 人机审批无冲突恢复与输出收拢 (`TerminalHitlHandler` + `ChatLoop`)**：解耦底层 `System.in` 直接读取，基于 `HitlInputReader` 委托 JLine 会话行读取与渲染器输出，消除底层流并发竞争与光标覆盖；新增 `/history [list|clear]` 终端命令；`ChatLoop` 全量收拢系统输出至 `renderer.printMessage`，并联动状态栏生命周期。
 - **Skill 与 Prompt 分层管理子系统 (Phase 14)**：
   - **Prompt 确定性 8 层组装引擎 (`LayeredPromptAssembler`)**：建立 Base Identity (1) -> Safety Policy (2, Immutable) -> Agent Mode (3) -> Runtime Context (4) -> Project Rules & Memory (5) -> Skill Index (6) -> Active Skills (7) -> Handover Guidelines (8) 的严格顺序链；`SAFETY_POLICY` 锁定为 `IMMUTABLE`，杜绝任何项目或用户级覆盖穿透；各层配置独立软硬预算配额，超额平滑截断。
   - **三层 Skill 发现与覆盖机制 (`SkillRegistry`)**：支持内置 (`classpath:/skills/`) < 用户级 (`~/.xhlcli/skills/`) < 项目级 (`.xhlcli/skills/`) 扫描并按同名完全覆盖；支持动态启用、禁用与运行时热重载 (`scanAndReload`)；单个 Skill 解析错误安全隔离，不阻断其他正常技能。

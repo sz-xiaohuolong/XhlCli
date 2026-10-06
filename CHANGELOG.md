@@ -2,6 +2,35 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.13.0] - 2026-10-06
+
+### Added
+- **终端产品化与交互治理子系统（Terminal Productization & Interactive Governance Subsystem）** (Phase 15):
+  - **环境感知与双模终端渲染契约 (`TerminalRenderer`)**：
+    - 统一抽象 `TerminalRenderer` 接口规范，收拢事件分发、系统消息打印、首屏 Banner 呈现、底部状态栏更新及生命周期销毁；
+    - `TerminalEnvironment` 自动探测 `NO_COLOR`、`--plain`、`TERM=dumb` 以及标准输出管道重定向，自适应路由渲染实现；
+    - `PlainRunRenderer`：面向 CI、脚本管道与免交互重定向，严格实施 ANSI Escape 字符完全过滤（0 ANSI 逃逸），并深度集成 `SecretRedactor` 脱敏敏感凭据；
+    - `InlineTerminalRenderer`：基于 JLine 4 `LineReader.printAbove()` 保证动态刷新不破坏用户输入行，内部通过同步锁保障多线程原子化串行输出。
+  - **动态底部状态栏与真实显示宽度计算 (`TerminalStatusBar` + `TerminalWidthCalculator`)**：
+    - 集成 JLine 4 `org.jline.utils.Status` 浮动状态行，支持 ReAct/Plan/Team 运行模式、Phase 阶段、模型标识、Token 消耗、MCP/Skill 扩展概览及当前工作区展示；
+    - `TerminalWidthCalculator` 基于 Unicode `WCWidth` 算法精确计算半角、全角 CJK 与 Emoji 显示列宽；
+    - 针对 80/120/160 列终端尺寸建立 P0~P3 优先级动态自适应裁剪策略，绝对保证单行呈现、零自动换行且无空悬乱码。
+  - **视觉排版与代码格式化引擎 (`MarkdownRenderer` + `DiffRenderer` + `ToolFoldingManager`)**：
+    - `MarkdownRenderer`：实现瑞士风代码块外框（`┌── lang ──`）、多级标题着色、列表渲染以及基于真实字符宽度的多列表格动态列宽对齐；
+    - `DiffRenderer`：支持 Unified Diff 语义着色（新增绿/删除红/元信息青），并提供统计行 `(+N, -M)` 汇总；
+    - `ToolFoldingManager`：超长工具调用或文件读取输出（默认 >15 行）智能折叠，保留首尾关键行并提取结构化摘要。
+  - **交互输入治理三件套 (`SafeHistory` + `TerminalCompleter` + `TerminalInputHighlighter`)**：
+    - `SafeHistory`：拦截并脱敏常见 API Key（DeepSeek/OpenAI/Anthropic）、过滤空白与连续重复行、拦截 >4000 字符超长防御攻击，文件异常时平滑降级为内存历史；
+    - `TerminalCompleter`：三级斜杠命令补全、动态参数补全（`/model`, `/mcp`, `/skill`, `/history` 等）以及 `@path` 本地工作区文件路径感知补全；
+    - `TerminalInputHighlighter`：斜杠命令与本地文件路径实时语法高亮。
+  - **HITL 人机审批无冲突恢复与系统输出收拢 (`TerminalHitlHandler` + `ChatLoop`)**：
+    - 抽象 `HitlInputReader` 接口，解耦野生 `System.in`，委托 `JLineTerminalSession.readLine` 与 `renderer.printMessage` 完成交互，彻底解决流冲突与终端死锁；
+    - 扩展 `/history [list|clear]` 终端命令并在 `ChatCommandParser` 注册；
+    - 全量收拢 `ChatLoop` 控制台输出至 `TerminalRenderer`，实时联动更新状态栏生命周期。
+  - **基准测试与 Golden Test 验收**：
+    - `TerminalGoldenTest` 固化 80/120/160 列状态栏渲染基准、Markdown 表格 Swiss 边框基准与 Plain 模式 0 ANSI 纯度断言；
+    - 全量自动化测试套件扩充至 451 项（100% 绿灯）。
+
 ## [0.12.0] - 2026-10-05
 
 ### Added

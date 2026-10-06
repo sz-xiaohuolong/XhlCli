@@ -195,6 +195,23 @@ class ChatLoopTest {
         assertTrue(harness.out().contains("用法: /search-text"));
     }
 
+    @Test
+    void routesHistoryCommands() {
+        FakeAgent agent = new FakeAgent();
+        Harness harness = new Harness(new ListInput(List.of("/history", "/history clear", "/exit")), agent);
+        com.xhlcli.cli.terminal.SafeHistory history = new com.xhlcli.cli.terminal.SafeHistory(null);
+        history.add(java.time.Instant.now(), "echo first");
+        history.add(java.time.Instant.now(), "echo second");
+        harness.loop.setSafeHistory(history);
+
+        assertEquals(0, harness.loop.run());
+        assertTrue(harness.out().contains("最近输入历史"));
+        assertTrue(harness.out().contains("echo first"));
+        assertTrue(harness.out().contains("echo second"));
+        assertTrue(harness.out().contains("已清空本地历史记录"));
+        assertEquals(0, history.size());
+    }
+
     private static final class Harness {
         private final ByteArrayOutputStream out = new ByteArrayOutputStream();
         private final ByteArrayOutputStream err = new ByteArrayOutputStream();

@@ -29,6 +29,7 @@ public final class ChatCommandParser {
             case "/browser" -> ChatCommand.BROWSER;
             case "/skill" -> ChatCommand.SKILL;
             case "/prompt" -> ChatCommand.PROMPT;
+            case "/history" -> ChatCommand.HISTORY;
             default -> ChatCommand.UNKNOWN;
         };
     }

@@ -1,6 +1,9 @@
 package com.xhlcli.cli;
 
+import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.Highlighter;
+import org.jline.reader.History;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
@@ -15,8 +18,30 @@ public final class JLineTerminalSession implements InputReader, AutoCloseable {
     private final LineReader reader;
 
     public JLineTerminalSession() throws IOException {
+        this(null, null, null);
+    }
+
+    public JLineTerminalSession(Completer completer, Highlighter highlighter, History history) throws IOException {
         terminal = TerminalBuilder.builder().system(true).build();
-        reader = LineReaderBuilder.builder().terminal(terminal).build();
+        LineReaderBuilder builder = LineReaderBuilder.builder().terminal(terminal);
+        if (completer != null) {
+            builder.completer(completer);
+        }
+        if (highlighter != null) {
+            builder.highlighter(highlighter);
+        }
+        if (history != null) {
+            builder.history(history);
+        }
+        reader = builder.build();
+    }
+
+    public Terminal terminal() {
+        return terminal;
+    }
+
+    public LineReader reader() {
+        return reader;
     }
 
     public void bind(ChatLoop loop) {

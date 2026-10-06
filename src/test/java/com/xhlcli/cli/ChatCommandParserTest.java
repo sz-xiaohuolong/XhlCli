@@ -25,6 +25,9 @@ class ChatCommandParserTest {
         assertEquals(ChatCommand.PLAN, parser.parse("/plan 查看代码"));
         assertEquals(ChatCommand.TEAM, parser.parse("/team"));
         assertEquals(ChatCommand.TEAM, parser.parse("/team 开发新模块"));
+        assertEquals(ChatCommand.HISTORY, parser.parse("/history"));
+        assertEquals(ChatCommand.HISTORY, parser.parse("/history list"));
+        assertEquals(ChatCommand.HISTORY, parser.parse("/history clear"));
     }
 
     @Test

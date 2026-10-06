@@ -20,5 +20,6 @@ public enum ChatCommand {
     MCP,
     BROWSER,
     SKILL,
-    PROMPT
+    PROMPT,
+    HISTORY
 }

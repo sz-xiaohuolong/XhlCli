@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xhlcli.agent.ReactAgent;
 import com.xhlcli.agent.RunLimits;
 import com.xhlcli.agent.ScheduledTimeoutScheduler;
+import com.xhlcli.cli.terminal.SafeHistory;
+import com.xhlcli.cli.terminal.TerminalCompleter;
+import com.xhlcli.cli.terminal.TerminalInputHighlighter;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.ChatConfigLoader;
 import com.xhlcli.config.ConfigurationException;
@@ -11,8 +14,11 @@ import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.config.StreamingSecretRedactor;
 import com.xhlcli.llm.DeepSeekClient;
 import com.xhlcli.model.ChatMessage;
-import com.xhlcli.render.PlainRunRenderer;
 import com.xhlcli.render.PlainDiagnosticSink;
+import com.xhlcli.render.PlainRunRenderer;
+import com.xhlcli.render.TerminalEnvironment;
+import com.xhlcli.render.TerminalRenderer;
+import com.xhlcli.render.terminal.InlineTerminalRenderer;
 import com.xhlcli.hitl.TerminalHitlHandler;
 import com.xhlcli.policy.AuditLog;
 import com.xhlcli.policy.PathGuard;
@@ -94,8 +100,7 @@ public final class ChatBootstrap implements ChatRunner {
 
         PlainDiagnosticSink diagnostics = new PlainDiagnosticSink(config, err);
         try (DeepSeekClient client = new DeepSeekClient(config, diagnostics);
-             ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler();
-             JLineTerminalSession terminal = new JLineTerminalSession()) {
+             ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler()) {
             ObjectMapper mapper = new ObjectMapper();
             WorkspacePathResolver pathResolver = new WorkspacePathResolver(projectDirectory);
             PathGuard pathGuard = new PathGuard(projectDirectory);
@@ -198,46 +203,6 @@ public final class ChatBootstrap implements ChatRunner {
             agent.setCompactor(compactor);
             agent.setMemorySupplier(memoryManager::loadAll);
             agent.setConcurrencyLimits(config.agentSettings().maxConcurrency(), config.agentSettings().toolTimeout());
-            PlainRunRenderer renderer = new PlainRunRenderer(out, err, config.apiKey());
-            ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
-            loop.setMemoryManager(memoryManager);
-            loop.setContextAssembler(contextAssembler);
-            loop.setCompactor(compactor);
-            loop.setGrepCodeTool(grepCodeTool);
-            loop.setProjectDirectory(projectDirectory);
-            loop.setLlmClient(client);
-            loop.setProviderRegistry(providerRegistry);
-            loop.setDiagnostics(diagnostics);
-            loop.setBrowserConnector(browserConnector);
-            loop.setSkillRegistry(skillRegistry);
-            loop.setPromptAssembler(promptAssembler);
-
-            com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
-                out.println(plan.summarize());
-                out.println("📝 计划已生成。");
-                out.println("   - 回车 / y / run：按当前计划执行");
-                out.println("   - cancel / esc：取消本次计划");
-                out.println("   - 输入文本：补充要求后重新规划\n");
-                try {
-                    String reviewInput = terminal.readLine("审阅 > ");
-                    com.xhlcli.cli.PlanReviewInputParser.Decision decision =
-                            com.xhlcli.cli.PlanReviewInputParser.parse(reviewInput);
-                    return switch (decision.type()) {
-                        case EXECUTE -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.execute();
-                        case CANCEL -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
-                        case SUPPLEMENT -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.supplement(decision.feedback());
-                    };
-                } catch (Exception e) {
-                    return com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
-                }
-            };
-            com.xhlcli.agent.PlanExecuteAgent planAgent = new com.xhlcli.agent.PlanExecuteAgent(
-                    client, executor, registry.definitions(), null, memoryManager, reviewHandler, out);
-            loop.setPlanAgent(planAgent);
-
-            com.xhlcli.team.TeamOrchestrator teamOrchestrator = new com.xhlcli.team.TeamOrchestrator(
-                    client, executor, registry.definitions(), memoryManager, out);
-            loop.setTeamOrchestrator(teamOrchestrator);
 
             // MCP Extension initialization
             Path userMcpFile = userHome.resolve(".xhlcli").resolve("mcp.json");
@@ -247,18 +212,81 @@ public final class ChatBootstrap implements ChatRunner {
 
             com.xhlcli.mcp.manager.McpServerManager mcpManager = new com.xhlcli.mcp.manager.McpServerManager(registry, projectDirectory, mapper);
             mcpManager.registerServers(mcpLoadResult);
-            mcpManager.addToolsUpdatedListener(defs -> {
-                agent.setToolDefinitions(defs);
-                planAgent.setToolDefinitions(defs);
-                teamOrchestrator.setToolDefinitions(defs);
-            });
             mcpManager.startAll(java.time.Duration.ofMillis(3000));
-            loop.setMcpServerManager(mcpManager);
 
-            terminal.bind(loop);
-            int exitCode = loop.run();
-            mcpManager.close();
-            return exitCode;
+            Path historyFile = userHome.resolve(".xhlcli").resolve("history");
+            SafeHistory safeHistory = new SafeHistory(historyFile);
+            TerminalCompleter completer = new TerminalCompleter(
+                    () -> providerRegistry != null ? providerRegistry.listModels().stream().map(com.xhlcli.llm.ModelDescriptor::modelName).toList() : List.of(client.modelName()),
+                    () -> mcpManager != null ? List.copyOf(mcpManager.listServers().keySet()) : List.of(),
+                    () -> skillRegistry != null ? skillRegistry.listAll().stream().map(com.xhlcli.skill.SkillDefinition::name).toList() : List.of(),
+                    projectDirectory
+            );
+            TerminalInputHighlighter highlighter = new TerminalInputHighlighter();
+
+            try (JLineTerminalSession terminal = new JLineTerminalSession(completer, highlighter, safeHistory)) {
+                TerminalEnvironment termEnv = TerminalEnvironment.detect(args, mergedEnv, terminal.terminal());
+                boolean isInteractive = termEnv.isInteractive() && termEnv.isAnsiSupported();
+                TerminalRenderer renderer = isInteractive
+                        ? new InlineTerminalRenderer(terminal.terminal(), terminal.reader(), config.apiKey())
+                        : new PlainRunRenderer(out, err, config.apiKey());
+
+                hitlHandler.setInputReader(terminal::readLine);
+                hitlHandler.setOutputConsumer(renderer::printMessage);
+
+                ChatLoop loop = new ChatLoop(terminal, new ChatCommandParser(), agent, renderer, config, hitlHandler);
+                loop.setSafeHistory(safeHistory);
+                loop.setMemoryManager(memoryManager);
+                loop.setContextAssembler(contextAssembler);
+                loop.setCompactor(compactor);
+                loop.setGrepCodeTool(grepCodeTool);
+                loop.setProjectDirectory(projectDirectory);
+                loop.setLlmClient(client);
+                loop.setProviderRegistry(providerRegistry);
+                loop.setDiagnostics(diagnostics);
+                loop.setBrowserConnector(browserConnector);
+                loop.setSkillRegistry(skillRegistry);
+                loop.setPromptAssembler(promptAssembler);
+                loop.setMcpServerManager(mcpManager);
+
+                com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
+                    renderer.printMessage(plan.summarize());
+                    renderer.printMessage("📝 计划已生成。");
+                    renderer.printMessage("   - 回车 / y / run：按当前计划执行");
+                    renderer.printMessage("   - cancel / esc：取消本次计划");
+                    renderer.printMessage("   - 输入文本：补充要求后重新规划\n");
+                    try {
+                        String reviewInput = terminal.readLine("审阅 > ");
+                        com.xhlcli.cli.PlanReviewInputParser.Decision decision =
+                                com.xhlcli.cli.PlanReviewInputParser.parse(reviewInput);
+                        return switch (decision.type()) {
+                            case EXECUTE -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.execute();
+                            case CANCEL -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
+                            case SUPPLEMENT -> com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.supplement(decision.feedback());
+                        };
+                    } catch (Exception e) {
+                        return com.xhlcli.agent.PlanExecuteAgent.PlanReviewDecision.cancel();
+                    }
+                };
+                com.xhlcli.agent.PlanExecuteAgent planAgent = new com.xhlcli.agent.PlanExecuteAgent(
+                        client, executor, registry.definitions(), null, memoryManager, reviewHandler, out);
+                loop.setPlanAgent(planAgent);
+
+                com.xhlcli.team.TeamOrchestrator teamOrchestrator = new com.xhlcli.team.TeamOrchestrator(
+                        client, executor, registry.definitions(), memoryManager, out);
+                loop.setTeamOrchestrator(teamOrchestrator);
+
+                mcpManager.addToolsUpdatedListener(defs -> {
+                    agent.setToolDefinitions(defs);
+                    planAgent.setToolDefinitions(defs);
+                    teamOrchestrator.setToolDefinitions(defs);
+                });
+
+                terminal.bind(loop);
+                int exitCode = loop.run();
+                mcpManager.close();
+                return exitCode;
+            }
         } catch (IOException failure) {
             err.println("Unable to initialize the terminal: " + failure.getMessage());
             return 3;

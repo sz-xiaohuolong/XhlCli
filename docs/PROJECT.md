@@ -8,9 +8,9 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **Current Release**: Phase 14: Skill 与 Prompt 分层体系 (`v0.12.0`, Tag: `v0.12.0`, 2026-10-05)
-- **Next Release**: Phase 15: 终端交互产品化 (`docs/prd/phase-15-terminal-productization.md`)
-- **Quality Profile**: Comprehensive（401 项自动化测试 100% 绿灯 + 专项 Skill/Prompt 评测物证 + DoD 铁律闭环）
+- **Current Release**: Phase 15: 终端产品化与交互治理 (`v0.13.0`, Tag: `v0.13.0`, 2026-10-06)
+- **Next Release**: Phase 16: 本地与混合 Embedding 支持
+- **Quality Profile**: Comprehensive（451 项自动化测试 100% 绿灯 + Terminal Golden Set 评测物证 + DoD 铁律闭环）
 - **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行与多 Agent 协同能力。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
@@ -64,6 +64,8 @@
 | **Phase 12** MCP 扩展协议 | [phase-12](prd/phase-12-mcp.md) | [2026-09-21-phase-12](specs/2026-09-21-phase-12-mcp-design.md) | [2026-09-21-phase-12](plans/2026-09-21-phase-12-mcp.md) | [mcp-evaluation](engineering/mcp-evaluation.md) | `v0.10.0` | 已封存 |
 | **Phase 13** Web 与浏览器 | [phase-13](prd/phase-13-web-and-browser.md) | [2026-09-22-phase-13](specs/2026-09-22-phase-13-web-and-browser-design.md) | [2026-09-22-phase-13](plans/2026-09-22-phase-13-web-and-browser.md) | [web-and-browser-evaluation](engineering/web-and-browser-evaluation.md) | `v0.11.0` | 已封存 |
 | **Phase 14** Skill 与 Prompt 分层 | [phase-14](prd/phase-14-skills-and-prompts.md) | [2026-10-05-phase-14](specs/2026-10-05-phase-14-skills-and-prompts-design.md) | [2026-10-05-phase-14](plans/2026-10-05-phase-14-skills-and-prompts.md) | [skill-and-prompt-evaluation](engineering/skill-and-prompt-evaluation.md) | `v0.12.0` | 已封存 |
+| **Phase 15** 终端交互产品化 | [phase-15](prd/phase-15-terminal-productization.md) | [2026-10-06-phase-15](specs/2026-10-06-phase-15-terminal-productization-design.md) | [2026-10-06-phase-15](plans/2026-10-06-phase-15-terminal-productization.md) | [terminal-productization-evaluation](engineering/terminal-productization-evaluation.md) | `v0.13.0` | 已封存 |
+| **Phase 16** 本地与混合 Embedding | [phase-16](prd/phase-16-local-and-hybrid-embedding.md) | 待设计 | 待制定 | 待评测物证 | `v0.14.0` (规划) | 待启动 |
 
 
 ---
@@ -73,7 +75,7 @@
 | 目的 | 命令 | 备注 |
 | :--- | :--- | :--- |
 | **环境检查** | `java -version` | 必须为 Java 21+ (`export JAVA_HOME=/opt/homebrew/opt/openjdk`) |
-| **全量自动化测试** | `mvn clean test` | 366 项自动化测试（单元、集成、契约与 Golden Set） |
+| **全量自动化测试** | `mvn clean test` | 451 项自动化测试（单元、集成、契约与 Golden Set） |
 | **单测运行** | `mvn test -Dtest=<TestClass>` | 运行指定测试类 |
-| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.11.0-SNAPSHOT.jar` 可执行 Fat JAR |
-| **运行 CLI** | `java -jar target/xhlcli-0.11.0-SNAPSHOT.jar` | 启动交互式终端 Agent |
+| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.13.0-SNAPSHOT.jar` 可执行 Fat JAR |
+| **运行 CLI** | `java -jar target/xhlcli-0.13.0-SNAPSHOT.jar` | 启动交互式终端 Agent |

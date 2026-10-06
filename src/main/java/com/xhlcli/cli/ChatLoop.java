@@ -3,7 +3,8 @@ package com.xhlcli.cli;
 import com.xhlcli.agent.AgentRunner;
 import com.xhlcli.config.ChatConfig;
 import com.xhlcli.llm.CancellationToken;
-import com.xhlcli.render.PlainRunRenderer;
+import com.xhlcli.render.TerminalRenderer;
+import com.xhlcli.render.TerminalStatus;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -12,9 +13,10 @@ public final class ChatLoop {
     private final InputReader inputReader;
     private final ChatCommandParser commandParser;
     private final AgentRunner agent;
-    private final PlainRunRenderer renderer;
+    private final TerminalRenderer renderer;
     private final ChatConfig config;
     private final com.xhlcli.hitl.HitlHandler hitlHandler;
+    private com.xhlcli.cli.terminal.SafeHistory safeHistory;
     private com.xhlcli.memory.MemoryManager memoryManager;
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
@@ -26,6 +28,9 @@ public final class ChatLoop {
     private com.xhlcli.llm.LlmProviderRegistry providerRegistry;
     private com.xhlcli.llm.DiagnosticSink diagnostics;
     private com.xhlcli.browser.BrowserConnector browserConnector;
+
+    public void setSafeHistory(com.xhlcli.cli.terminal.SafeHistory safeHistory) { this.safeHistory = safeHistory; }
+    public TerminalRenderer getRenderer() { return this.renderer; }
 
     public void setMemoryManager(com.xhlcli.memory.MemoryManager manager) { this.memoryManager = manager; }
     public void setContextAssembler(com.xhlcli.context.ContextAssembler assembler) { this.contextAssembler = assembler; }
@@ -43,17 +48,17 @@ public final class ChatLoop {
 
     private void printContext() {
         if (contextAssembler != null) {
-            System.out.println("Context Window: " + contextAssembler.getBudget().getContextWindow());
-            System.out.println("Available for conversation: " + contextAssembler.getBudget().getAvailableForConversation());
+            renderer.printMessage("Context Window: " + contextAssembler.getBudget().getContextWindow());
+            renderer.printMessage("Available for conversation: " + contextAssembler.getBudget().getAvailableForConversation());
         } else {
-            System.out.println("Context manager not initialized.");
+            renderer.printMessage("Context manager not initialized.");
         }
     }
 
     private void compactHistory() {
-        System.out.println("Compacting history...");
+        renderer.printMessage("Compacting history...");
         agent.clearHistory(); // just a simplified version
-        System.out.println("History compacted.");
+        renderer.printMessage("History compacted.");
     }
 
     private void saveMemory(String input) {
@@ -61,28 +66,28 @@ public final class ChatLoop {
             String trimmed = input.trim();
             int firstSpace = trimmed.indexOf(' ');
             if (firstSpace == -1 || firstSpace == trimmed.length() - 1) {
-                System.out.println("用法: /save [--global] <记忆内容>");
+                renderer.printMessage("用法: /save [--global] <记忆内容>");
                 return;
             }
             String content = trimmed.substring(firstSpace + 1).trim();
             if (content.startsWith("--global")) {
                 String fact = content.substring("--global".length()).trim();
                 if (fact.isBlank()) {
-                    System.out.println("用法: /save --global <记忆内容>");
+                    renderer.printMessage("用法: /save --global <记忆内容>");
                     return;
                 }
                 memoryManager.saveGlobal(fact, "user");
-                System.out.println("已保存全局长期记忆: " + fact);
+                renderer.printMessage("已保存全局长期记忆: " + fact);
             } else {
                 if (content.isBlank()) {
-                    System.out.println("用法: /save <记忆内容>");
+                    renderer.printMessage("用法: /save <记忆内容>");
                     return;
                 }
                 memoryManager.saveProject(content, "user");
-                System.out.println("已保存项目长期记忆: " + content);
+                renderer.printMessage("已保存项目长期记忆: " + content);
             }
         } else {
-            System.out.println("记忆管理器未初始化。");
+            renderer.printMessage("记忆管理器未初始化。");
         }
     }
 
@@ -90,7 +95,7 @@ public final class ChatLoop {
         if (memoryManager != null) {
             String[] parts = input.trim().split("\\s+");
             if (parts.length < 2) {
-                System.out.println("用法: /memory <list|search <query>|delete <id>|clear>");
+                renderer.printMessage("用法: /memory <list|search <query>|delete <id>|clear>");
                 return;
             }
             String subcmd = parts[1].toLowerCase(java.util.Locale.ROOT);
@@ -98,47 +103,80 @@ public final class ChatLoop {
                 case "list" -> {
                     var list = memoryManager.loadAll();
                     if (list.isEmpty()) {
-                        System.out.println("当前没有保存任何长期记忆。");
+                        renderer.printMessage("当前没有保存任何长期记忆。");
                     } else {
-                        System.out.println("=== 长期记忆列表 (" + list.size() + " 条) ===");
-                        list.forEach(e -> System.out.println("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
+                        renderer.printMessage("=== 长期记忆列表 (" + list.size() + " 条) ===");
+                        list.forEach(e -> renderer.printMessage("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
                     }
                 }
                 case "search" -> {
                     if (parts.length < 3) {
-                        System.out.println("用法: /memory search <关键词>");
+                        renderer.printMessage("用法: /memory search <关键词>");
                         return;
                     }
                     String query = input.trim().substring(input.trim().indexOf(parts[2]));
                     var results = memoryManager.search(query);
                     if (results.isEmpty()) {
-                        System.out.println("未找到与 \"" + query + "\" 相关的记忆。");
+                        renderer.printMessage("未找到与 \"" + query + "\" 相关的记忆。");
                     } else {
-                        System.out.println("=== 搜索结果 (" + results.size() + " 条) ===");
-                        results.forEach(e -> System.out.println("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
+                        renderer.printMessage("=== 搜索结果 (" + results.size() + " 条) ===");
+                        results.forEach(e -> renderer.printMessage("- [" + e.id() + "] [" + e.scope() + "] " + e.content()));
                     }
                 }
                 case "delete" -> {
                     if (parts.length < 3) {
-                        System.out.println("用法: /memory delete <id>");
+                        renderer.printMessage("用法: /memory delete <id>");
                         return;
                     }
                     String id = parts[2];
                     boolean deleted = memoryManager.delete(id);
                     if (deleted) {
-                        System.out.println("已成功删除记忆 [" + id + "]。");
+                        renderer.printMessage("已成功删除记忆 [" + id + "]。");
                     } else {
-                        System.out.println("未找到 ID 为 [" + id + "] 的记忆。");
+                        renderer.printMessage("未找到 ID 为 [" + id + "] 的记忆。");
                     }
                 }
                 case "clear" -> {
                     memoryManager.clearAll();
-                    System.out.println("已清空所有长期记忆。");
+                    renderer.printMessage("已清空所有长期记忆。");
                 }
-                default -> System.out.println("未知子命令。用法: /memory <list|search <query>|delete <id>|clear>");
+                default -> renderer.printMessage("未知子命令。用法: /memory <list|search <query>|delete <id>|clear>");
             }
         } else {
-            System.out.println("记忆管理器未初始化。");
+            renderer.printMessage("记忆管理器未初始化。");
+        }
+    }
+
+    private void handleHistory(String input) {
+        if (safeHistory == null) {
+            renderer.printMessage("历史记录未初始化。");
+            return;
+        }
+        String[] parts = input.trim().split("\\s+");
+        String subcmd = parts.length > 1 ? parts[1].toLowerCase(java.util.Locale.ROOT) : "list";
+        switch (subcmd) {
+            case "list" -> {
+                int limit = 20;
+                if (parts.length > 2) {
+                    try {
+                        limit = Integer.parseInt(parts[2]);
+                    } catch (NumberFormatException ignored) {}
+                }
+                var list = safeHistory.listRecent(limit);
+                if (list.isEmpty()) {
+                    renderer.printMessage("当前没有任何历史输入记录。");
+                } else {
+                    renderer.printMessage("=== 最近输入历史 (共 " + list.size() + " 条) ===");
+                    for (int i = 0; i < list.size(); i++) {
+                        renderer.printMessage(String.format("%3d  %s", i + 1, list.get(i)));
+                    }
+                }
+            }
+            case "clear" -> {
+                safeHistory.clearAll();
+                renderer.printMessage("✅ 已清空本地历史记录（含磁盘文件与内存）。");
+            }
+            default -> renderer.printMessage("未知子命令。用法: /history [list [limit]|clear]");
         }
     }
 
@@ -240,9 +278,11 @@ public final class ChatLoop {
         if (!activeResponse.compareAndSet(null, token)) {
             throw new IllegalStateException("A response is already active");
         }
+        renderer.updateStatus(new TerminalStatus("Plan", "Executing", config.model()));
         try {
             planAgent.run(goal, renderer::accept, token);
         } finally {
+            renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }
     }
@@ -279,9 +319,11 @@ public final class ChatLoop {
         if (!activeResponse.compareAndSet(null, token)) {
             throw new IllegalStateException("A response is already active");
         }
+        renderer.updateStatus(new TerminalStatus("Team", "Collaborating", config.model()));
         try {
             teamOrchestrator.run(goal, renderer::accept, token);
         } finally {
+            renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }
     }
@@ -786,7 +828,7 @@ public final class ChatLoop {
             InputReader inputReader,
             ChatCommandParser commandParser,
             AgentRunner agent,
-            PlainRunRenderer renderer,
+            TerminalRenderer renderer,
             ChatConfig config) {
         this(inputReader, commandParser, agent, renderer, config, null);
     }
@@ -795,7 +837,7 @@ public final class ChatLoop {
             InputReader inputReader,
             ChatCommandParser commandParser,
             AgentRunner agent,
-            PlainRunRenderer renderer,
+            TerminalRenderer renderer,
             ChatConfig config,
             com.xhlcli.hitl.HitlHandler hitlHandler) {
         this.inputReader = Objects.requireNonNull(inputReader, "inputReader");
@@ -806,8 +848,19 @@ public final class ChatLoop {
         this.hitlHandler = hitlHandler;
     }
 
+    private com.xhlcli.render.TerminalExtSummary getExtensionSummary() {
+        int mcpCount = mcpServerManager != null ? mcpServerManager.listServers().size() : 0;
+        int skillCount = skillRegistry != null ? skillRegistry.listAll().size() : 0;
+        boolean browserConnected = browserConnector != null && browserConnector.session() != null
+                && browserConnector.session().mode() == com.xhlcli.browser.BrowserMode.SHARED;
+        return new com.xhlcli.render.TerminalExtSummary(mcpCount, skillCount, browserConnected);
+    }
+
     public int run() {
-        renderer.printWelcome(config.model());
+        String workspace = projectDirectory != null ? projectDirectory.toAbsolutePath().toString() : ".";
+        com.xhlcli.render.TerminalExtSummary summary = getExtensionSummary();
+        renderer.printWelcome(config.model(), "0.13.0", workspace, summary);
+        renderer.updateStatus(new TerminalStatus("REAct", "Idle", config.model(), 0, 0, summary.mcpServerCount(), summary.skillCount(), workspace));
         while (true) {
             String input;
             try {
@@ -815,7 +868,9 @@ public final class ChatLoop {
             } catch (InputInterruptedException ignored) {
                 continue;
             } catch (InputEndOfFileException ignored) {
+                renderer.updateStatus(new TerminalStatus("EXIT", "Done", config.model()));
                 renderer.printGoodbye();
+                renderer.close();
                 return 0;
             }
 
@@ -833,9 +888,12 @@ public final class ChatLoop {
                     renderer.printCleared();
                 }
                 case EXIT -> {
+                    renderer.updateStatus(new TerminalStatus("EXIT", "Done", config.model()));
                     renderer.printGoodbye();
+                    renderer.close();
                     return 0;
                 }
+                case HISTORY -> handleHistory(input);
                 case CONTEXT -> printContext();
                 case COMPACT -> compactHistory();
                 case SAVE -> saveMemory(input);
@@ -873,9 +931,11 @@ public final class ChatLoop {
         if (!activeResponse.compareAndSet(null, token)) {
             throw new IllegalStateException("A response is already active");
         }
+        renderer.updateStatus(new TerminalStatus("ReAct", "Thinking", config.model()));
         try {
             agent.run(input, renderer::accept, token);
         } finally {
+            renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }
     }

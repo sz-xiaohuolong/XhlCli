@@ -11,7 +11,7 @@ import java.io.PrintStream;
 import java.util.Objects;
 
 /** Renders safe, human-readable RunEvent timelines without terminal escape sequences. */
-public final class PlainRunRenderer {
+public final class PlainRunRenderer implements TerminalRenderer {
     private static final int SUMMARY_LIMIT = 200;
 
     private final PrintStream out;
@@ -49,16 +49,33 @@ public final class PlainRunRenderer {
         }
     }
 
+    @Override
     public synchronized void printWelcome(String model) {
         out.printf("XhlCLI Phase 02 — ReAct demo agent (%s)%n", safe(model));
         out.println("Type /help for commands.");
     }
 
+    @Override
+    public synchronized void printWelcome(String model, String version, String workspace, TerminalExtSummary summary) {
+        out.printf("XhlCLI v%s (%s)%n", safe(version), safe(model));
+        out.printf("Workspace: %s%n", safe(workspace));
+        if (summary != null && (summary.mcpServerCount() > 0 || summary.skillCount() > 0 || summary.browserConnected())) {
+            out.printf("Extensions: %d MCP server(s), %d skill(s), browser: %s%n",
+                    summary.mcpServerCount(), summary.skillCount(), summary.browserConnected() ? "connected" : "disconnected");
+        }
+        out.println("Quick tips:");
+        out.println("  1. Type natural language to chat and complete tasks");
+        out.println("  2. Type /help to see all available commands");
+        out.println("  3. Type /model to view or switch AI models");
+    }
+
+    @Override
     public synchronized void printHelp() {
         out.println("Commands:");
         out.println("  /help     Show this help");
         out.println("  /config   Show non-secret configuration");
         out.println("  /clear    Clear conversation history");
+        out.println("  /history [list|clear]  View or clear input history");
         out.println("  /index [status|clean]  Build, check, or clean codebase index");
         out.println("  /search <query>        Semantic & hybrid code search");
         out.println("  /search-text <pattern> Exact regex/text code search");
@@ -73,6 +90,7 @@ public final class PlainRunRenderer {
         out.println("  Ctrl+C    Cancel the active run");
     }
 
+    @Override
     public synchronized void printConfig(ChatConfig config) {
         String keyState = config.hasApiKey() ? "configured (" + config.source(ConfigKey.API_KEY) + ")" : "missing";
         out.println("apiKey=" + keyState);
@@ -88,13 +106,32 @@ public final class PlainRunRenderer {
         out.println("logLevel=" + config.logLevel());
     }
 
+    @Override
     public synchronized void printCleared() { out.println("Conversation cleared."); }
+    @Override
     public synchronized void printGoodbye() { out.println("Goodbye."); }
-    public synchronized void printMessage(String message) { out.println(message); }
+    @Override
+    public synchronized void printMessage(String message) { out.println(safe(message)); }
 
+    @Override
+    public synchronized void printErrorMessage(String message) {
+        err.println("Error: " + safe(message));
+    }
+
+    @Override
     public synchronized void printUnknownCommand(String command) {
         err.println("Unknown command: " + safe(command));
         err.println("Type /help for available commands.");
+    }
+
+    @Override
+    public synchronized void updateStatus(TerminalStatus status) {
+        // PlainRunRenderer does not display dynamic status bar in CI / redirected mode
+    }
+
+    @Override
+    public synchronized void close() {
+        closeAssistantLine();
     }
 
     private void renderDelta(String text) {

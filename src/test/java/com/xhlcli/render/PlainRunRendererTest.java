@@ -130,6 +130,43 @@ class PlainRunRendererTest {
         }
     }
 
+    @Test
+    void rendersFullWelcomeScreenWithExtensionSummary() {
+        Streams streams = new Streams("top-secret-key");
+        TerminalExtSummary summary = new TerminalExtSummary(2, 4, true);
+
+        streams.renderer.printWelcome("deepseek-chat", "0.13.0", "/test/workspace", summary);
+
+        String rendered = streams.out();
+        assertTrue(rendered.contains("XhlCLI v0.13.0 (deepseek-chat)"));
+        assertTrue(rendered.contains("Workspace: /test/workspace"));
+        assertTrue(rendered.contains("Extensions: 2 MCP server(s), 4 skill(s), browser: connected"));
+        assertTrue(rendered.contains("Quick tips:"));
+        assertFalse(rendered.contains("\u001B["));
+    }
+
+    @Test
+    void rendersErrorMessageToStandardError() {
+        Streams streams = new Streams("top-secret-key");
+
+        streams.renderer.printErrorMessage("File not found: test.txt");
+
+        String err = streams.err();
+        assertTrue(err.contains("Error: File not found: test.txt"));
+        assertFalse(err.contains("\u001B["));
+    }
+
+    @Test
+    void updateStatusNoOpDoesNotEmitAnsi() {
+        Streams streams = new Streams("top-secret-key");
+        TerminalStatus status = TerminalStatus.initial("deepseek-chat", "/workspace");
+
+        streams.renderer.updateStatus(status);
+
+        assertEquals("", streams.out());
+        assertEquals("", streams.err());
+    }
+
     private static RunEvent.Metadata metadata(long sequence) {
         return metadata("run-1", sequence);
     }

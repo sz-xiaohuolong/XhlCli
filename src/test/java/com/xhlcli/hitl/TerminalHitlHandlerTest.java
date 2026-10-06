@@ -97,4 +97,26 @@ class TerminalHitlHandlerTest {
 
         assertTrue(result.isRejected());
     }
+
+    @Test
+    void approvesWithCustomHitlInputReaderAndConsumer() {
+        java.util.List<String> messages = new java.util.ArrayList<>();
+        TerminalHitlHandler handler = new TerminalHitlHandler(true, prompt -> "y", messages::add);
+
+        ApprovalResult result = handler.requestApproval(ApprovalRequest.of("test_tool", "{}"));
+        assertTrue(result.isApproved());
+        assertTrue(messages.stream().anyMatch(m -> m.contains("已批准")));
+    }
+
+    @Test
+    void rejectsWhenHitlInputReaderThrowsException() {
+        java.util.List<String> messages = new java.util.ArrayList<>();
+        TerminalHitlHandler handler = new TerminalHitlHandler(true, prompt -> {
+            throw new java.io.IOException("Terminal interrupted");
+        }, messages::add);
+
+        ApprovalResult result = handler.requestApproval(ApprovalRequest.of("test_tool", "{}"));
+        assertTrue(result.isRejected());
+        assertTrue(messages.stream().anyMatch(m -> m.contains("读取输入失败或被中断")));
+    }
 }
