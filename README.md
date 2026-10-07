@@ -6,7 +6,7 @@ XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目
 > **一键安装**: `curl -fsSL https://raw.githubusercontent.com/sz-xiaohuolong/XhlCli/main/install.sh | bash`  
 > **静态官网**: 源码位于 `website/` 目录，支持 Vercel 零配置秒级导入部署
 
-![XhlCLI Phase 01 真实 DeepSeek 会话演示](docs/assets/xhlcli-phase-01-demo.gif)
+![XhlCLI v1.0.0 终端多智能体协作与架构演示](docs/assets/xhlcli-v1.0.0-demo.png)
 
 ## 当前能力
 
@@ -34,20 +34,54 @@ XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目
 
 ## 配置 API Key
 
-在仓库根目录执行：
+XhlCLI 支持三种灵活且安全的 API Key 配置方式，优先级为：**进程环境变量 > 项目 `.env` > 全局配置 `~/.xhlcli/config.json`**。
+
+### 方式 1：全局用户配置（最推荐，对齐 Claude Code）
+在用户家目录的 `~/.xhlcli/config.json` 中配置（若文件不存在可直接创建）：
+
+```json
+{
+  "apiKey": "replace_with_your_deepseek_api_key",
+  "openaiApiKey": "sk-...",
+  "anthropicApiKey": "sk-ant-..."
+}
+```
+
+或者使用 Provider 嵌套映射风格：
+```json
+{
+  "providers": {
+    "deepseek": {
+      "apiKey": "replace_with_your_deepseek_api_key"
+    },
+    "openai": {
+      "apiKey": "sk-..."
+    }
+  }
+}
+```
+
+建议限制配置文件权限：`chmod 600 ~/.xhlcli/config.json`。
+
+### 方式 2：项目工作区 `.env`
+在具体工程仓库根目录执行：
 
 ```bash
 cp .env.example .env
 chmod 600 .env
 ```
 
-编辑 `.env`，只替换示例值：
-
+编辑 `.env`：
 ```dotenv
 DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 ```
 
-`.env` 已被 Git 忽略。不要把 Key 粘贴到 Issue、聊天记录、截图或终端录屏中，也不要使用 `--api-key` 参数。
+### 方式 3：进程环境变量
+```bash
+export DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
+```
+
+> **安全提示**：不要把 Key 粘贴到 Issue、公开聊天记录、截图或终端录屏中；不要通过命令行 flag 传 Key。交互中使用 `/config` 只会显示非敏感配置和 Key 的来源（例如 `configured (USER_CONFIG)`），不会显示 Key 明文。
 
 默认配置：
 
@@ -63,7 +97,7 @@ DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 | Agent overall timeout | 600 秒 |
 | Log level | `WARN` |
 
-非敏感配置优先级：命令行参数 > 进程环境变量 > 项目 `.env` > `~/.xhlcli/config.json` > 默认值。API Key 只从进程环境变量或项目 `.env` 读取，环境变量优先；JSON 配置中的凭据字段会被拒绝。
+配置解析优先级：命令行参数 > 进程环境变量 (`ENVIRONMENT`) > 项目 `.env` (`DOT_ENV`) > `~/.xhlcli/config.json` (`USER_CONFIG`) > 默认值。
 
 ## 构建与运行
 
