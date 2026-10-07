@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # XhlCLI Official Quick Installer
-# https://github.com/agent-cli/xhlcli
+# https://github.com/sz-xiaohuolong/XhlCli
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ XHLCLI_VERSION="1.0.0"
 INSTALL_DIR="${HOME}/.xhlcli"
 BIN_DIR="${INSTALL_DIR}/bin"
 JAR_NAME="xhlcli.jar"
-REPO_URL="https://github.com/agent-cli/xhlcli"
+REPO_URL="https://github.com/sz-xiaohuolong/XhlCli"
 
 # Styling
 BOLD="\033[1m"

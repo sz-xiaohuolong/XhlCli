@@ -2,8 +2,9 @@
 
 XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目遵循本地优先、极简确定性与高弹性工程理念。现已完整交付全量 18 个演进阶段并正式发布 **`v1.0.0`**，提供现代化静态官网、交互式终端演练与一键安装脚本。
 
-> **官方主页**: [https://xhlcli.org](https://xhlcli.org) (静态部署位于 `website/` 目录，支持 Vercel 零配置秒级上线)  
-> **一键安装**: `curl -fsSL https://xhlcli.org/install.sh | bash`
+> **GitHub 仓库**: [https://github.com/sz-xiaohuolong/XhlCli](https://github.com/sz-xiaohuolong/XhlCli)  
+> **一键安装**: `curl -fsSL https://raw.githubusercontent.com/sz-xiaohuolong/XhlCli/main/install.sh | bash`  
+> **静态官网**: 源码位于 `website/` 目录，支持 Vercel 零配置秒级导入部署
 
 ![XhlCLI Phase 01 真实 DeepSeek 会话演示](docs/assets/xhlcli-phase-01-demo.gif)
 

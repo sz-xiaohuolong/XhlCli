@@ -181,10 +181,10 @@
   const installCopyBtn = document.getElementById('installCopyBtn');
 
   const INSTALL_COMMANDS = {
-    curl: 'curl -fsSL https://xhlcli.org/install.sh | bash',
-    brew: 'brew install xhlcli/tap/xhlcli',
-    powershell: 'iwr -useb https://xhlcli.org/install.ps1 | iex',
-    source: 'git clone https://github.com/agent-cli/xhlcli.git && cd xhlcli && ./mvnw clean package -DskipTests'
+    curl: 'curl -fsSL https://raw.githubusercontent.com/sz-xiaohuolong/XhlCli/main/install.sh | bash',
+    brew: 'brew install openjdk@21 && curl -fsSL https://raw.githubusercontent.com/sz-xiaohuolong/XhlCli/main/install.sh | bash',
+    powershell: 'Invoke-WebRequest -Uri https://raw.githubusercontent.com/sz-xiaohuolong/XhlCli/main/install.sh -OutFile install.sh; bash install.sh',
+    source: 'git clone https://github.com/sz-xiaohuolong/XhlCli.git && cd XhlCli && ./mvnw clean package -DskipTests'
   };
 
   installTabs.forEach(tab => {
