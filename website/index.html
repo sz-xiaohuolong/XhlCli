@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XhlCLI - 极简、确定性、高弹性的自主编程 Agent CLI</title>
+  <meta name="description" content="XhlCLI 是为专业研发打造的自主编程 Agent 终端。具备 Multi-Agent 专职协作、SideGit 物理隔离快照还原、后台持久化任务队列、多模态视觉防御护栏与四层 Token 压缩引擎。">
+  <meta name="theme-color" content="#090a0f">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/terminal.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header class="header">
+    <div class="container nav">
+      <div class="logo-group">
+        <svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="22" fill="#12151E" stroke="#1E2332" stroke-width="2"/>
+          <path d="M24 8C24 8 16 16 16 26C16 31.5 20.5 36 24 36C27.5 36 32 31.5 32 26C32 16 24 8 24 8Z" fill="#F97316"/>
+          <path d="M24 16C24 16 19 21 19 27C19 30.5 21.5 33 24 33C26.5 33 29 30.5 29 27C29 21 24 16 24 16Z" fill="#FDBA74"/>
+          <path d="M24 24C24 24 22 26.5 22 28.5C22 30 23 31 24 31C25 31 26 30 26 28.5C26 26.5 24 24 24 24Z" fill="#FFFFFF"/>
+        </svg>
+        <span>XhlCLI</span>
+        <span class="badge-version">v1.0.0</span>
+      </div>
+
+      <nav class="nav-links">
+        <a href="#terminal" class="nav-link">交互演练</a>
+        <a href="#features" class="nav-link">核心架构</a>
+        <a href="#commands" class="nav-link">指令速查</a>
+        <a href="#proofs" class="nav-link">质量指标</a>
+        <a href="https://github.com/agent-cli/xhlcli" target="_blank" rel="noopener" class="nav-link">文档</a>
+      </nav>
+
+      <div class="nav-actions">
+        <a href="https://github.com/agent-cli/xhlcli" target="_blank" rel="noopener" class="btn-github">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="container">
+      <h1 class="hero-title">
+        为专业工程师打造的<br>自主编程 Agent CLI
+      </h1>
+      <p class="hero-subtitle">
+        极简、确定性、高弹性。集成 Multi-Agent 专职协作管线、SideGit 物理隔离快照还原、后台持久化任务引擎与视觉防御护栏。
+      </p>
+
+      <!-- Quick Install Bar -->
+      <div class="install-widget">
+        <div class="install-tabs">
+          <button class="install-tab active" data-install="curl">macOS / Linux</button>
+          <button class="install-tab" data-install="brew">Homebrew</button>
+          <button class="install-tab" data-install="powershell">Windows</button>
+          <button class="install-tab" data-install="source">源码构建</button>
+        </div>
+        <div class="install-cmd-row">
+          <div class="cmd-text">
+            <span class="cmd-prompt">$</span><span id="installCommandText">curl -fsSL https://xhlcli.org/install.sh | bash</span>
+          </div>
+          <button class="btn-copy" id="installCopyBtn" title="复制安装命令">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>复制</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-cta-group">
+        <a href="#terminal" class="btn-primary">
+          <span>交互演练体验</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+        <a href="#features" class="btn-secondary">
+          <span>架构全景</span>
+        </a>
+      </div>
+
+      <!-- Live Terminal Simulator (Hero Core) -->
+      <div class="terminal-wrapper" id="terminal">
+        <div class="terminal-titlebar">
+          <div class="terminal-controls">
+            <span class="t-dot t-dot-red"></span>
+            <span class="t-dot t-dot-yellow"></span>
+            <span class="t-dot t-dot-green"></span>
+          </div>
+          <div class="terminal-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>xhlcli session - JLine 4 Interactive Terminal</span>
+          </div>
+          <button class="btn-replay" id="termReplayBtn" title="重新播放打字动效">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"></polyline>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+            <span>重播</span>
+          </button>
+        </div>
+
+        <!-- Scenario Switcher -->
+        <div class="terminal-scenarios">
+          <button class="term-tab active" data-scenario="team">
+            <span>/team 多智能体流水线</span>
+            <span class="scenario-tag">Phase 15</span>
+          </button>
+          <button class="term-tab" data-scenario="restore">
+            <span>/restore 隔离快照恢复</span>
+            <span class="scenario-tag">Phase 16</span>
+          </button>
+          <button class="term-tab" data-scenario="vision">
+            <span>@image 视觉防御护栏</span>
+            <span class="scenario-tag">Phase 17B</span>
+          </button>
+          <button class="term-tab" data-scenario="task">
+            <span>/task 后台持久化与 API</span>
+            <span class="scenario-tag">Phase 17A</span>
+          </button>
+        </div>
+
+        <!-- Viewport -->
+        <div class="terminal-screen" id="terminalBody">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+
+        <!-- JLine 4 Dynamic Status Bar -->
+        <div class="jline-status-bar">
+          <div class="status-left">
+            <span>Mode: <span class="status-badge badge-team" id="termBadge">TEAM</span></span>
+            <span>Status: <span class="status-val" id="termStatus">Collaborating</span></span>
+            <span>Model: <span class="status-val" id="termModel">claude-3-5-sonnet</span></span>
+          </div>
+          <div class="status-right">
+            <span>Tokens: <span class="status-val" id="termTokens">4,210 tokens</span></span>
+            <span>Subsystems: <span class="status-val" id="termExt">MCP: 3 | Skills: 8</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bento Architecture Grid -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">为苛刻的工程质量与确定性而生</h2>
+        <p class="section-desc">
+          告别黑盒与失控变更。XhlCLI 将编译原理、图论调度与 Git 隔离深度融合于 Java 核心。
+        </p>
+      </div>
+
+      <div class="bento-grid">
+        <!-- Bento 1: Multi-Agent Team (Span 2) -->
+        <div class="bento-card col-span-2">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <h3 class="bento-title">Multi-Agent 专职协作管线</h3>
+          <p class="bento-text">
+            采用标准 1+2+1 专职架构（Planner 规划师、有界并发 Workers 编码员、专职独立 Reviewer 审查员）。基于 Kahn 拓扑排序算法生成无环任务批次，确保依赖前置就绪与严格质量门禁。
+          </p>
+          <div class="code-slice">
+<span class="cm">// TeamOrchestrator.java - 有界拓扑批次调度</span>
+<span class="kw">List</span>&lt;TaskBatch&gt; batches = dagPlanner.<span class="fn">planBatches</span>(tasks);
+<span class="kw">for</span> (TaskBatch batch : batches) {
+    batch.<span class="fn">executeParallel</span>(workerPool, <span class="kw">maxConcurrency</span> = <span class="str">2</span>);
+}
+ReviewVerdict verdict = reviewer.<span class="fn">audit</span>(handoffPacket);
+<span class="kw">if</span> (verdict.<span class="fn">isApproved</span>()) workspace.<span class="fn">commitAtomically</span>();
+          </div>
+        </div>
+
+        <!-- Bento 2: SideGit Snapshot -->
+        <div class="bento-card">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+              <path d="M12 7v5l4 2"></path>
+            </svg>
+          </div>
+          <h3 class="bento-title">SideGit 隔离保护快照</h3>
+          <p class="bento-text">
+            在 <code style="color:var(--flame)">.xhlcli/snapshots.git</code> 独立裸仓库中物理存储每轮变更，纯 Java JGit 引擎驱动。误删、编译破坏毫秒级原子回滚，主仓库 Git 目录 100% 零污染。
+          </p>
+          <div class="code-slice">
+<span class="cm">// 物理隔离与纯内存还原</span>
+SnapshotRef ref = sideGit.<span class="fn">createPreTurnSnapshot</span>();
+<span class="cm">// 发生误删或编译错误时</span>
+snapshotService.<span class="fn">revertTo</span>(ref.<span class="fn">getCommitId</span>());
+<span class="cm">// HEAD / index 原样物理恢复</span>
+          </div>
+        </div>
+
+        <!-- Bento 3: Durable Task Manager -->
+        <div class="bento-card">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <h3 class="bento-title">后台持久任务与 Runtime API</h3>
+          <p class="bento-text">
+            重型任务与跨模块扫描放入 SQLite 持久队列。集成本地高安全 127.0.0.1 HTTP/SSE 服务，支持断网重连、断点恢复与精准游标事件回放。
+          </p>
+          <div class="code-slice">
+<span class="cm">// GET /v1/threads/{id}/events?after=42</span>
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+
+data: {<span class="str">"cursor"</span>: 43, <span class="str">"type"</span>: <span class="str">"TaskProgress"</span>}
+          </div>
+        </div>
+
+        <!-- Bento 4: Vision Guardrails (Span 2) -->
+        <div class="bento-card col-span-2">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+          </div>
+          <h3 class="bento-title">多模态预处理与视觉防御护栏</h3>
+          <p class="bento-text">
+            内置智能图像预处理管线：Alpha Flatten 纯白底色合成消除穿透；Bicubic 双三次插值保真缩放；注入真实比例坐标元信息。当目标 Provider 为纯文本模型（如 DeepSeek-V3）时，护栏自动剥离图像数据并优雅降级，杜绝 400 Bad Request 崩溃。
+          </p>
+          <div class="code-slice">
+<span class="cm">// ImageProcessor.java - 透明通道消除与等比重采样</span>
+BufferedImage flattened = <span class="fn">flattenAlphaToWhite</span>(rawImage);
+BufferedImage scaled = <span class="fn">resizeBicubic</span>(flattened, <span class="str">2000</span>, <span class="str">2000</span>);
+<span class="cm">// 视觉护栏拦截并保护纯文本 Provider</span>
+<span class="kw">if</span> (!modelConfig.<span class="fn">isSupportsVision</span>()) {
+    request.<span class="fn">degradeToTextSummary</span>(metadata); <span class="cm">// 杜绝 API 400 崩溃</span>
+}
+          </div>
+        </div>
+
+        <!-- Bento 5: 4-Tier Token Budget -->
+        <div class="bento-card">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <h3 class="bento-title">四层渐进式 Token 预算</h3>
+          <p class="bento-text">
+            系统分区配额管理 + AST 语义代码剪枝 + LRU 读写缓存 + 滑动窗口语义摘要。长达数十轮代码重构仍能保持上下文紧凑，精准命中大模型注意力区间。
+          </p>
+        </div>
+
+        <!-- Bento 6: Native & Fast JVM -->
+        <div class="bento-card">
+          <div class="bento-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <h3 class="bento-title">毫秒级极速响应与零外部依赖</h3>
+          <p class="bento-text">
+            基于标准 Java 21 与 GraalVM 设计，内置单文件 Fat JAR 或原生二进制分发。无需预装 Python、Node.js 运行时或重型容器，开箱即用。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Command Cheat Sheet -->
+  <section class="section command-section" id="commands">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">全量指令交互速查</h2>
+        <p class="section-desc">
+          覆盖 18 个演进阶段的生产级命令集合。支持分类过滤、实时关键字模糊检索与一键复制。
+        </p>
+      </div>
+
+      <div class="command-filter-bar">
+        <div class="filter-pills">
+          <button class="cheat-filter-btn active" data-category="all">全部指令</button>
+          <button class="cheat-filter-btn" data-category="team">多智能体 (/team)</button>
+          <button class="cheat-filter-btn" data-category="snapshot">快照与回滚 (/restore)</button>
+          <button class="cheat-filter-btn" data-category="runtime">后台任务 (/task)</button>
+          <button class="cheat-filter-btn" data-category="vision">多模态与图片 (@image)</button>
+          <button class="cheat-filter-btn" data-category="config">模型与会话管理</button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="cheat-count-badge" id="cheatCountBadge">显示 20 / 20 个指令</span>
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="search-input" id="cheatSearch" placeholder="搜索指令名、描述或示例..." autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="command-table-wrap">
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th style="width: 26%;">指令语法</th>
+              <th style="width: 38%;">功能说明</th>
+              <th style="width: 24%;">使用示例</th>
+              <th style="width: 12%;">演进阶段</th>
+            </tr>
+          </thead>
+          <tbody id="cheatTableBody">
+            <!-- Dynamic rows rendered by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Proofs & Metrics -->
+  <section class="section" id="proofs">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">严密公证的工程测试质量</h2>
+        <p class="section-desc">
+          我们对每一行代码施加严格的自动化回归验证。绝不凭感觉编码，绝不妥协鲁棒性。
+        </p>
+      </div>
+
+      <div class="proofs-grid">
+        <div class="proof-card">
+          <div class="proof-val">522+</div>
+          <div class="proof-label">自动化单元与端到端测试用例</div>
+        </div>
+        <div class="proof-card">
+          <div class="proof-val">100%</div>
+          <div class="proof-label">全量回归套件绿灯通过率</div>
+        </div>
+        <div class="proof-card">
+          <div class="proof-val">0</div>
+          <div class="proof-label">宿主 Git 仓库物理污染断言</div>
+        </div>
+        <div class="proof-card">
+          <div class="proof-val">18</div>
+          <div class="proof-label">标准化技术规约与演进阶段全交付</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo-group">
+          <svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="22" fill="#12151E" stroke="#1E2332" stroke-width="2"/>
+            <path d="M24 8C24 8 16 16 16 26C16 31.5 20.5 36 24 36C27.5 36 32 31.5 32 26C32 16 24 8 24 8Z" fill="#F97316"/>
+            <path d="M24 16C24 16 19 21 19 27C19 30.5 21.5 33 24 33C26.5 33 29 30.5 29 27C29 21 24 16 24 16Z" fill="#FDBA74"/>
+          </svg>
+          <span style="font-weight:700;">XhlCLI</span>
+        </div>
+
+        <nav class="footer-nav">
+          <a href="#terminal">交互演练</a>
+          <a href="#features">核心架构</a>
+          <a href="#commands">指令速查</a>
+          <a href="#proofs">测试指标</a>
+          <a href="https://github.com/agent-cli/xhlcli" target="_blank" rel="noopener">GitHub 仓库</a>
+        </nav>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2026 XhlCLI Team. Distributed under Apache 2.0 License.</div>
+        <div>Built for Autonomous Software Engineering.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/terminal-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

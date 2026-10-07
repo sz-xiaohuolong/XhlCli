@@ -14,7 +14,7 @@ public interface TerminalRenderer extends AutoCloseable {
 
     /** 打印基础欢迎信息（向后兼容） */
     default void printWelcome(String model) {
-        printWelcome(model, "0.13.0", ".", TerminalExtSummary.empty());
+        printWelcome(model, "1.0.0", ".", TerminalExtSummary.empty());
     }
 
     /** 打印产品首屏信息（含版本、工作区和扩展状态摘要） */

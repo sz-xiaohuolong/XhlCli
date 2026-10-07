@@ -1,6 +1,9 @@
 # XhlCLI
 
-XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 17 已完整交付后台持久任务/Localhost Runtime API 与图片多模态上下文预处理/视觉防御护栏。
+XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目遵循本地优先、极简确定性与高弹性工程理念。现已完整交付全量 18 个演进阶段并正式发布 **`v1.0.0`**，提供现代化静态官网、交互式终端演练与一键安装脚本。
+
+> **官方主页**: [https://xhlcli.org](https://xhlcli.org) (静态部署位于 `website/` 目录，支持 Vercel 零配置秒级上线)  
+> **一键安装**: `curl -fsSL https://xhlcli.org/install.sh | bash`
 
 ![XhlCLI Phase 01 真实 DeepSeek 会话演示](docs/assets/xhlcli-phase-01-demo.gif)
 
@@ -64,22 +67,22 @@ DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 ## 构建与运行
 
 ```bash
-./mvnw clean verify
-java -jar target/xhlcli-0.15.0-SNAPSHOT.jar
+./mvnw clean package -DskipTests
+java -jar target/xhlcli-1.0.0.jar
 ```
 
 如果 macOS 同时安装了多个 JDK：
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-./mvnw clean verify
+./mvnw clean package -DskipTests
 ```
 
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-0.15.1-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.15.1-SNAPSHOT.jar --version
+java -jar target/xhlcli-1.0.0.jar --help
+java -jar target/xhlcli-1.0.0.jar --version
 ```
 
 可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
@@ -125,6 +128,8 @@ java -jar target/xhlcli-0.15.1-SNAPSHOT.jar --version
 - [实施路线任务清单索引 (Plans)](docs/plans/README.md)
 - [立项需求研究](docs/RESEARCH.md)
 - [授权源码采用地图](docs/engineering/source-adoption-map.md)
+- [Phase 18 静态官网与开源发布评测报告](docs/engineering/release-and-website-evaluation.md)
+- [Phase 17B 图片多模态与视觉防御护栏评测报告](docs/engineering/multimodal-evaluation.md)
 - [Phase 17A 后台任务与 Runtime API 评测报告](docs/engineering/runtime-and-task-evaluation.md)
 - [Phase 16 隔离快照与版本恢复评测报告](docs/engineering/snapshot-and-recovery-evaluation.md)
 - [Phase 15 终端产品化与交互治理评测报告](docs/engineering/terminal-productization-evaluation.md)

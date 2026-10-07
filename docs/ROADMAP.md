@@ -21,7 +21,7 @@
 | P2 | [Phase 15](prd/phase-15-terminal-productization.md) | 已交付（2026-10-06，v0.13.0） | 终端产品化与交互治理（JLine 4 动态状态栏、双模渲染抽象、Markdown 代码框与表格对齐、Git Diff 着色、SafeHistory 与 Tab 补全、HITL 恢复与 `/history`） |
 | P2 | [Phase 16](prd/phase-16-lsp-and-snapshots.md) | 已交付（2026-10-07，v0.14.0） | 隔离快照与版本恢复（JGit 纯 Java 隔离快照、零宿主 Git 污染、多轮版本精确还原、保护快照、自愈工具 `revert_turn` 与 `/snapshot` `/restore`） |
 | P2 | [Phase 17](prd/phase-17-runtime-and-multimodal.md) | 已交付（2026-10-07，v0.15.1） | Runtime 与多模态（Phase 17A: SQLite 后台持久任务、租约恢复、本地环回 API 与 SSE 游标流；Phase 17B: 图片多模态上下文预处理、Alpha Flatten、缩放压缩、剪贴板抓图与视觉防御护栏） |
-| P2 | [Phase 18](prd/phase-18-open-source-release.md) | 规划中 | 开源发行与发布工程 |
+| P2 | [Phase 18](prd/phase-18-open-source-release.md) | 已交付（2026-10-07，v1.0.0） | 开源发行与发布工程（Impeccable 静态官网、交互式终端模拟器、指令速查表、Vercel 部署配置、跨平台 install.sh 脚本与 1.0.0 正式发版） |
 
 ## 状态定义
 

@@ -74,7 +74,7 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
 
     @Override
     public synchronized void printWelcome(String model) {
-        printWelcome(model, "0.13.0", ".", TerminalExtSummary.empty());
+        printWelcome(model, "1.0.0", ".", TerminalExtSummary.empty());
     }
 
     @Override

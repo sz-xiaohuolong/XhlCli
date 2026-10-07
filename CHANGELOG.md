@@ -2,6 +2,34 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.0.0] - 2026-10-07
+
+### Added
+- **开源发布治理与现代化静态官网（Open Source Release & Impeccable Website）** (Phase 18):
+  - **现代化静态官网 (`website/`)**：
+    - 严格遵循 `/impeccable` 设计规约（Persuade 模式、Craft Floor 零容忍禁忌：无 kicker、无渐变字、无劣质卡片堆砌、无系统 Emoji、真实代码切片、浏览器表面主题化）；
+    - 深色工程师高保真调色板，包含深沉底色、龙焰橘（#f97316）品牌色与极简细滚动条/Selection 定制；
+    - 异构 Bento Grid 架构矩阵，覆盖 Multi-Agent 协作管线、SideGit 物理隔离快照还原、后台持久任务与 Runtime API、多模态视觉防御护栏、四层 Token 预算与零延迟极速 JVM。
+  - **交互式终端模拟器 (Terminal Simulator)**：
+    - 高保真复刻 JLine 4 动态终端界面、macOS 标题栏与实时动态状态栏；
+    - 预置 4 大真实场景：`/team`（Kahn 拓扑排序与并发 Worker 审查）、`/restore`（SideGit 误删秒级还原）、`@image`（Alpha 白底平铺与纯文本模型防御降级）、`/task`（后台 SQLite 队列与 SSE 游标流）；
+    - 支持逐行拟真打字动效、一键「重播」与终端交互式场景切换。
+  - **交互式指令速查表 (Interactive Cheat Sheet)**：
+    - 涵盖全部 18 个演进阶段的 20 项生产级指令；
+    - 实时关键词模糊检索与类别筛选（全部、多智能体、快照与回滚、后台与Runtime、多模态、会话与模型）；
+    - 指令行内一键快速复制并联动底部平滑 Toast 提示。
+  - **Vercel 零配置秒级部署**：
+    - 提供 `website/vercel.json` 与根目录 `vercel.json`；
+    - 纯原生 HTML5/CSS3/Vanilla JS，零 npm 依赖与零服务端负担，一键直连 Vercel 静态托管或本地双击即用。
+  - **开源跨平台一键安装脚本 (`install.sh`)**：
+    - 自动系统探测（macOS/Linux 及 x86_64/arm64 架构）；
+    - Java 21+ 运行时就绪校验与安装指导；
+    - 自动包装并生成 `~/.xhlcli/bin/xhlcli` 启动器与 PATH 环境变量提示。
+  - **全量质量回归与工程评测**：
+    - 产出 Phase 18 评测报告 `docs/engineering/release-and-website-evaluation.md`；
+    - 522 项自动化单测与集成测试 100% 绿灯通过；
+    - 正式发布 `v1.0.0`。
+
 ## [0.15.1] - 2026-10-07
 
 ### Added
