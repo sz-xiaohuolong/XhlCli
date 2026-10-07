@@ -8,10 +8,10 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **Current Release**: Phase 15: 终端产品化与交互治理 (`v0.13.0`, Tag: `v0.13.0`, 2026-10-06)
-- **Next Release**: Phase 16: 本地与混合 Embedding 支持
-- **Quality Profile**: Comprehensive（451 项自动化测试 100% 绿灯 + Terminal Golden Set 评测物证 + DoD 铁律闭环）
-- **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行与多 Agent 协同能力。
+- **Current Release**: Phase 16: 隔离快照与版本恢复 (`v0.14.0`, Tag: `v0.14.0`, 2026-10-07)
+- **Next Release**: Phase 17: AST 语法诊断与轻量校验 (`v0.15.0`, 规划中)
+- **Quality Profile**: Comprehensive（475 项自动化测试 100% 绿灯 + Side-History Snapshot Golden Set 评测物证 + DoD 铁律闭环）
+- **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行、多 Agent 协同与 Side-History 隔离快照恢复能力。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
 ---
@@ -26,7 +26,7 @@
 | :--- | :--- | :--- |
 | **Agent 行为准则与入口** | [`AGENTS.md`](../AGENTS.md) | Agent 长期行为规则、事实优先级、开发流程与阶段交付铁律 |
 | **项目定位与资产映射** | [`docs/PROJECT.md`](PROJECT.md) | 当前定位、Release 状态、文档地图与追溯索引 |
-| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 13 基线) |
+| **真实架构事实源** | [`docs/TECH_DESIGN.md`](TECH_DESIGN.md) | 描述由当前代码和测试核验的真实系统架构 (Phase 16 基线) |
 | **总览需求与边界** | [`docs/PRD.md`](PRD.md) | 总体产品定位、能力矩阵与跨阶段规划 |
 | **路线图与交付状态** | [`docs/ROADMAP.md`](ROADMAP.md) | 全阶段（Phase 00 ~ 18）交付状态、交付日期与版本履历 |
 | **技术预研与竞品分析** | [`docs/RESEARCH.md`](RESEARCH.md) | 竞品分析 (Claude Code, Cline 等) 与关键技术选型 |
@@ -65,7 +65,7 @@
 | **Phase 13** Web 与浏览器 | [phase-13](prd/phase-13-web-and-browser.md) | [2026-09-22-phase-13](specs/2026-09-22-phase-13-web-and-browser-design.md) | [2026-09-22-phase-13](plans/2026-09-22-phase-13-web-and-browser.md) | [web-and-browser-evaluation](engineering/web-and-browser-evaluation.md) | `v0.11.0` | 已封存 |
 | **Phase 14** Skill 与 Prompt 分层 | [phase-14](prd/phase-14-skills-and-prompts.md) | [2026-10-05-phase-14](specs/2026-10-05-phase-14-skills-and-prompts-design.md) | [2026-10-05-phase-14](plans/2026-10-05-phase-14-skills-and-prompts.md) | [skill-and-prompt-evaluation](engineering/skill-and-prompt-evaluation.md) | `v0.12.0` | 已封存 |
 | **Phase 15** 终端交互产品化 | [phase-15](prd/phase-15-terminal-productization.md) | [2026-10-06-phase-15](specs/2026-10-06-phase-15-terminal-productization-design.md) | [2026-10-06-phase-15](plans/2026-10-06-phase-15-terminal-productization.md) | [terminal-productization-evaluation](engineering/terminal-productization-evaluation.md) | `v0.13.0` | 已封存 |
-| **Phase 16** 本地与混合 Embedding | [phase-16](prd/phase-16-local-and-hybrid-embedding.md) | 待设计 | 待制定 | 待评测物证 | `v0.14.0` (规划) | 待启动 |
+| **Phase 16** 隔离快照与版本恢复 | [phase-16](prd/phase-16-lsp-and-snapshots.md) | [2026-10-07-phase-16](specs/2026-10-07-phase-16-snapshot-and-recovery-design.md) | [2026-10-07-phase-16](plans/2026-10-07-phase-16-snapshot-and-recovery.md) | [snapshot-and-recovery-evaluation](engineering/snapshot-and-recovery-evaluation.md) | `v0.14.0` | 已封存 |
 
 
 ---
@@ -75,7 +75,7 @@
 | 目的 | 命令 | 备注 |
 | :--- | :--- | :--- |
 | **环境检查** | `java -version` | 必须为 Java 21+ (`export JAVA_HOME=/opt/homebrew/opt/openjdk`) |
-| **全量自动化测试** | `mvn clean test` | 451 项自动化测试（单元、集成、契约与 Golden Set） |
+| **全量自动化测试** | `mvn clean test` | 475 项自动化测试（单元、集成、契约与 Golden Set） |
 | **单测运行** | `mvn test -Dtest=<TestClass>` | 运行指定测试类 |
-| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.13.0-SNAPSHOT.jar` 可执行 Fat JAR |
-| **运行 CLI** | `java -jar target/xhlcli-0.13.0-SNAPSHOT.jar` | 启动交互式终端 Agent |
+| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.14.0-SNAPSHOT.jar` 可执行 Fat JAR |
+| **运行 CLI** | `java -jar target/xhlcli-0.14.0-SNAPSHOT.jar` | 启动交互式终端 Agent |

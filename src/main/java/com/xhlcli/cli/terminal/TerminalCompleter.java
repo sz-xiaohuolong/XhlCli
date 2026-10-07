@@ -24,18 +24,21 @@ public final class TerminalCompleter implements Completer {
     private static final List<String> PRIMARY_COMMANDS = List.of(
             "/help", "/config", "/clear", "/history", "/model", "/mcp", "/skill",
             "/plan", "/team", "/search", "/search-text", "/index", "/prompt",
-            "/browser", "/save", "/memory", "/context", "/compact", "/exit"
+            "/browser", "/save", "/memory", "/context", "/compact",
+            "/snapshot", "/restore", "/exit"
     );
 
-    private static final Map<String, List<String>> SUBCOMMANDS = Map.of(
-            "/model", List.of("list", "use", "status"),
-            "/mcp", List.of("list", "status", "tools", "resources", "read", "restart", "stop", "start", "logs"),
-            "/skill", List.of("list", "show", "enable", "disable", "reload"),
-            "/prompt", List.of("show", "export"),
-            "/browser", List.of("status", "connect", "disconnect", "tabs"),
-            "/history", List.of("list", "clear"),
-            "/memory", List.of("list", "search", "delete", "clear"),
-            "/index", List.of("status", "clean")
+    private static final Map<String, List<String>> SUBCOMMANDS = Map.ofEntries(
+            Map.entry("/model", List.of("list", "use", "status")),
+            Map.entry("/mcp", List.of("list", "status", "tools", "resources", "read", "restart", "stop", "start", "logs")),
+            Map.entry("/skill", List.of("list", "show", "enable", "disable", "reload")),
+            Map.entry("/prompt", List.of("show", "export")),
+            Map.entry("/browser", List.of("status", "connect", "disconnect", "tabs")),
+            Map.entry("/history", List.of("list", "clear")),
+            Map.entry("/memory", List.of("list", "search", "delete", "clear")),
+            Map.entry("/index", List.of("status", "clean")),
+            Map.entry("/snapshot", List.of("list", "status", "clean")),
+            Map.entry("/restore", List.of("1", "2", "3"))
     );
 
     private final Supplier<List<String>> modelSupplier;

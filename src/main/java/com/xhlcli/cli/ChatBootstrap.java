@@ -53,6 +53,8 @@ import com.xhlcli.prompt.PromptSource;
 import com.xhlcli.skill.SkillRegistry;
 import com.xhlcli.skill.builtin.BuiltinSkills;
 import com.xhlcli.skill.tool.LoadSkillTool;
+import com.xhlcli.snapshot.SnapshotService;
+import com.xhlcli.tool.local.RevertTurnTool;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -123,6 +125,9 @@ public final class ChatBootstrap implements ChatRunner {
             skillRegistry.scanAndReload();
             LoadSkillTool loadSkillTool = new LoadSkillTool(skillRegistry);
 
+            SnapshotService snapshotService = SnapshotService.forProject(projectDirectory);
+            RevertTurnTool revertTurnTool = new RevertTurnTool(snapshotService);
+
             ToolRegistry registry = new ToolRegistry(List.of(
                     new ListDirTool(pathResolver),
                     new ReadFileTool(pathResolver),
@@ -140,7 +145,8 @@ public final class ChatBootstrap implements ChatRunner {
                     new BrowserConnectTool(browserConnector),
                     new BrowserDisconnectTool(browserConnector),
                     new BrowserStatusTool(browserConnector),
-                    loadSkillTool));
+                    loadSkillTool,
+                    revertTurnTool));
             DefaultToolExecutor executor = new DefaultToolExecutor(
                     registry, new ToolSchemaValidator(mapper), new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS, mapper),
                     mapper, System::nanoTime, pathGuard, hitlHandler, auditLog, browserGuard);
@@ -248,6 +254,7 @@ public final class ChatBootstrap implements ChatRunner {
                 loop.setSkillRegistry(skillRegistry);
                 loop.setPromptAssembler(promptAssembler);
                 loop.setMcpServerManager(mcpManager);
+                loop.setSnapshotService(snapshotService);
 
                 com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
                     renderer.printMessage(plan.summarize());
@@ -283,9 +290,17 @@ public final class ChatBootstrap implements ChatRunner {
                 });
 
                 terminal.bind(loop);
-                int exitCode = loop.run();
-                mcpManager.close();
-                return exitCode;
+                try {
+                    int exitCode = loop.run();
+                    return exitCode;
+                } finally {
+                    try {
+                        mcpManager.close();
+                    } catch (Exception ignored) {}
+                    try {
+                        snapshotService.close();
+                    } catch (Exception ignored) {}
+                }
             }
         } catch (IOException failure) {
             err.println("Unable to initialize the terminal: " + failure.getMessage());

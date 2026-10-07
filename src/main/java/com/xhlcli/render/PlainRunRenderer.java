@@ -86,6 +86,8 @@ public final class PlainRunRenderer implements TerminalRenderer {
         out.println("  /browser [status|connect|disconnect|tabs] Browser session and CDP management");
         out.println("  /skill [list|show|enable|disable|reload] Reusable workflow skills management");
         out.println("  /prompt [show|export]  Show or export layered system prompt with audit redaction");
+        out.println("  /snapshot [list|status|clean] View, check status, or clean side-git snapshots");
+        out.println("  /restore <N>           Restore to pre-turn snapshot N (default 1)");
         out.println("  /exit     Exit XhlCLI");
         out.println("  Ctrl+C    Cancel the active run");
     }

@@ -66,7 +66,7 @@ DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 
 ```bash
 ./mvnw clean verify
-java -jar target/xhlcli-0.13.0-SNAPSHOT.jar
+java -jar target/xhlcli-0.14.0-SNAPSHOT.jar
 ```
 
 如果 macOS 同时安装了多个 JDK：
@@ -79,8 +79,8 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-0.13.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.13.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.14.0-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.14.0-SNAPSHOT.jar --version
 ```
 
 可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
@@ -100,6 +100,8 @@ java -jar target/xhlcli-0.13.0-SNAPSHOT.jar --version
 | `/skill [list\|show\|enable\|disable\|reload]` | 可复用工程技能与工作流管理 |
 | `/prompt [show\|export]` | 查看或脱敏导出分层系统提示词与审计信息 |
 | `/history [list\|clear]` | 查看安全历史记录或清空持久化历史 |
+| `/snapshot [status\|clean]` | Side-Git 隔离快照状态、历史列表与重置 |
+| `/restore [N]` | 恢复回滚至指定轮次开始前状态（默认 N=1） |
 | `/exit` | 安全退出 |
 | Ctrl+C | 取消正在生成的响应 |
 
@@ -123,6 +125,7 @@ java -jar target/xhlcli-0.13.0-SNAPSHOT.jar --version
 - [实施路线任务清单索引 (Plans)](docs/plans/README.md)
 - [立项需求研究](docs/RESEARCH.md)
 - [授权源码采用地图](docs/engineering/source-adoption-map.md)
+- [Phase 16 隔离快照与版本恢复评测报告](docs/engineering/snapshot-and-recovery-evaluation.md)
 - [Phase 15 终端产品化与交互治理评测报告](docs/engineering/terminal-productization-evaluation.md)
 - [Phase 14 Skill 与 Prompt 分层治理评测报告](docs/engineering/skill-and-prompt-evaluation.md)
 - [Phase 13 Web 与浏览器评测报告](docs/engineering/web-and-browser-evaluation.md)

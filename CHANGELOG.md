@@ -2,6 +2,33 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.14.0] - 2026-10-07
+
+### Added
+- **Side-History 隔离快照与版本恢复子系统（Side-History Snapshot & Recovery Subsystem）** (Phase 16):
+  - **纯 Java 嵌入式与绝对物理隔离架构 (`SideGitManager` + `SnapshotConfig`)**：
+    - 引入 `org.eclipse.jgit` (7.6.0) 纯 Java 依赖，零外部 `git` CLI 依赖，跨平台开箱即用；
+    - 基于项目绝对路径与规范化工作区双重 SHA-256 哈希计算隔离存储目录（`~/.xhlcli/snapshots/<projectHash>/<worktreeHash>/.git`），workTree 独立单向绑定；
+    - 自动配置并维护 `info/exclude` 过滤规则（排除 `.git/`、`target/`、`.xhlcli/` 等目录），严格保证用户项目本身的 `.git`、HEAD 提交树与暂存区 100% 绝对不受快照读写污染。
+  - **异步双阶段调度与生命周期包装 (`SnapshotService` + `ChatLoop`)**：
+    - 无缝切面织入 ReAct、Plan-and-Execute 以及 Multi-Agent 团队协作的每一轮 turn 生命周期；
+    - `pre-turn` 同步毫秒级建档（8~18ms），执行前锁定基线；
+    - `post-turn` 由单线程守护线程池 `xhlcli-snapshot-writer` 异步串行化提交，主交互循环零卡顿；
+    - `awaitIdle()` 栅栏协同，在执行快照查询或版本回滚前安全排空队列；
+    - 快照写入异常静默降级并输出友好提示，绝不阻断正常 Agent 对话流程。
+  - **工作区精准对齐与保护快照恢复机制 (`SideGitManager.restorePreTurn`)**：
+    - 支持按轮次倒序（offset=1, 2, ...）精确定位历史 `pre-turn` 快照；
+    - 执行任何回滚操作前强制自动打底生成 `pre-restore` 保护快照，杜绝二次损坏并支持撤销回滚；
+    - 恢复时精准写回已修改文件与被误删文件，并深度递归清理未被快照收录的新增孤儿垃圾文件与空目录。
+  - **高危自愈工具与终端命令治理 (`RevertTurnTool` + `ChatCommand` + `TerminalCompleter`)**：
+    - 提供本地工具 `revert_turn`，声明 `RiskLevel.HIGH` 并在 `ApprovalPolicy` 中强制接入人机交互审批 (HITL)；
+    - 新增 `/snapshot`（或 `/snapshot list`）、`/snapshot status`、`/snapshot clean` 以及 `/restore <N>` 终端指令；
+    - 在 `TerminalCompleter` 中提供多级子命令与参数 Tab 智能补全；
+    - 帮助菜单中收拢展示快照与恢复指令说明。
+  - **端到端 Golden Test 验收物证**：
+    - `SnapshotGoldenTest` 验证“真实项目 Git 仓库 -> Turn 1 正常迭代 -> Turn 2 误删与语法破坏 -> 工具自愈恢复 -> 磁盘 100% 还原 -> 宿主 Git 零污染零修改断言 -> 二次回滚”全链路测试通过；
+    - 全量自动化测试套件扩充至 475 项（100% 绿灯）。
+
 ## [0.13.0] - 2026-10-06
 
 ### Added

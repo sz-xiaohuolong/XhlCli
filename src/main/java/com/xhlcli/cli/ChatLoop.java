@@ -45,6 +45,9 @@ public final class ChatLoop {
     public void setBrowserConnector(com.xhlcli.browser.BrowserConnector browserConnector) { this.browserConnector = browserConnector; }
     public com.xhlcli.browser.BrowserConnector getBrowserConnector() { return this.browserConnector; }
     public com.xhlcli.llm.LlmClient getLlmClient() { return this.currentClient; }
+    private com.xhlcli.snapshot.SnapshotService snapshotService;
+    public void setSnapshotService(com.xhlcli.snapshot.SnapshotService snapshotService) { this.snapshotService = snapshotService; }
+    public com.xhlcli.snapshot.SnapshotService getSnapshotService() { return this.snapshotService; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -279,9 +282,17 @@ public final class ChatLoop {
             throw new IllegalStateException("A response is already active");
         }
         renderer.updateStatus(new TerminalStatus("Plan", "Executing", config.model()));
+        String turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId("plan");
+        String summary = com.xhlcli.snapshot.SnapshotService.generateSummary("plan", goal);
+        if (snapshotService != null) {
+            snapshotService.snapshotBeforeTurn(turnId, summary);
+        }
         try {
             planAgent.run(goal, renderer::accept, token);
         } finally {
+            if (snapshotService != null) {
+                snapshotService.snapshotAfterTurnAsync(turnId, summary);
+            }
             renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }
@@ -320,9 +331,17 @@ public final class ChatLoop {
             throw new IllegalStateException("A response is already active");
         }
         renderer.updateStatus(new TerminalStatus("Team", "Collaborating", config.model()));
+        String turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId("team");
+        String summary = com.xhlcli.snapshot.SnapshotService.generateSummary("team", goal);
+        if (snapshotService != null) {
+            snapshotService.snapshotBeforeTurn(turnId, summary);
+        }
         try {
             teamOrchestrator.run(goal, renderer::accept, token);
         } finally {
+            if (snapshotService != null) {
+                snapshotService.snapshotAfterTurnAsync(turnId, summary);
+            }
             renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }
@@ -822,6 +841,83 @@ public final class ChatLoop {
         }
     }
 
+    private void handleSnapshot(String input) {
+        if (snapshotService == null) {
+            renderer.printMessage("快照服务未初始化。");
+            return;
+        }
+        String[] parts = input.trim().split("\\s+", 2);
+        String subcmd = parts.length > 1 ? parts[1].trim().toLowerCase(java.util.Locale.ROOT) : "list";
+        if ("status".equals(subcmd)) {
+            renderer.printMessage(snapshotService.status());
+            return;
+        }
+        if ("clean".equals(subcmd)) {
+            renderer.printMessage(snapshotService.clean());
+            return;
+        }
+        if (!"list".equals(subcmd)) {
+            renderer.printMessage("""
+                    ❌ 未知 /snapshot 子命令: %s
+                    可用命令：
+                      /snapshot
+                      /snapshot status
+                      /snapshot clean
+                      /restore <N>
+                    """.formatted(parts[1]).trim());
+            return;
+        }
+        try {
+            java.util.List<com.xhlcli.snapshot.TurnSnapshot> snapshots = snapshotService.listSnapshots(20);
+            if (snapshots.isEmpty()) {
+                renderer.printMessage("📭 暂无 Side-Git 快照");
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("📸 最近 ").append(snapshots.size()).append(" 条 Side-Git 快照：\n");
+            int preTurnIndex = 0;
+            for (com.xhlcli.snapshot.TurnSnapshot snapshot : snapshots) {
+                String restoreHint = "";
+                if (snapshot.phase() == com.xhlcli.snapshot.SnapshotPhase.PRE_TURN) {
+                    preTurnIndex++;
+                    restoreHint = "  /restore " + preTurnIndex;
+                }
+                sb.append(String.format("   %s %-11s %-18s %s%s\n",
+                        snapshot.shortCommitId(),
+                        snapshot.phase().label(),
+                        snapshot.turnId(),
+                        snapshot.createdAt(),
+                        restoreHint));
+            }
+            renderer.printMessage(sb.toString().trim());
+        } catch (Exception e) {
+            renderer.printMessage("❌ 读取快照列表失败: " + e.getMessage());
+        }
+    }
+
+    private void handleRestore(String input) {
+        if (snapshotService == null) {
+            renderer.printMessage("快照服务未初始化。");
+            return;
+        }
+        String[] parts = input.trim().split("\\s+", 2);
+        int offset = 1;
+        if (parts.length > 1) {
+            try {
+                offset = Math.max(1, Integer.parseInt(parts[1].trim()));
+            } catch (NumberFormatException e) {
+                renderer.printMessage("❌ 无效序号，用法: /restore [N]（N为正整数，默认为1）");
+                return;
+            }
+        }
+        try {
+            com.xhlcli.snapshot.RestoreResult result = snapshotService.restorePreTurn(offset);
+            renderer.printMessage(result.formatForCli());
+        } catch (Exception e) {
+            renderer.printMessage("❌ 恢复快照失败: " + e.getMessage());
+        }
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -908,6 +1004,8 @@ public final class ChatLoop {
                 case BROWSER -> handleBrowser(input);
                 case SKILL -> handleSkill(input);
                 case PROMPT -> handlePrompt(input);
+                case SNAPSHOT -> handleSnapshot(input);
+                case RESTORE -> handleRestore(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
@@ -932,9 +1030,17 @@ public final class ChatLoop {
             throw new IllegalStateException("A response is already active");
         }
         renderer.updateStatus(new TerminalStatus("ReAct", "Thinking", config.model()));
+        String turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId("react");
+        String summary = com.xhlcli.snapshot.SnapshotService.generateSummary("react", input);
+        if (snapshotService != null) {
+            snapshotService.snapshotBeforeTurn(turnId, summary);
+        }
         try {
             agent.run(input, renderer::accept, token);
         } finally {
+            if (snapshotService != null) {
+                snapshotService.snapshotAfterTurnAsync(turnId, summary);
+            }
             renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }

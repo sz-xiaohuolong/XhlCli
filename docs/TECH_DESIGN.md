@@ -6,7 +6,7 @@
 > 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-10-06）：已完成 Phase 00~15 的完整交付（v0.13.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统，以及终端产品化与交互治理子系统（环境感知双模渲染、底部自适应状态栏、代码外框与表格 Markdown 引擎、Unified Diff 着色、敏感脱敏历史、三级命令与 @path 补全、实时语法高亮、无冲突 HITL 会话交互及全量输出收拢）。后续章节中的产品化终态仍为目标架构。
+> 实现状态（2026-10-07）：已完成 Phase 00~16 的完整交付（v0.14.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统、终端产品化与交互治理子系统，以及 Side-History 隔离快照与版本恢复子系统（JGit 纯 Java 嵌入式、双重哈希绝对隔离、宿主 Git 零污染、异步双阶段快照、精准文件树恢复对齐、保护快照与自愈高危工具 revert_turn）。后续章节中的产品化终态仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,13 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 15, v0.13.0)
+## 2.1 当前已交付技术基线 (Phase 16, v0.14.0)
 
+- **Side-History 隔离快照与版本恢复子系统 (Phase 16)**：
+  - **纯 Java 嵌入式与绝对物理隔离 (`SideGitManager` + `SnapshotConfig`)**：引入 `org.eclipse.jgit` 纯 Java 实现，零外部 `git` 命令依赖；快照存储在隔离目录 `~/.xhlcli/snapshots/<projectHash>/<worktreeHash>/.git`，workTree 单向指向工作区；自动生成 `info/exclude` 过滤规则隔离 `.git/`、`target/`、`.xhlcli/` 等目录，严格保证用户项目自身的 `.git`、提交历史与分支 100% 绝对不受快照操作篡改与污染。
+  - **异步双阶段调度与生命周期包装 (`SnapshotService` + `ChatLoop`)**：在 ReAct、Plan 与 Multi-Agent 每一轮执行时无感切面织入；`pre-turn` 同步毫秒级建档锁定变更前状态；`post-turn` 由单线程守护线程池 `xhlcli-snapshot-writer` 异步串行化提交，交互零卡顿；在查询或恢复前通过 `awaitIdle()` 安全协同排空；快照异常静默降级，不阻断 Agent 核心交互。
+  - **恢复引擎与工作区精确对齐 (`SideGitManager.restorePreTurn`)**：支持 `/restore <N>` 逆序定位历史 `pre-turn` 快照；恢复前强制打底生成 `pre-restore` 保护快照，杜绝二次损坏；工作区写回已修改/已删除文件，深度递归清理目标树中未被记录的新增孤儿垃圾文件与空目录。
+  - **自愈工具与高危审批防线 (`RevertTurnTool` + `ApprovalPolicy`)**：声明高危本地工具 `revert_turn`，在 `ApprovalPolicy` 中标记为 `RiskLevel.HIGH`，交互模式强制触发人工审批确认；终端支持 `/snapshot [list|status|clean]` 与 `/restore <N>`，并在 `TerminalCompleter` 中提供智能 Tab 补全。
 - **终端产品化与交互治理子系统 (Phase 15)**：
   - **双模终端渲染契约 (`TerminalRenderer`)**：基于环境自适应探测（`NO_COLOR`, `--plain`, `dumb`, 管道重定向）自动选择 `InlineTerminalRenderer`（行内富文本交互）或 `PlainRunRenderer`（CI/重定向/纯文本模式，严格 0 ANSI 降级、API 敏感凭据脱敏）。
   - **行内状态栏与宽度计算 (`TerminalStatusBar` + `TerminalWidthCalculator`)**：集成 JLine 4 `org.jline.utils.Status` 底部状态栏；基于 Unicode `WCWidth` 精确计算全角 CJK 与 Emoji 字符宽度；建立 80/120/160 列 P0~P3 优先级动态裁剪策略（Mode/Phase/Model > Tokens > Extensions > Workspace），严格保证单行展示不换行、不扰动输入提示符。

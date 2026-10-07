@@ -21,5 +21,7 @@ public enum ChatCommand {
     BROWSER,
     SKILL,
     PROMPT,
-    HISTORY
+    HISTORY,
+    SNAPSHOT,
+    RESTORE
 }

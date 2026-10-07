@@ -30,6 +30,8 @@ public final class ChatCommandParser {
             case "/skill" -> ChatCommand.SKILL;
             case "/prompt" -> ChatCommand.PROMPT;
             case "/history" -> ChatCommand.HISTORY;
+            case "/snapshot" -> ChatCommand.SNAPSHOT;
+            case "/restore" -> ChatCommand.RESTORE;
             default -> ChatCommand.UNKNOWN;
         };
     }

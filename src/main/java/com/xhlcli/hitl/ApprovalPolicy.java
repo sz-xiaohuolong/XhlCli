@@ -36,7 +36,8 @@ public final class ApprovalPolicy {
     );
 
     private static final Set<String> HIGH_RISK_TOOLS = Set.of(
-            "execute_command"
+            "execute_command",
+            "revert_turn"
     );
 
     private static final java.util.Set<String> TRUSTED_MCP_SERVERS = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -135,6 +136,7 @@ public final class ApprovalPolicy {
             case "glob_files" -> "按模式查找文件路径（只读）";
             case "grep_code" -> "按文本或正则检索代码（只读）";
             case "git_diff" -> "查看工作区未暂存差异（只读）";
+            case "revert_turn" -> "将按 Side-Git 快照批量恢复工作区文件，可能覆盖当前未保存修改";
             default -> isReadOnly(toolName) ? "安全的只读操作" : "未注册的新增工具，默认按高风险操作审批";
         };
     }
