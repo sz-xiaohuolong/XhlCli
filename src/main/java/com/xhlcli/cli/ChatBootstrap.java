@@ -208,6 +208,7 @@ public final class ChatBootstrap implements ChatRunner {
             agent.setContextAssembler(contextAssembler);
             agent.setCompactor(compactor);
             agent.setMemorySupplier(memoryManager::loadAll);
+            agent.setProjectDirectory(projectDirectory);
             agent.setConcurrencyLimits(config.agentSettings().maxConcurrency(), config.agentSettings().toolTimeout());
 
             // MCP Extension initialization

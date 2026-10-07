@@ -2,6 +2,36 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.15.1] - 2026-10-07
+
+### Added
+- **图片多模态上下文预处理与视觉防御护栏子系统（Multimodal Context Preprocessing & Vision Guardrails Subsystem）** (Phase 17B):
+  - **多模态消息模型扩展 (`ContentPart` + `ChatMessage`)**：
+    - 创建 `ContentPart` record 支持 `text`, `imageBase64`, `imageUrl`, `mimeType`；
+    - 扩展 `ChatMessage` 增加 `contentParts` 列表及 `hasImages()`, `imagePartCount()`, `withoutImageContent()` 辅助方法，保持既有 500+ 单测 100% 向后兼容。
+  - **严密图像预处理与防穿透压缩引擎 (`ImageProcessor`)**：
+    - 支持 PNG, JPEG, GIF, WEBP 文件识别与头信息校验，限制源文件不超过 50MB；
+    - **Alpha Flatten（白底平铺）**：检测透明 Alpha 通道，采用纯白背景合成平铺，杜绝不同 Provider 底色反转与噪点穿透问题；
+    - **等比双三次插值缩放（Bicubic Resampling）**：长宽严格限制在 `2000x2000` 像素内，等比缩放并保持边缘清晰度；
+    - **API 字节阈值兜底压缩**：处理后 Base64 严格受限在 5MB API 阈值内，超限依次尝试无损 PNG -> 0.85 -> 0.70 -> 0.55 -> 0.40 -> 0.25 JPEG 多档质量压缩；
+    - **坐标映射元信息注入**：自动计算原始图片与显示图片比例，注入元数据引导模型精准换算坐标：`[Image: source: ..., original WxH, displayed at WxH, Multiply coordinates by X to map to original image]`。
+  - **系统剪贴板原生抓图与平台优化 (`ClipboardImage`)**：
+    - macOS 深度优化：优先通过原生 `/usr/bin/osascript` 提取剪贴板 `«class PNGf»` 或 `«class TIFF»`，配合 `/usr/bin/sips` 快速无损转储至本地缓存文件（`~/.xhlcli/cache/clip-*.png`）；
+    - 跨平台 Java AWT 剪贴板兜底，Headless 环境安全捕获降级并提供清晰提示。
+  - **终端引用宏与指令解析器 (`ImageReferenceParser`)**：
+    - 正则提取匹配 `@image:<path>`（兼容空格路径）、`@image:path`（隔离全角 CJK 标点）、`file://` URI（宽容度 UTF-8 percent-decode）及 `@clipboard`；
+    - 剥离纯文本指令并注入本轮图片观察指示语与防覆盖约束；自动组装多模态 `ChatMessage`。
+  - **Provider 请求体序列化与零 400 视觉防御护栏 (`AbstractOpenAiCompatibleClient` + `AnthropicClaudeClient`)**：
+    - OpenAI 视觉模型：将消息序列化为标准 content array，包含 `type: text` 与 `type: image_url`（`data:{mime};base64,{data}`）；
+    - Anthropic 视觉模型：序列化为 Claude 标准 content array，包含 `type: text` 与 `type: image`（`source: {type: base64, media_type: ..., data: ...}`）；
+    - **零 400 视觉防御护栏**：对于不支持视觉输入的纯文本模型（如 DeepSeek 等，`supportsVision == false`），客户端自动拦截 Base64 数据并降级为纯文本提示（`[当前 provider/model 不支持图片附件，已省略 1 张...]`），请求体输出为标量字符串 `"content": "..."`，绝对杜绝由于发送 `image_url` 引发 Provider 400 报错。
+  - **长会话 Token 与内存防护 (`pruneHistoricalImagePayloads` + `TokenBudget`)**：
+    - 在新一轮 ReAct 执行前，自动遍历并修剪历史消息中的大图 Payload（`withoutImageContent`），移除巨大 Base64 但保留 Image source 提示；
+    - `TokenBudget` 支持图片单图 1000 tokens 估算，精准控制滑动上下文窗口。
+  - **端到端 Golden Test 验收物证与全量回归**：
+    - `MultimodalGoldenTest` 全链路覆盖：输入引用解析 -> Alpha Flatten 白底合成 -> 等比缩放 -> OpenAI 视觉模型调用 -> DeepSeek 纯文本防御降级 -> 历史大图修剪；
+    - 全量自动化测试套件扩充至 522 项（100% 绿灯）。
+
 ## [0.15.0] - 2026-10-07
 
 ### Added

@@ -966,7 +966,7 @@ public final class ChatLoop {
     public int run() {
         String workspace = projectDirectory != null ? projectDirectory.toAbsolutePath().toString() : ".";
         com.xhlcli.render.TerminalExtSummary summary = getExtensionSummary();
-        renderer.printWelcome(config.model(), "0.15.0", workspace, summary);
+        renderer.printWelcome(config.model(), "0.15.1", workspace, summary);
         renderer.updateStatus(new TerminalStatus("REAct", "Idle", config.model(), 0, 0, summary.mcpServerCount(), summary.skillCount(), workspace));
         while (true) {
             String input;

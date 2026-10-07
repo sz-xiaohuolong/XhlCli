@@ -8,6 +8,7 @@ import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
+import com.xhlcli.model.ContentPart;
 import com.xhlcli.model.ToolCall;
 import com.xhlcli.model.ToolDefinition;
 import okhttp3.Call;
@@ -186,7 +187,7 @@ public final class AnthropicClaudeClient implements LlmClient {
         }
     }
 
-    private Request buildRequest(List<ChatMessage> messages, List<ToolDefinition> tools) throws LlmException {
+    public Request buildRequest(List<ChatMessage> messages, List<ToolDefinition> tools) throws LlmException {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", model);
         root.put("max_tokens", 4096);
@@ -212,7 +213,7 @@ public final class AnthropicClaudeClient implements LlmClient {
             if (message.role() == ChatMessage.Role.USER) {
                 ObjectNode node = messageNodes.addObject();
                 node.put("role", "user");
-                node.put("content", message.content());
+                appendUserMessageContent(node, message);
             } else if (message.role() == ChatMessage.Role.TOOL) {
                 // Anthropic: 工具结果是带有 tool_result 块的 user 消息
                 ObjectNode node = messageNodes.addObject();
@@ -276,6 +277,58 @@ public final class AnthropicClaudeClient implements LlmClient {
         } catch (JsonProcessingException | IllegalArgumentException failure) {
             throw new LlmException(LlmErrorType.INVALID_CONFIGURATION,
                     "Unable to create a valid Anthropic request.", false, false, failure);
+        }
+    }
+
+    private void appendUserMessageContent(ObjectNode node, ChatMessage message) {
+        if (message.hasImages() && !capabilities().supportsVision()) {
+            ChatMessage stripped = message.withoutImageContent(
+                    "当前 provider/model 不支持图片附件，已省略 {count} 张；请基于文字继续，必要时切换支持视觉输入的模型。");
+            node.put("content", stripped.content());
+            return;
+        }
+
+        if (!message.hasImages()) {
+            node.put("content", message.content());
+            return;
+        }
+
+        ArrayNode contentArr = node.putArray("content");
+        for (ContentPart part : message.contentParts()) {
+            if (part == null) {
+                continue;
+            }
+            if (part.isText()) {
+                if (part.text() != null && !part.text().isBlank()) {
+                    ObjectNode textNode = contentArr.addObject();
+                    textNode.put("type", "text");
+                    textNode.put("text", part.text());
+                }
+            } else if (part.isImage()) {
+                String base64 = part.imageBase64();
+                String mediaType = part.mimeType() == null || part.mimeType().isBlank() ? "image/png" : part.mimeType();
+                if (base64 == null && part.imageUrl() != null && part.imageUrl().startsWith("data:")) {
+                    int commaIdx = part.imageUrl().indexOf(',');
+                    if (commaIdx > 0) {
+                        String header = part.imageUrl().substring(5, commaIdx);
+                        if (header.contains(";base64")) {
+                            mediaType = header.substring(0, header.indexOf(';'));
+                            base64 = part.imageUrl().substring(commaIdx + 1);
+                        }
+                    }
+                }
+                if (base64 != null && !base64.isBlank()) {
+                    ObjectNode imgNode = contentArr.addObject();
+                    imgNode.put("type", "image");
+                    ObjectNode sourceNode = imgNode.putObject("source");
+                    sourceNode.put("type", "base64");
+                    sourceNode.put("media_type", mediaType);
+                    sourceNode.put("data", base64);
+                }
+            }
+        }
+        if (contentArr.isEmpty()) {
+            node.put("content", message.content());
         }
     }
 

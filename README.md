@@ -1,25 +1,24 @@
 # XhlCLI
 
-XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 02 已在 Phase 01 的 DeepSeek 流式终端对话之上交付受控的 ReAct Agent 循环。
+XhlCLI 是一个使用 Java 21 构建的本地智能终端 Coding Agent。项目按照可独立验证的阶段逐步交付。Phase 17 已完整交付后台持久任务/Localhost Runtime API 与图片多模态上下文预处理/视觉防御护栏。
 
 ![XhlCLI Phase 01 真实 DeepSeek 会话演示](docs/assets/xhlcli-phase-01-demo.gif)
 
 ## 当前能力
 
-- DeepSeek OpenAI-compatible Chat Completions 流式对话；
-- 当前进程内的多轮 `system/user/assistant` 会话历史；
-- `/help`、`/config`、`/clear`、`/exit`；
-- Ctrl+C 取消当前响应，取消后可继续对话；
-- 鉴权、限流、网络、服务端、格式、超时与取消错误分类；
-- 连接、读取和整体请求超时，以及安全的一次重试；
-- Token 用量展示、配置来源展示、日志与错误脱敏；
-- 结构化 Tool Call / Observation 协议：模型调用、顺序执行、调用 ID 关联和结果回灌；
-- `echo_text` 与 `current_time` 两个进程内演示工具，以及参数 Schema 校验、结果预算和结构化失败 Observation；
-- 最大迭代、600 秒整体超时、Ctrl+C 取消、空响应重试一次和连续三轮重复无进展保护；
-- 统一 `RunEvent` 时间线与无 ANSI 的 Plain 终端输出；
-- Java 21 可执行 JAR、127 项离线自动测试和 macOS CI 配置。
-
-> Phase 02 的工具仅用于协议演示：不会读取或修改本地文件，不执行 Shell 或 Git，也不访问网络。本期不含 Policy/HITL、Plan、并行工具、Multi-Agent、MCP、RAG、长期记忆、持久 Run 或崩溃恢复；真实本地工具从 Phase 03 开始。
+- 支持 OpenAI, Anthropic Claude, DeepSeek, Ollama 等多模型 Provider 协议路由；
+- 图片多模态上下文预处理与视觉防御护栏（`@image:<path>`, `@clipboard`，Alpha Flatten 白底合成防穿透、2000x2000 等比缩放、5MB 阈值压缩、坐标换算元信息注入、非视觉模型防 400 纯文本降级）；
+- 后台持久任务队列与 Localhost 安全 Runtime API（SQLite 事务原子调度、孤儿租约自愈、127.0.0.1 严格绑定与 API Key 拦截、游标 SSE 事件流）；
+- Side-History 隔离快照与版本回滚（JGit 纯 Java 隔离存储、宿主 Git 零污染、`revert_turn` 自愈工具与 `/snapshot` `/restore`）；
+- 终端产品化与交互治理（JLine 4 动态状态栏、WCWidth 精准对齐、Markdown 表格与代码框排版、Git Diff 语法着色、SafeHistory 历史治理与 Tab 智能补全）；
+- Skill 与 Prompt 分层治理（8 层确定性装配、安全规则不可变、按需动态加载）；
+- Web 检索与浏览器沙箱（SSRF 安全围栏、多搜索引擎统一抽象、5MB 受限正文抽取、CDP 浏览器控制与敏感页审批）；
+- MCP 生态扩展（JSON-RPC 2.0、Stdio/SSE 传输、两级配置合并、命名空间隔离）；
+- Multi-Agent 专职协作架构（Planner / Worker 池 / Reviewer 最小上下文交接与审查打回熔断）；
+- 有界并发执行调度与 DAG 规划执行（Bounded Parallelism、Kahn 分层批次）；
+- 嵌入式 SQLite AST 代码库检索与 RAG 语义索引；
+- 受控 ReAct 循环、9 个本地工具、安全围栏与人工审批 (HITL)；
+- Java 21 可执行 JAR、522 项离线自动测试和 CI 配置。
 
 ## 环境要求
 
@@ -79,8 +78,8 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-0.15.0-SNAPSHOT.jar --help
-java -jar target/xhlcli-0.15.0-SNAPSHOT.jar --version
+java -jar target/xhlcli-0.15.1-SNAPSHOT.jar --help
+java -jar target/xhlcli-0.15.1-SNAPSHOT.jar --version
 ```
 
 可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。

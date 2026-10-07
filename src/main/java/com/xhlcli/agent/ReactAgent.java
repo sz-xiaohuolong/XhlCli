@@ -52,6 +52,11 @@ public final class ReactAgent implements AgentRunner {
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
     private java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier;
+    private java.nio.file.Path projectDirectory = java.nio.file.Path.of(".").toAbsolutePath().normalize();
+
+    public void setProjectDirectory(java.nio.file.Path projectDirectory) {
+        this.projectDirectory = projectDirectory != null ? projectDirectory : java.nio.file.Path.of(".").toAbsolutePath().normalize();
+    }
 
     public void setContextAssembler(com.xhlcli.context.ContextAssembler contextAssembler) {
         this.contextAssembler = contextAssembler;
@@ -222,7 +227,8 @@ public final class ReactAgent implements AgentRunner {
                 sequencer.emit(new RunEvent.TextDelta(sequencer.metadata(0), msg));
                 return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "MODEL_UNSUPPORTED_TOOLS", msg, iterations, usage);
             }
-            workingHistory.add(ChatMessage.user(input));
+            pruneHistoricalImagePayloads(workingHistory);
+            workingHistory.add(com.xhlcli.image.ImageReferenceParser.userMessage(input, projectDirectory));
             RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);
             Set<String> callIds = new HashSet<>();
             int emptyResponses = 0;
@@ -413,6 +419,16 @@ public final class ReactAgent implements AgentRunner {
             }
         } catch (RuntimeException failure) {
             return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "INTERNAL_ERROR", "", iterations, usage);
+        }
+    }
+
+    private void pruneHistoricalImagePayloads(List<ChatMessage> history) {
+        if (history == null) return;
+        for (int i = 0; i < history.size(); i++) {
+            ChatMessage msg = history.get(i);
+            if (msg != null && msg.hasImages()) {
+                history.set(i, msg.withoutImageContent("历史图片附件已省略 {count} 张；如需重新查看，请重新引用或使用相关工具。"));
+            }
         }
     }
 

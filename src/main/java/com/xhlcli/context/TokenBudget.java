@@ -54,6 +54,8 @@ public class TokenBudget {
         return estimateTokens(messages) <= getAvailableForConversation();
     }
 
+    public static final int ESTIMATED_IMAGE_TOKENS = 1000;
+
     /**
      * 按字符数进行简易 Token 估算：通常 1 token 约 4 个英文字符或 1.5 个中文字符。
      * 此处使用一个保守的算法：1 token = 2.5 字符。
@@ -65,18 +67,30 @@ public class TokenBudget {
         return (int) Math.ceil(text.length() / 2.5);
     }
 
+    public static int estimateTokens(ChatMessage msg) {
+        if (msg == null) return 0;
+        int total = 4; // per message overhead
+        total += estimateTokens(msg.content());
+        if (msg.hasImages()) {
+            total += msg.contentParts().stream()
+                    .filter(com.xhlcli.model.ContentPart::isImage)
+                    .mapToInt(p -> ESTIMATED_IMAGE_TOKENS)
+                    .sum();
+        }
+        if (msg.toolCalls() != null) {
+            for (ToolCall tc : msg.toolCalls()) {
+                total += estimateTokens(tc.name());
+                total += estimateTokens(tc.argumentsJson());
+            }
+        }
+        return total;
+    }
+
     public static int estimateTokens(List<ChatMessage> messages) {
         if (messages == null) return 0;
         int total = 0;
         for (ChatMessage msg : messages) {
-            total += 4; // per message overhead
-            total += estimateTokens(msg.content());
-            if (msg.toolCalls() != null) {
-                for (ToolCall tc : msg.toolCalls()) {
-                    total += estimateTokens(tc.name());
-                    total += estimateTokens(tc.argumentsJson());
-                }
-            }
+            total += estimateTokens(msg);
         }
         return total;
     }

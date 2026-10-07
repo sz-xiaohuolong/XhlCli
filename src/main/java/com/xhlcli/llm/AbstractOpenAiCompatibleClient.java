@@ -8,6 +8,7 @@ import com.xhlcli.config.ChatConfig;
 import com.xhlcli.config.SecretRedactor;
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ChatResponse;
+import com.xhlcli.model.ContentPart;
 import com.xhlcli.model.ToolCall;
 import com.xhlcli.model.ToolDefinition;
 import okhttp3.Call;
@@ -138,7 +139,7 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         }
     }
 
-    private Request buildRequest(List<ChatMessage> messages, List<ToolDefinition> tools) throws LlmException {
+    public Request buildRequest(List<ChatMessage> messages, List<ToolDefinition> tools) throws LlmException {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", config.model());
         root.put("stream", true);
@@ -146,11 +147,7 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         for (ChatMessage message : messages) {
             ObjectNode node = messageNodes.addObject();
             node.put("role", message.role().wireName());
-            if (message.role() == ChatMessage.Role.ASSISTANT && message.content().isEmpty()) {
-                node.putNull("content");
-            } else {
-                node.put("content", message.content());
-            }
+            appendMessageContent(node, message);
             if (!message.toolCalls().isEmpty()) {
                 ArrayNode toolCalls = node.putArray("tool_calls");
                 for (ToolCall call : message.toolCalls()) {
@@ -189,6 +186,67 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
             throw new LlmException(LlmErrorType.INVALID_CONFIGURATION,
                     "Unable to create a valid provider request.", false, false, failure);
         }
+    }
+
+    private void appendMessageContent(ObjectNode msgNode, ChatMessage msg) {
+        if (msg.hasImages() && !capabilities().supportsVision()) {
+            appendMessageContent(msgNode, msg.withoutImageContent(
+                    "当前 provider/model 不支持图片附件，已省略 {count} 张；请基于文字继续，必要时使用 /model use 切换支持视觉输入的模型。"));
+            return;
+        }
+
+        if (!msg.hasImages()) {
+            if (msg.role() == ChatMessage.Role.ASSISTANT && msg.content().isEmpty()) {
+                msgNode.putNull("content");
+            } else {
+                msgNode.put("content", msg.content());
+            }
+            return;
+        }
+
+        ArrayNode contentArray = msgNode.putArray("content");
+        for (ContentPart part : msg.contentParts()) {
+            if (part == null) {
+                continue;
+            }
+            if (part.isText()) {
+                if (part.text() != null && !part.text().isBlank()) {
+                    ObjectNode textNode = contentArray.addObject();
+                    textNode.put("type", "text");
+                    textNode.put("text", part.text());
+                }
+                continue;
+            }
+            if (part.isImage()) {
+                String imageUrl = toImageUrl(part);
+                if (imageUrl == null || imageUrl.isBlank()) {
+                    continue;
+                }
+                ObjectNode imageNode = contentArray.addObject();
+                imageNode.put("type", "image_url");
+                ObjectNode imageUrlNode = imageNode.putObject("image_url");
+                imageUrlNode.put("url", imageUrl);
+            }
+        }
+
+        if (contentArray.isEmpty()) {
+            if (msg.role() == ChatMessage.Role.ASSISTANT && msg.content().isEmpty()) {
+                msgNode.putNull("content");
+            } else {
+                msgNode.put("content", msg.content());
+            }
+        }
+    }
+
+    protected String toImageUrl(ContentPart part) {
+        if ("image_url".equals(part.type())) {
+            return part.imageUrl();
+        }
+        if ("image_base64".equals(part.type())) {
+            String mimeType = part.mimeType() == null || part.mimeType().isBlank() ? "image/png" : part.mimeType();
+            return "data:" + mimeType + ";base64," + part.imageBase64();
+        }
+        return null;
     }
 
     private String endpoint(String baseUrl) {

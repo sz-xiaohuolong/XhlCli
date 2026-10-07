@@ -6,7 +6,7 @@
 > 更新日期：2026-09-21
 > 产品需求：[`PRD.md`](PRD.md)
 
-> 实现状态（2026-10-07）：已完成 Phase 00~16 的完整交付（v0.14.0）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统、终端产品化与交互治理子系统，以及 Side-History 隔离快照与版本恢复子系统（JGit 纯 Java 嵌入式、双重哈希绝对隔离、宿主 Git 零污染、异步双阶段快照、精准文件树恢复对齐、保护快照与自愈高危工具 revert_turn）。后续章节中的产品化终态仍为目标架构。
+> 实现状态（2026-10-07）：已完成 Phase 00~17 的完整交付（v0.15.1）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统、终端产品化与交互治理子系统、Side-History 隔离快照与版本恢复子系统，以及后台持久任务/Localhost Runtime API 与图片多模态上下文预处理/视觉防御护栏子系统。后续章节中的产品化终态仍为目标架构。
 
 ## 1. 文档目的
 
@@ -22,8 +22,35 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 16, v0.14.0)
+## 2.1 当前已交付技术基线 (Phase 17, v0.15.1)
 
+- **图片多模态上下文预处理与视觉防御护栏子系统 (Phase 17B)**：
+  - **多模态消息模型扩展 (`ContentPart` + `ChatMessage`)**：创建 `ContentPart` record 支持 `text`, `imageBase64`, `imageUrl`, `mimeType`；扩展 `ChatMessage` 增加 `contentParts` 列表与 `hasImages()`, `imagePartCount()`, `withoutImageContent()` 辅助方法，保证全部既有 500+ 单测无缝兼容。
+  - **严密图像预处理引擎 (`ImageProcessor`)**：
+    - 支持 PNG, JPEG, GIF, WEBP 文件识别与校验，源文件大小限制 50MB；
+    - **Alpha Flatten（白底平铺）**：检测透明 Alpha 通道，采用纯白背景合成平铺，杜绝各大 Provider 对透明底色反转造成的识别偏差与噪点穿透；
+    - **等比双三次插值缩放（Bicubic Resampling）**：长宽严格限制在 `2000x2000` 像素内，等比缩放并保持清晰边缘；
+    - **API 字节阈值兜底压缩**：处理后 Base64 严格受限在 5MB API 阈值内，超限依次尝试无损 PNG -> 0.85 -> 0.70 -> 0.55 -> 0.40 -> 0.25 JPEG 多档质量压缩；
+    - **坐标映射元信息注入**：自动计算原始图片与显示图片比例，注入元数据引导模型精准换算坐标：`[Image: source: ..., original WxH, displayed at WxH, Multiply coordinates by X to map to original image]`。
+  - **系统剪贴板原生抓图 (`ClipboardImage`)**：
+    - macOS 深度优化：优先通过原生 `/usr/bin/osascript` 提取剪贴板 `«class PNGf»` 或 `«class TIFF»`，配合 `/usr/bin/sips` 快速无损转储至本地缓存文件（`~/.xhlcli/cache/clip-*.png`）；
+    - 跨平台 Java AWT 剪贴板兜底，Headless 环境安全捕获降级并提供清晰提示。
+  - **终端引用宏与指令解析器 (`ImageReferenceParser`)**：
+    - 正则提取匹配 `@image:<path>`（兼容空格路径）、`@image:path`（隔离全角 CJK 标点）、`file://` URI（宽容度 UTF-8 percent-decode）及 `@clipboard`；
+    - 剥离纯文本指令并注入本轮图片观察指示语与防覆盖约束；自动组装多模态 `ChatMessage`。
+  - **Provider 请求体序列化与视觉防御护栏 (`AbstractOpenAiCompatibleClient` + `AnthropicClaudeClient`)**：
+    - OpenAI 视觉模型：将消息序列化为标准 content array，包含 `type: text` 与 `type: image_url`（`data:{mime};base64,{data}`）；
+    - Anthropic 视觉模型：序列化为 Claude 标准 content array，包含 `type: text` 与 `type: image`（`source: {type: base64, media_type: ..., data: ...}`）；
+    - **零 400 视觉防御护栏**：对于不支持视觉输入的纯文本模型（如 DeepSeek 等，`supportsVision == false`），客户端自动拦截 Base64 数据并降级为纯文本提示（`[当前 provider/model 不支持图片附件，已省略 1 张...]`），请求体输出为标量字符串 `"content": "..."`，绝对杜绝由于发送 `image_url` 引发 Provider 400 报错。
+  - **长会话 Token 与内存防护 (`pruneHistoricalImagePayloads` + `TokenBudget`)**：
+    - 在新一轮 ReAct 执行前，自动遍历并修剪历史消息中的大图 Payload（`withoutImageContent`），移除巨大 Base64 但保留 Image source 提示；
+    - `TokenBudget` 支持图片单图 1000 tokens 估算，精准控制滑动上下文窗口。
+- **后台持久任务与 Localhost Runtime API 子系统 (Phase 17A)**：
+  - **领域模型与状态机 (`com.xhlcli.runtime.task`)**：`TaskStatus` 6 态完整流转与 `DurableTask` 序列化；
+  - **持久调度引擎 (`DurableTaskManager`)**：SQLite 事务原子认领调度、孤儿任务租约恢复自愈与协作式精准取消；
+  - **本地安全 Runtime 服务 (`RuntimeApiServer`)**：严格绑定 `127.0.0.1` 环回接口，Bearer API Key 拦截未授权调用；
+  - **游标事件流 (`RuntimeThreadStore`)**：单调递增游标读取与断点续传 SSE 推送；
+  - **终端管理套件**：挂载 `/task` 命令族与 Tab 补全。
 - **Side-History 隔离快照与版本恢复子系统 (Phase 16)**：
   - **纯 Java 嵌入式与绝对物理隔离 (`SideGitManager` + `SnapshotConfig`)**：引入 `org.eclipse.jgit` 纯 Java 实现，零外部 `git` 命令依赖；快照存储在隔离目录 `~/.xhlcli/snapshots/<projectHash>/<worktreeHash>/.git`，workTree 单向指向工作区；自动生成 `info/exclude` 过滤规则隔离 `.git/`、`target/`、`.xhlcli/` 等目录，严格保证用户项目自身的 `.git`、提交历史与分支 100% 绝对不受快照操作篡改与污染。
   - **异步双阶段调度与生命周期包装 (`SnapshotService` + `ChatLoop`)**：在 ReAct、Plan 与 Multi-Agent 每一轮执行时无感切面织入；`pre-turn` 同步毫秒级建档锁定变更前状态；`post-turn` 由单线程守护线程池 `xhlcli-snapshot-writer` 异步串行化提交，交互零卡顿；在查询或恢复前通过 `awaitIdle()` 安全协同排空；快照异常静默降级，不阻断 Agent 核心交互。
