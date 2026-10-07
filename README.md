@@ -155,28 +155,20 @@ java -jar target/xhlcli-1.0.0.jar --version
 
 ## 文档导航
 
-- [项目全局定位与资产映射 (Vibe Document Map)](docs/PROJECT.md)
-- [产品总 PRD](docs/PRD.md)
-- [路线图与交付状态](docs/ROADMAP.md)
-- [真实技术架构基线](docs/TECH_DESIGN.md)
-- [技术方案设计规范索引 (Specs)](docs/specs/README.md)
-- [实施路线任务清单索引 (Plans)](docs/plans/README.md)
-- [立项需求研究](docs/RESEARCH.md)
-- [授权源码采用地图](docs/engineering/source-adoption-map.md)
-- [Phase 18 静态官网与开源发布评测报告](docs/engineering/release-and-website-evaluation.md)
-- [Phase 17B 图片多模态与视觉防御护栏评测报告](docs/engineering/multimodal-evaluation.md)
-- [Phase 17A 后台任务与 Runtime API 评测报告](docs/engineering/runtime-and-task-evaluation.md)
-- [Phase 16 隔离快照与版本恢复评测报告](docs/engineering/snapshot-and-recovery-evaluation.md)
-- [Phase 15 终端产品化与交互治理评测报告](docs/engineering/terminal-productization-evaluation.md)
-- [Phase 14 Skill 与 Prompt 分层治理评测报告](docs/engineering/skill-and-prompt-evaluation.md)
-- [Phase 13 Web 与浏览器评测报告](docs/engineering/web-and-browser-evaluation.md)
-- [Phase 12 MCP 扩展评测报告](docs/engineering/mcp-evaluation.md)
-- [Phase 11 多模型评测报告](docs/engineering/multi-model-evaluation.md)
-- [Phase 10 Multi-Agent 评测报告](docs/engineering/multi-agent-evaluation.md)
-- [Phase 09 并行执行评测报告](docs/engineering/parallel-execution-benchmark.md)
-- [Phase 08 规划与执行评测报告](docs/engineering/plan-and-execute-evaluation.md)
-- [Phase 07 代码库 RAG 评测报告](docs/engineering/codebase-rag-evaluation.md)
-- [安全策略](SECURITY.md)
+本项目遵循严格的 [Vibe Workflow 规范](docs/vibe/) 进行生命周期治理，分为持续演进的 Living Documents 与按版本归档的 Release-scoped Artifacts：
+
+- **项目全局资产映射 (Document Map)**：[`docs/vibe/PROJECT.md`](docs/vibe/PROJECT.md)
+- **项目当前进度与门禁 (Living Progress)**：[`docs/vibe/PROGRESS.md`](docs/vibe/PROGRESS.md)
+- **真实系统架构基线 (Living Architecture)**：[`docs/vibe/TECH_DESIGN.md`](docs/vibe/TECH_DESIGN.md)
+- **产品总览需求 (PRD)**：[`docs/vibe/PRD.md`](docs/vibe/PRD.md)
+- **阶段交付路线图 (Roadmap)**：[`docs/vibe/ROADMAP.md`](docs/vibe/ROADMAP.md)
+- **版本归档中心 (Release Artifacts)**：[`docs/vibe/releases/`](docs/vibe/releases/)
+  - `v0.1` (Phase 00: 工程骨架)
+  - `v0.2` (Phase 01~04: 终端对话、ReAct、工具与审批)
+  - `v0.3` ~ `v0.15.1` (Phase 05~17: 记忆、RAG、Plan、并行、Multi-Agent、MCP、Web、Prompt分层、快照、Runtime、多模态)
+  - `v1.0` (Phase 18: 静态官网与开源发布)
+  - `v1.0.1` (Patch: 用户全局配置支持 API Key)
+- **安全策略**：[`SECURITY.md`](SECURITY.md)
 
 ## 当前验收状态
 

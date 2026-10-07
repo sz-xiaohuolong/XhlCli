@@ -25,7 +25,7 @@
 
 如果 API Key、Token 或私钥被提交，无论提交随后是否删除，都应立即在服务端撤销并重新签发；删除 Git 历史不能使已泄漏凭据重新安全。
 
-DeepSeek Key 应保存在被 Git 忽略的项目 `.env` 或进程环境变量中。不要放入命令行参数、`~/.xhlcli/config.json`、Issue、聊天记录、截图或演示文件。怀疑泄漏时，应先在 DeepSeek 控制台撤销旧 Key，再创建新 Key 并更新本地配置。
+API Key 应保存在用户全局配置 `~/.xhlcli/config.json`（建议 `chmod 600`）、被 Git 忽略的项目 `.env` 或进程环境变量中。不要放入命令行参数、Git 跟踪的文件、Issue、聊天记录、截图或演示文件。怀疑泄漏时，应先在 Provider 控制台撤销旧 Key，再创建新 Key 并更新本地配置。
 
 `/config` 只输出 `configured` / `missing` 和配置来源，不输出凭据值。正常错误和 DEBUG 元数据都会经过脱敏；模型消息正文不会写入调试日志。
 

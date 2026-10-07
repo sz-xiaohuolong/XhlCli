@@ -195,7 +195,12 @@ public final class ChatBootstrap implements ChatRunner {
             try {
                 dotEnv = ChatConfigLoader.readDotEnv(projectDirectory.resolve(".env"));
             } catch (Exception ignored) {}
-            Map<String, String> mergedEnv = new java.util.HashMap<>(dotEnv);
+            Map<String, String> userEnv = Map.of();
+            try {
+                userEnv = ChatConfigLoader.readUserEnv(userHome.resolve(".xhlcli").resolve("config.json"));
+            } catch (Exception ignored) {}
+            Map<String, String> mergedEnv = new java.util.HashMap<>(userEnv);
+            mergedEnv.putAll(dotEnv);
             mergedEnv.putAll(environment);
             com.xhlcli.llm.LlmProviderRegistry providerRegistry = new com.xhlcli.llm.LlmProviderRegistry(mergedEnv);
 

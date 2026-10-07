@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-XHLCLI_VERSION="1.0.0"
+XHLCLI_VERSION="1.0.1"
 INSTALL_DIR="${HOME}/.xhlcli"
 BIN_DIR="${INSTALL_DIR}/bin"
 JAR_NAME="xhlcli.jar"
@@ -131,4 +131,8 @@ case ":${PATH}:" in
         ;;
 esac
 
+echo -e "${BOLD}Configure your API Key (choose one):${RESET}"
+echo -e "  Global config: ${GREEN}echo '{\"apiKey\":\"your_api_key\"}' > ~/.xhlcli/config.json && chmod 600 ~/.xhlcli/config.json${RESET}"
+echo -e "  Environment:   ${GREEN}export DEEPSEEK_API_KEY=\"your_api_key\"${RESET}"
+echo ""
 echo -e "Run ${ORANGE}${BOLD}xhlcli${RESET} to start your first session!"

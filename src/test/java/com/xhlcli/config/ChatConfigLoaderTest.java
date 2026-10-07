@@ -91,16 +91,53 @@ class ChatConfigLoaderTest {
     }
 
     @Test
-    void rejectsSecretsInUserJsonConfig() throws Exception {
-        Path projectDir = Files.createDirectory(tempDir.resolve("project"));
-        Path userHome = Files.createDirectory(tempDir.resolve("home"));
-        writeUserConfig(userHome, "{\"apiKey\":\"must-not-live-here\"}");
+    void loadsApiKeyFromUserJsonConfig() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project-user-key"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home-user-key"));
+        writeUserConfig(userHome, "{\"apiKey\":\"user-config-secret-123\"}");
 
-        ConfigurationException failure = assertThrows(ConfigurationException.class,
-                () -> ChatConfigLoader.load(new String[0], Map.of(), projectDir, userHome));
+        ChatConfig config = ChatConfigLoader.load(new String[0], Map.of(), projectDir, userHome);
 
-        assertEquals("~/.xhlcli/config.json must not contain API keys or credentials; use DEEPSEEK_API_KEY instead.",
-                failure.getMessage());
+        assertEquals("user-config-secret-123", config.apiKey());
+        assertEquals(ConfigSource.USER_CONFIG, config.source(ConfigKey.API_KEY));
+    }
+
+    @Test
+    void dotEnvAndEnvironmentOverrideUserJsonConfig() throws Exception {
+        Path projectDir = Files.createDirectory(tempDir.resolve("project-precedence"));
+        Path userHome = Files.createDirectory(tempDir.resolve("home-precedence"));
+        writeUserConfig(userHome, "{\"apiKey\":\"user-key\"}");
+        Files.writeString(projectDir.resolve(".env"), "DEEPSEEK_API_KEY=dot-env-key\n");
+
+        // 1. .env overrides user config
+        ChatConfig config1 = ChatConfigLoader.load(new String[0], Map.of(), projectDir, userHome);
+        assertEquals("dot-env-key", config1.apiKey());
+        assertEquals(ConfigSource.DOT_ENV, config1.source(ConfigKey.API_KEY));
+
+        // 2. process environment overrides .env and user config
+        ChatConfig config2 = ChatConfigLoader.load(new String[0], Map.of("DEEPSEEK_API_KEY", "env-key"), projectDir, userHome);
+        assertEquals("env-key", config2.apiKey());
+        assertEquals(ConfigSource.ENVIRONMENT, config2.source(ConfigKey.API_KEY));
+    }
+
+    @Test
+    void loadsProviderSpecificKeysAndNestedProviders() throws Exception {
+        Path userHome = Files.createDirectory(tempDir.resolve("home-providers"));
+        writeUserConfig(userHome, "{\n"
+                + "  \"deepseekApiKey\": \"ds-specific-key\",\n"
+                + "  \"openaiApiKey\": \"oa-specific-key\",\n"
+                + "  \"anthropicApiKey\": \"claude-specific-key\",\n"
+                + "  \"providers\": {\n"
+                + "    \"deepseek\": {\"apiKey\": \"ds-nested\", \"baseUrl\": \"https://nested.deepseek.com\"},\n"
+                + "    \"openai\": {\"apiKey\": \"oa-nested\"}\n"
+                + "  }\n"
+                + "}");
+
+        Map<String, String> envMap = ChatConfigLoader.readUserEnv(userHome.resolve(".xhlcli").resolve("config.json"));
+        assertEquals("ds-specific-key", envMap.get("DEEPSEEK_API_KEY"));
+        assertEquals("oa-specific-key", envMap.get("OPENAI_API_KEY"));
+        assertEquals("claude-specific-key", envMap.get("ANTHROPIC_API_KEY"));
+        assertEquals("https://nested.deepseek.com", envMap.get("DEEPSEEK_BASE_URL"));
     }
 
     @Test

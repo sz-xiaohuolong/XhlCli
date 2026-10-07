@@ -1,5 +1,7 @@
 package com.xhlcli.config;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,8 +27,6 @@ public final class ChatConfigLoader {
     private static final long DEFAULT_CONNECT_TIMEOUT_SECONDS = 30;
     private static final long DEFAULT_READ_TIMEOUT_SECONDS = 300;
     private static final long DEFAULT_REQUEST_TIMEOUT_SECONDS = 600;
-    private static final Set<String> SECRET_FIELD_NAMES = Set.of(
-            "apikey", "api_key", "api-key", "token", "authorization", "password");
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
@@ -49,14 +49,15 @@ public final class ChatConfigLoader {
 
         Resolved<String> apiKey = firstNonBlankOrMissing(
                 resolved(environment.get("DEEPSEEK_API_KEY"), ConfigSource.ENVIRONMENT),
-                resolved(dotEnv.get("DEEPSEEK_API_KEY"), ConfigSource.DOT_ENV));
+                resolved(dotEnv.get("DEEPSEEK_API_KEY"), ConfigSource.DOT_ENV),
+                resolved(userConfig.getEffectiveApiKey(), ConfigSource.USER_CONFIG));
         sources.put(ConfigKey.API_KEY, apiKey.source());
 
         Resolved<String> model = firstNonBlank(
                 resolved(cli.get(ConfigKey.MODEL), ConfigSource.CLI),
                 resolved(environment.get("DEEPSEEK_MODEL"), ConfigSource.ENVIRONMENT),
                 resolved(dotEnv.get("DEEPSEEK_MODEL"), ConfigSource.DOT_ENV),
-                resolved(userConfig.model(), ConfigSource.USER_CONFIG),
+                resolved(userConfig.getEffectiveModel(), ConfigSource.USER_CONFIG),
                 new Resolved<>(DEFAULT_MODEL, ConfigSource.DEFAULT));
         sources.put(ConfigKey.MODEL, model.source());
 
@@ -64,7 +65,7 @@ public final class ChatConfigLoader {
                 resolved(cli.get(ConfigKey.BASE_URL), ConfigSource.CLI),
                 resolved(environment.get("DEEPSEEK_BASE_URL"), ConfigSource.ENVIRONMENT),
                 resolved(dotEnv.get("DEEPSEEK_BASE_URL"), ConfigSource.DOT_ENV),
-                resolved(userConfig.baseUrl(), ConfigSource.USER_CONFIG),
+                resolved(userConfig.getEffectiveBaseUrl(), ConfigSource.USER_CONFIG),
                 new Resolved<>(DEFAULT_BASE_URL, ConfigSource.DEFAULT));
         sources.put(ConfigKey.BASE_URL, baseUrl.source());
 
@@ -217,45 +218,23 @@ public final class ChatConfigLoader {
         return value;
     }
 
-    private static UserConfig readUserConfig(Path path) throws ConfigurationException {
+    public static UserConfig readUserConfig(Path path) throws ConfigurationException {
         if (!Files.isRegularFile(path)) {
             return UserConfig.empty();
         }
         try {
-            JsonNode root = MAPPER.readTree(path.toFile());
-            if (containsSecretField(root)) {
-                throw new ConfigurationException(
-                        "~/.xhlcli/config.json must not contain API keys or credentials; use DEEPSEEK_API_KEY instead.");
-            }
-            return MAPPER.treeToValue(root, UserConfig.class);
-        } catch (ConfigurationException failure) {
-            throw failure;
-        } catch (IOException failure) {
+            return MAPPER.readValue(path.toFile(), UserConfig.class);
+        } catch (Exception failure) {
             throw new ConfigurationException("Unable to read ~/.xhlcli/config.json.", failure);
         }
     }
 
-    private static boolean containsSecretField(JsonNode node) {
-        if (node == null) {
-            return false;
+    public static Map<String, String> readUserEnv(Path path) {
+        try {
+            return readUserConfig(path).toEnvMap();
+        } catch (Exception ignored) {
+            return Map.of();
         }
-        if (node.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
-                if (SECRET_FIELD_NAMES.contains(field.getKey().toLowerCase(Locale.ROOT))
-                        || containsSecretField(field.getValue())) {
-                    return true;
-                }
-            }
-        } else if (node.isArray()) {
-            for (JsonNode child : node) {
-                if (containsSecretField(child)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private static Resolved<String> resolveSetting(
@@ -345,9 +324,21 @@ public final class ChatConfigLoader {
         }
     }
 
-    private record UserConfig(
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ProviderUserConfig(
+            @JsonAlias({"api_key", "API_KEY"}) String apiKey,
+            @JsonAlias({"base_url", "BASE_URL"}) String baseUrl,
+            String model) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record UserConfig(
+            @JsonAlias({"api_key", "API_KEY"}) String apiKey,
+            @JsonAlias({"deepseek_api_key", "DEEPSEEK_API_KEY"}) String deepseekApiKey,
+            @JsonAlias({"openai_api_key", "OPENAI_API_KEY"}) String openaiApiKey,
+            @JsonAlias({"anthropic_api_key", "ANTHROPIC_API_KEY", "claude_api_key", "claudeApiKey", "CLAUDE_API_KEY"}) String anthropicApiKey,
+            Map<String, ProviderUserConfig> providers,
             String model,
-            String baseUrl,
+            @JsonAlias({"base_url", "BASE_URL"}) String baseUrl,
             Long connectTimeoutSeconds,
             Long readTimeoutSeconds,
             Long requestTimeoutSeconds,
@@ -356,8 +347,95 @@ public final class ChatConfigLoader {
             String logLevel,
             Long maxConcurrency,
             Long toolTimeoutSeconds) {
-        static UserConfig empty() {
-            return new UserConfig(null, null, null, null, null, null, null, null, null, null);
+
+        public static UserConfig empty() {
+            return new UserConfig(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        public String getEffectiveApiKey() {
+            if (deepseekApiKey != null && !deepseekApiKey.isBlank()) {
+                return deepseekApiKey.trim();
+            }
+            if (providers != null && providers.containsKey("deepseek")) {
+                ProviderUserConfig dsConfig = providers.get("deepseek");
+                if (dsConfig != null && dsConfig.apiKey() != null && !dsConfig.apiKey().isBlank()) {
+                    return dsConfig.apiKey().trim();
+                }
+            }
+            if (apiKey != null && !apiKey.isBlank()) {
+                return apiKey.trim();
+            }
+            return null;
+        }
+
+        public String getEffectiveModel() {
+            if (providers != null && providers.containsKey("deepseek")) {
+                ProviderUserConfig dsConfig = providers.get("deepseek");
+                if (dsConfig != null && dsConfig.model() != null && !dsConfig.model().isBlank()) {
+                    return dsConfig.model().trim();
+                }
+            }
+            if (model != null && !model.isBlank()) {
+                return model.trim();
+            }
+            return null;
+        }
+
+        public String getEffectiveBaseUrl() {
+            if (providers != null && providers.containsKey("deepseek")) {
+                ProviderUserConfig dsConfig = providers.get("deepseek");
+                if (dsConfig != null && dsConfig.baseUrl() != null && !dsConfig.baseUrl().isBlank()) {
+                    return dsConfig.baseUrl().trim();
+                }
+            }
+            if (baseUrl != null && !baseUrl.isBlank()) {
+                return baseUrl.trim();
+            }
+            return null;
+        }
+
+        public Map<String, String> toEnvMap() {
+            Map<String, String> env = new HashMap<>();
+            String dsKey = getEffectiveApiKey();
+            if (dsKey != null && !dsKey.isBlank()) {
+                env.put("DEEPSEEK_API_KEY", dsKey);
+            }
+            String oaKey = (openaiApiKey != null && !openaiApiKey.isBlank()) ? openaiApiKey.trim() : null;
+            if (oaKey == null && providers != null && providers.containsKey("openai")) {
+                ProviderUserConfig cfg = providers.get("openai");
+                if (cfg != null && cfg.apiKey() != null && !cfg.apiKey().isBlank()) {
+                    oaKey = cfg.apiKey().trim();
+                }
+            }
+            if (oaKey != null && !oaKey.isBlank()) {
+                env.put("OPENAI_API_KEY", oaKey);
+            }
+            String anKey = (anthropicApiKey != null && !anthropicApiKey.isBlank()) ? anthropicApiKey.trim() : null;
+            if (anKey == null && providers != null && providers.containsKey("anthropic")) {
+                ProviderUserConfig cfg = providers.get("anthropic");
+                if (cfg != null && cfg.apiKey() != null && !cfg.apiKey().isBlank()) {
+                    anKey = cfg.apiKey().trim();
+                }
+            }
+            if (anKey != null && !anKey.isBlank()) {
+                env.put("ANTHROPIC_API_KEY", anKey);
+            }
+
+            if (providers != null) {
+                if (providers.containsKey("deepseek") && providers.get("deepseek").baseUrl() != null && !providers.get("deepseek").baseUrl().isBlank()) {
+                    env.put("DEEPSEEK_BASE_URL", providers.get("deepseek").baseUrl().trim());
+                }
+                if (providers.containsKey("openai") && providers.get("openai").baseUrl() != null && !providers.get("openai").baseUrl().isBlank()) {
+                    env.put("OPENAI_BASE_URL", providers.get("openai").baseUrl().trim());
+                }
+                if (providers.containsKey("anthropic") && providers.get("anthropic").baseUrl() != null && !providers.get("anthropic").baseUrl().isBlank()) {
+                    env.put("ANTHROPIC_BASE_URL", providers.get("anthropic").baseUrl().trim());
+                }
+                if (providers.containsKey("ollama") && providers.get("ollama").baseUrl() != null && !providers.get("ollama").baseUrl().isBlank()) {
+                    env.put("OLLAMA_BASE_URL", providers.get("ollama").baseUrl().trim());
+                }
+            }
+            return Map.copyOf(env);
         }
     }
 }

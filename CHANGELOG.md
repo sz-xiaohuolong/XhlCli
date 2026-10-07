@@ -2,6 +2,18 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.0.1] - 2026-10-07
+
+### Added
+- **用户全局配置支持 API Key（User Config API Key Support）**:
+  - 解除 `~/.xhlcli/config.json` 对敏感凭据字段的拒绝异常拦截，全面对齐 Claude Code 等主流 CLI 的全局配置体验；
+  - 兼容顶层 `apiKey`（默认作为主模型 Provider / DeepSeek 的 API Key）及 `deepseekApiKey`、`openaiApiKey`、`anthropicApiKey`；
+  - 支持 `providers` 嵌套映射格式（如 `providers.deepseek.apiKey`、`providers.openai.apiKey` 等）；
+  - 确立清晰确定的优先级解析阶梯：`进程环境变量 (ENVIRONMENT) > 项目 .env (DOT_ENV) > 全局配置 ~/.xhlcli/config.json (USER_CONFIG) > 默认值`；
+  - 在 `ChatBootstrap` 中自动将 `userEnv` 映射注入 `LlmProviderRegistry`，实现全局配置一次即可在任意目录使用多 Provider 模型；
+  - 增强 `install.sh` 快速安装引导，提示用户可直接通过 `echo '{"apiKey":"..."}' > ~/.xhlcli/config.json` 一键就绪；
+  - 新增/更新单元测试与集成测试，覆盖多层优先级级联与 Provider 解析，全量 525 项测试 100% 绿灯。
+
 ## [1.0.0] - 2026-10-07
 
 ### Added

@@ -84,4 +84,23 @@ public class LlmProviderRegistryTest {
             assertEquals("qwen2.5-coder", client.modelName());
         });
     }
+
+    @Test
+    void supportsKeysDerivedFromUserJsonConfig() {
+        Map<String, String> userEnv = Map.of(
+                "DEEPSEEK_API_KEY", "sk-ds-from-json",
+                "OPENAI_API_KEY", "sk-oa-from-json",
+                "ANTHROPIC_API_KEY", "sk-ant-from-json"
+        );
+        LlmProviderRegistry registry = new LlmProviderRegistry(userEnv);
+
+        assertTrue(registry.findModel("deepseek").orElseThrow().configured());
+        assertTrue(registry.findModel("gpt-4o").orElseThrow().configured());
+        assertTrue(registry.findModel("claude").orElseThrow().configured());
+
+        assertDoesNotThrow(() -> {
+            LlmClient client = registry.createClient("gpt-4o", DiagnosticSink.NO_OP);
+            assertEquals("openai", client.providerName());
+        });
+    }
 }
