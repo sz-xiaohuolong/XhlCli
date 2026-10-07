@@ -25,7 +25,7 @@ public final class TerminalCompleter implements Completer {
             "/help", "/config", "/clear", "/history", "/model", "/mcp", "/skill",
             "/plan", "/team", "/search", "/search-text", "/index", "/prompt",
             "/browser", "/save", "/memory", "/context", "/compact",
-            "/snapshot", "/restore", "/exit"
+            "/snapshot", "/restore", "/task", "/exit"
     );
 
     private static final Map<String, List<String>> SUBCOMMANDS = Map.ofEntries(
@@ -38,7 +38,8 @@ public final class TerminalCompleter implements Completer {
             Map.entry("/memory", List.of("list", "search", "delete", "clear")),
             Map.entry("/index", List.of("status", "clean")),
             Map.entry("/snapshot", List.of("list", "status", "clean")),
-            Map.entry("/restore", List.of("1", "2", "3"))
+            Map.entry("/restore", List.of("1", "2", "3")),
+            Map.entry("/task", List.of("list", "add", "log", "cancel"))
     );
 
     private final Supplier<List<String>> modelSupplier;

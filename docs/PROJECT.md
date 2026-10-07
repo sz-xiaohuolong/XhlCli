@@ -8,10 +8,10 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **Current Release**: Phase 16: 隔离快照与版本恢复 (`v0.14.0`, Tag: `v0.14.0`, 2026-10-07)
-- **Next Release**: Phase 17: AST 语法诊断与轻量校验 (`v0.15.0`, 规划中)
-- **Quality Profile**: Comprehensive（475 项自动化测试 100% 绿灯 + Side-History Snapshot Golden Set 评测物证 + DoD 铁律闭环）
-- **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行、多 Agent 协同与 Side-History 隔离快照恢复能力。
+- **Current Release**: Phase 17A: 后台持久任务与 Localhost Runtime API (`v0.15.0`, Tag: `v0.15.0`, 2026-10-07)
+- **Next Release**: Phase 17B: 图片多模态上下文预处理 (`v0.15.1`, 规划中)
+- **Quality Profile**: Comprehensive（500 项自动化测试 100% 绿灯 + Runtime Golden Test 与持久化评测物证 + DoD 铁律闭环）
+- **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行、多 Agent 协同、Side-History 隔离快照恢复与后台持久任务/Localhost Runtime API。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
 ---
@@ -66,6 +66,7 @@
 | **Phase 14** Skill 与 Prompt 分层 | [phase-14](prd/phase-14-skills-and-prompts.md) | [2026-10-05-phase-14](specs/2026-10-05-phase-14-skills-and-prompts-design.md) | [2026-10-05-phase-14](plans/2026-10-05-phase-14-skills-and-prompts.md) | [skill-and-prompt-evaluation](engineering/skill-and-prompt-evaluation.md) | `v0.12.0` | 已封存 |
 | **Phase 15** 终端交互产品化 | [phase-15](prd/phase-15-terminal-productization.md) | [2026-10-06-phase-15](specs/2026-10-06-phase-15-terminal-productization-design.md) | [2026-10-06-phase-15](plans/2026-10-06-phase-15-terminal-productization.md) | [terminal-productization-evaluation](engineering/terminal-productization-evaluation.md) | `v0.13.0` | 已封存 |
 | **Phase 16** 隔离快照与版本恢复 | [phase-16](prd/phase-16-lsp-and-snapshots.md) | [2026-10-07-phase-16](specs/2026-10-07-phase-16-snapshot-and-recovery-design.md) | [2026-10-07-phase-16](plans/2026-10-07-phase-16-snapshot-and-recovery.md) | [snapshot-and-recovery-evaluation](engineering/snapshot-and-recovery-evaluation.md) | `v0.14.0` | 已封存 |
+| **Phase 17** Runtime 与多模态 | [phase-17](prd/phase-17-runtime-and-multimodal.md) | [2026-10-07-phase-17](specs/2026-10-07-phase-17-runtime-and-multimodal-design.md) | [2026-10-07-phase-17](plans/2026-10-07-phase-17-runtime-and-multimodal.md) | [runtime-and-task-evaluation](engineering/runtime-and-task-evaluation.md) | `v0.15.0` | 已封存 (17A完成) |
 
 
 ---
@@ -75,7 +76,7 @@
 | 目的 | 命令 | 备注 |
 | :--- | :--- | :--- |
 | **环境检查** | `java -version` | 必须为 Java 21+ (`export JAVA_HOME=/opt/homebrew/opt/openjdk`) |
-| **全量自动化测试** | `mvn clean test` | 475 项自动化测试（单元、集成、契约与 Golden Set） |
+| **全量自动化测试** | `mvn clean test` | 500 项自动化测试（单元、集成、契约与 Golden Set 100% 绿灯） |
 | **单测运行** | `mvn test -Dtest=<TestClass>` | 运行指定测试类 |
-| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.14.0-SNAPSHOT.jar` 可执行 Fat JAR |
-| **运行 CLI** | `java -jar target/xhlcli-0.14.0-SNAPSHOT.jar` | 启动交互式终端 Agent |
+| **打包产物** | `mvn package -DskipTests` | 构建 `target/xhlcli-0.15.0-SNAPSHOT.jar` 可执行 Fat JAR |
+| **运行 CLI** | `java -jar target/xhlcli-0.15.0-SNAPSHOT.jar` | 启动交互式终端 Agent |

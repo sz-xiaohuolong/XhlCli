@@ -428,8 +428,23 @@ API Key 默认仅引用环境变量名。`.env` 只作为本地开发便利，�
 | 长期记忆 | JSONL | 可选 SQLite | 可列出、删除和迁移 |
 | RAG 索引 | 不适用 | SQLite | 索引版本不兼容时重建 |
 | 审计 | JSONL | JSONL | 追加写、按天滚动 |
-| 后台任务 | 不适用 | SQLite | 事务状态与租约恢复 |
+| 后台任务 | 不适用 | SQLite (`tasks.db`) | 事务状态原子认领与崩溃自愈租约恢复 |
+| 会话线程与事件 | 不适用 | SQLite (`runtime.db`) | 自增主键单调递增游标断点续传 |
 | 快照 | 不适用 | 独立 JGit 仓库 | 不影响用户 `.git` |
+
+### 15.1 后台持久任务与 Localhost Runtime API (Phase 17A)
+
+- **持久调度引擎 (`DurableTaskManager`)**：
+  - 基于 SQLite 事务实现任务入队 (`enqueue`)、原子认领 (`claimNext`)、协作式精准取消 (`cancel`)；
+  - 启动时自动触发租约恢复 (`recoverRunningTasks`)，将孤儿 `running` 状态自愈回滚为 `ENQUEUED`，杜绝死锁与挂起；
+  - 默认有界后台守护线程池 Worker 并发执行，隔离长耗时计算与主终端循环。
+- **本地回环 Runtime 服务 (`RuntimeApiServer`)**：
+  - 基于 JDK 内置原生 `HttpServer` 构建，零第三方 Web 框架依赖；
+  - 严格限绑 `127.0.0.1`，杜绝公网暴露风险；
+  - 强制 API Key 认证（`Authorization: Bearer` 或 `X-XhlCLI-API-Key`），未配 Key 拒启，非法 Key 401 拦截；
+  - RESTful 接口体系 (`POST /v1/threads`, `POST /v1/threads/{id}/turns`) 结合 SSE 增量事件流 (`GET /v1/threads/{id}/events?after={cursor}`) 实现游标断点拉取。
+- **终端交互套件**：
+  - `/task [list|add|log|cancel]` 终端指令及 JLine 自动补全，支持后台任务即时提交、状态跟踪与日志回溯。
 
 ## 16. 测试架构
 

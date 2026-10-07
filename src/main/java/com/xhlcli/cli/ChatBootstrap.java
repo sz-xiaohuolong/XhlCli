@@ -256,6 +256,24 @@ public final class ChatBootstrap implements ChatRunner {
                 loop.setMcpServerManager(mcpManager);
                 loop.setSnapshotService(snapshotService);
 
+                Path taskDbDir = userHome.resolve(".xhlcli").resolve("tasks");
+                String customTaskDir = System.getProperty("xhlcli.task.dir", System.getenv("XHLCLI_TASK_DIR"));
+                if (customTaskDir != null && !customTaskDir.isBlank()) {
+                    taskDbDir = Path.of(customTaskDir);
+                }
+                Path taskDb = taskDbDir.resolve("tasks.db");
+                com.xhlcli.runtime.task.DurableTaskManager durableTaskManager = null;
+                try {
+                    durableTaskManager = new com.xhlcli.runtime.task.DurableTaskManager(taskDb, prompt -> {
+                        com.xhlcli.model.RunResult result = agent.run(prompt, event -> {}, new com.xhlcli.llm.CancellationToken());
+                        return result.finalAnswer();
+                    });
+                    durableTaskManager.start();
+                    loop.setDurableTaskManager(durableTaskManager);
+                } catch (Exception e) {
+                    diagnostics.debug("durable_task_init_failed", Map.of("error", e.getMessage() != null ? e.getMessage() : "unknown"));
+                }
+
                 com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {
                     renderer.printMessage(plan.summarize());
                     renderer.printMessage("📝 计划已生成。");
@@ -294,6 +312,9 @@ public final class ChatBootstrap implements ChatRunner {
                     int exitCode = loop.run();
                     return exitCode;
                 } finally {
+                    try {
+                        durableTaskManager.close();
+                    } catch (Exception ignored) {}
                     try {
                         mcpManager.close();
                     } catch (Exception ignored) {}

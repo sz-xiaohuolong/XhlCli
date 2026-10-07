@@ -113,6 +113,7 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
         println("  \u001B[33m/prompt [show|export]\u001B[0m  查看或脱敏导出分层 System Prompt");
         println("  \u001B[33m/snapshot [list|status|clean]\u001B[0m Side-Git 隔离快照管理");
         println("  \u001B[33m/restore <N>\u001B[0m           安全恢复到最近第 N 个任务开始前");
+        println("  \u001B[33m/task [list|add|log|cancel]\u001B[0m 后台持久任务队列管理");
         println("  \u001B[33m/exit\u001B[0m                  退出终端");
         println("  \u001B[2m快捷键: Ctrl+C 取消当前执行 | Tab 自动补全\u001B[0m");
     }

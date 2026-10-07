@@ -2,6 +2,31 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [0.15.0] - 2026-10-07
+
+### Added
+- **后台持久任务队列与 Localhost Runtime API 子系统（Durable Tasks & Runtime API Subsystem）** (Phase 17A):
+  - **任务状态机与持久化领域模型 (`TaskStatus` + `DurableTask`)**：
+    - 规范化 6 态状态转移矩阵：`ENQUEUED`, `RUNNING`, `WAITING_FOR_APPROVAL`, `COMPLETED`, `FAILED`, `CANCELED`；
+    - 记录任务编号、状态、提示词、工作区绑定、耗时、执行结果、异常日志及开始/完成时间戳；
+  - **SQLite 持久调度引擎与崩溃租约自愈 (`DurableTaskManager`)**：
+    - 基于 SQLite 事务机制 (`tasks.db`) 实现并发安全的原子认领 (`claimNext`)，杜绝多 Worker 认领同一任务的脑裂竞争；
+    - 进程重启时自动触发租约恢复 (`recoverRunningTasks`)，将孤儿 `running` 任务平滑自愈回滚为 `ENQUEUED` 重新排队，防止悬挂死锁；
+    - 采用守护线程池 Worker 并发异步处理，配合 `cancel(id)` 精准中断当前执行线程并更新为终态 `CANCELED`；
+  - **本地安全 Runtime API 服务 (`RuntimeApiServer` + `RuntimeThreadStore`)**：
+    - 纯 Java 原生实现（基于 JDK `HttpServer`），零外部重量级 Web 框架依赖；
+    - 严格限绑 `127.0.0.1` 环回接口，坚决杜绝暴露公网；
+    - 强制 API Key 鉴权拦截（`Authorization: Bearer` 或 `X-XhlCLI-API-Key`），未配置 Key 拒启服务，非法请求返回 401；
+    - 提供 RESTful 接口体系：`POST /v1/threads`、`POST /v1/threads/{id}/turns`（返回 202 异步调度）；
+    - 支持 SSE 流式长连接 (`GET /v1/threads/{id}/events`) 与单调递增游标断点拉取 (`?after={cursor}`)，保障客户端重连无缝续传；
+  - **终端交互指令套件与自动补全 (`TaskCommandFormatter` + `ChatCommand` + `TerminalCompleter`)**：
+    - 新增 `/task`（或 `/task list [N]`）、`/task add <任务内容>`、`/task log <id>`、`/task cancel <id>`；
+    - 在 JLine `TerminalCompleter` 中支持 `/task` 及全部二级子命令的 Tab 智能补全；
+    - 在双模渲染器的帮助菜单中补充 `/task` 使用说明；
+  - **端到端集成 Golden Test 与全量质量回归**：
+    - `RuntimeGoldenTest` 全链路覆盖：异步提交 -> 并发 Worker 执行 -> 运行中协作取消 -> 重启孤儿租约自愈 -> Runtime API 鉴权创建会话 -> 提交交互 turn -> SSE 增量事件流与游标断点续传；
+    - 全量自动化测试套件扩充至 500 项（100% 绿灯）。
+
 ## [0.14.0] - 2026-10-07
 
 ### Added

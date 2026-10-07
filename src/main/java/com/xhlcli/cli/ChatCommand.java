@@ -23,5 +23,6 @@ public enum ChatCommand {
     PROMPT,
     HISTORY,
     SNAPSHOT,
-    RESTORE
+    RESTORE,
+    TASK
 }

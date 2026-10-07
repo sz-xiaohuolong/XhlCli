@@ -48,6 +48,9 @@ public final class ChatLoop {
     private com.xhlcli.snapshot.SnapshotService snapshotService;
     public void setSnapshotService(com.xhlcli.snapshot.SnapshotService snapshotService) { this.snapshotService = snapshotService; }
     public com.xhlcli.snapshot.SnapshotService getSnapshotService() { return this.snapshotService; }
+    private com.xhlcli.runtime.task.DurableTaskManager durableTaskManager;
+    public void setDurableTaskManager(com.xhlcli.runtime.task.DurableTaskManager durableTaskManager) { this.durableTaskManager = durableTaskManager; }
+    public com.xhlcli.runtime.task.DurableTaskManager getDurableTaskManager() { return this.durableTaskManager; }
 
     private void printContext() {
         if (contextAssembler != null) {
@@ -918,6 +921,14 @@ public final class ChatLoop {
         }
     }
 
+    private void handleTask(String input) {
+        String trimmed = input.trim();
+        int firstSpace = trimmed.indexOf(' ');
+        String payload = firstSpace == -1 ? "" : trimmed.substring(firstSpace + 1).trim();
+        String output = com.xhlcli.runtime.task.TaskCommandFormatter.handle(durableTaskManager, payload);
+        renderer.printMessage(output);
+    }
+
     private final AtomicReference<CancellationToken> activeResponse = new AtomicReference<>();
 
     public ChatLoop(
@@ -955,7 +966,7 @@ public final class ChatLoop {
     public int run() {
         String workspace = projectDirectory != null ? projectDirectory.toAbsolutePath().toString() : ".";
         com.xhlcli.render.TerminalExtSummary summary = getExtensionSummary();
-        renderer.printWelcome(config.model(), "0.13.0", workspace, summary);
+        renderer.printWelcome(config.model(), "0.15.0", workspace, summary);
         renderer.updateStatus(new TerminalStatus("REAct", "Idle", config.model(), 0, 0, summary.mcpServerCount(), summary.skillCount(), workspace));
         while (true) {
             String input;
@@ -1006,6 +1017,7 @@ public final class ChatLoop {
                 case PROMPT -> handlePrompt(input);
                 case SNAPSHOT -> handleSnapshot(input);
                 case RESTORE -> handleRestore(input);
+                case TASK -> handleTask(input);
                 case UNKNOWN -> renderer.printUnknownCommand(input.trim());
                 case USER_MESSAGE -> sendTurn(input);
             }
