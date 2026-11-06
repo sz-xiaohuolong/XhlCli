@@ -8,7 +8,8 @@
     "build": "node scripts/build.mjs",
     "start": "npm run build && electron .",
     "test": "node --test test/*.test.cjs",
-    "package": "npm run build && node scripts/prepare.mjs && electron-builder --mac dir"
+    "package": "npm run build && node scripts/prepare.mjs && electron-builder --mac dir --arm64 -c.directories.output=release/bundled",
+    "distribute": "npm run package && node scripts/distribute.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
@@ -25,9 +26,32 @@
   "build": {
     "appId": "com.xhlcli.desktop",
     "productName": "XhlCLI",
-    "directories": {"output": "release"},
-    "files": ["electron/**", "dist/**", "package.json"],
-    "extraResources": [{"from":"resources/xhlcli.jar","to":"xhlcli.jar"}],
-    "mac": {"category":"public.app-category.developer-tools","identity":null}
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/xhlcli.jar",
+        "to": "xhlcli.jar"
+      },
+      {
+        "from": "resources/runtime",
+        "to": "runtime"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "minimumSystemVersion": "13.0",
+      "signIgnore": [
+        "Contents/Resources/runtime($|/)"
+      ]
+    }
   }
 }

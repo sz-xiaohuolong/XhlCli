@@ -101,3 +101,18 @@ Java 全量回归 620 项、Node 桥接 2 项通过，前端构建和本机 `.ap
 当前 `.app` 内 JAR 与本机全量回归构建出的 JAR 的 SHA-256 一致：`3e5e3f87b46f8030368b28a1a54744f8eafee9294f68b2059f36184ac42f1936`。本次变更的 214 条本地 Markdown 链接及 `git diff --check` 通过；高置信凭据模式扫描没有命中新增内容，依赖、构建产物与验收运行数据均未提交。
 
 首次 CI 的流式测试在 15 秒内未收到 TextDelta。本地使用长输入重现；原因是测试服务的排队限速同时作用于请求上传，尚未读完请求就耗尽了测试等待时间。改用 Dispatcher，在请求完整到达后仅限速响应，并保留长输入回归。修复前该场景失败；修复后 `DesktopServiceTest` 5 项全部通过，流式取消场景约 0.5 秒。生产代码与已验收 `.app` 未改变，不以放宽超时或跳过测试处理失败。
+
+
+## 桌面压缩包增量验收（2026-11-06）
+
+本节补充新的分发包事实；前文关于依赖系统 Java 与历史 `.app` 的结论仅适用于当时的包。
+
+- 用户确认目标为 Apple 芯片 Mac，朋友在设置页填写自己的 API Key；内置 Electron 和 Temurin Java 21.0.13+9，不携带开发者配置、密钥与聊天。
+- 产物：`desktop/release/XhlCLI-0.1.0-mac-arm64.zip`，附同名 `.sha256`；包内有 `XhlCLI.app`、中文快速开始说明、Java 许可与对应官方源码。大小约 300 MiB。
+- 本次构建包含工作区已有的审批模式修复；分发实现没有改动这些待提交代码，628 项 Java 全量回归通过。Node 5 项通过；其中运行环境测试先复现 2 项失败，再验证包内 Java 优先、路径空格、缺失环境报错和开发配置兼容。
+- `npm run distribute` 成功；官方 JRE 与源码通过固定 SHA-256 检查。Java 保留官方签名，外层应用 ad-hoc 签名；打包目录和解压目录的 `codesign --verify --deep --strict` 均通过。
+- 将 ZIP 解压至 `/tmp/XhlCLI 分发验收/`，以空白 home、`PATH=/nonexistent`、无效 `JAVA_HOME`/`XHLCLI_JAVA` 启动实际应用，agent-desktop 读到空项目主界面与设置页。进程树确认 Java 来自解压后的应用包。
+- 使用解压后的 JRE 和 JAR，在独立 home/project 通过真实私有协议完成：空模型列表 → 保存测试 Key → 连接本地测试模型 → 创建项目/聊天 → 人工批准真实写入 → 查看 diff → 退出并恢复配置/聊天。全程不依赖系统 Java、Node 或 Git。
+- 压缩包目录清单检查未包含 `.xhlcli`、`.env`、`.git`、日志与下载缓存；验收使用固定测试 Key，没有读取开发者真实密钥。
+- 证据：`/tmp/xhlcli-distribution-java.log`、`/tmp/xhlcli-runtime-red.log`、`/tmp/xhlcli-distribution-build.log`、`/tmp/xhlcli-distribution-first-run.json`、`/tmp/xhlcli-distribution-settings.json`、`/tmp/xhlcli-distribution-smoke.log`。重现入口为 desktop README、`scripts/runtime-lock.json` 和现有本地模型夹具。
+- 限制：设置页实际打开已验证，新增分发包的保存/连接闭环通过协议验证；未把本轮证据扩展为完整 GUI 全流程重测。真实收费 Provider、另一台 Mac、旧版 macOS 和带下载隔离标记的 Gatekeeper 首次打开未实机验收。未进行 Developer ID 签名、公证、自动更新或 Release 发布。

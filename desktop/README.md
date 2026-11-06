@@ -2,11 +2,15 @@
 
 Electron/React 界面通过私有 stdio 调用仓库现有 Java Agent。参考界面来自用户提供的 Codex 主聊天和设置截图；名称、模型能力与执行引擎保持 XhlCLI。
 
-## 启动与本机打包
+## 给朋友使用
 
-需要 macOS、Java 21、Node.js 22 或更新版本。当前实测 macOS 26.6.2 / Apple Silicon；Intel 和其他系统未验收。
+Apple 芯片 Mac 的分发包：`release/XhlCLI-0.1.0-mac-arm64.zip`。解压后把 `XhlCLI.app` 拖入“应用程序”，双击打开，在设置页填写朋友自己的 API Key 并测试连接。无需安装 Java、Node.js 或使用终端；压缩包附有[快速开始说明](distribution/快速开始.txt)，不包含开发者的配置、密钥或聊天。
 
-在仓库根目录构建 Java，再进入桌面目录：
+支持范围声明为 macOS 13+ / arm64，当前实测 macOS 26.6.2。测试包使用本地 ad-hoc 签名，没有 Developer ID 身份签名、公证或自动更新；首次打开可能需要前往“系统设置 → 隐私与安全性 → 仍要打开”。单位管控设备可能禁止此操作。Intel、Windows 和旧版 macOS 未实机验收。特定项目的编译或运行仍可能需要该项目自身的工具依赖。
+
+## 开发启动与构建分发包
+
+构建机需要 Apple 芯片 Mac、Java 21、Node.js 22 或更新版本；这些是开发依赖，收件人不需要安装。
 
 ```bash
 ./mvnw verify
@@ -15,15 +19,18 @@ npm ci
 npm start
 ```
 
-`npm start` 先构建前端，再启动 Electron；首次安装需要下载 Electron 运行时。主进程优先通过 `/usr/libexec/java_home -v 21` 定位 Java，必要时设置 `XHLCLI_JAVA` 为 Java 可执行文件绝对路径。
-
-本机 `.app` 构建：
+开发模式通过 `/usr/libexec/java_home -v 21` 定位 Java，或使用 `XHLCLI_JAVA` 指定的可执行文件。打包模式固定使用包内运行环境，忽略系统 Java 配置；运行环境不完整时提示重新解压。
 
 ```bash
-npm run package
+# 在仓库根目录先构建最新 Java JAR
+./mvnw verify
+cd desktop
+npm run distribute
 ```
 
-Apple Silicon 输出 `release/mac-arm64/XhlCLI.app`，可双击打开。包内包含 Java JAR，**仍需机器已安装 Java 21**。这是未签名的本机 MVP，没有公证、自动更新或公开安装包发布。构建产物不进入 Git。
+`npm run package` 只生成 `release/bundled/mac-arm64/XhlCLI.app`；`npm run distribute` 再生成 ZIP 和 `.sha256` 校验文件。新目录避免覆盖正在运行的历史 `release/mac-arm64/` 包。`scripts/runtime-lock.json` 固定 Eclipse Temurin 21.0.13+9 的 macOS aarch64 JRE、源码下载地址及 SHA-256；首次构建下载，后续校验缓存。运行环境保持官方签名，外层应用进行 ad-hoc 签名并通过完整性校验。
+
+压缩包附带 Java 的许可文件、官方对应版本源码及中文说明。仅复制明确列出的应用资源；下载缓存、用户 home、项目和验收数据不进入包。生成物位于 Git 忽略目录，不创建 Tag 或 Release。
 
 ## 使用
 

@@ -1,5 +1,6 @@
 const {app,BrowserWindow,ipcMain,dialog,shell,Menu}=require('electron');
-const {spawn,execFileSync,execFile}=require('node:child_process');
+const {spawn,execFile}=require('node:child_process');
+const {resolveJava}=require('./runtime.cjs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const os=require('node:os');
@@ -15,10 +16,7 @@ app.setName('XhlCLI');
 if(!app.requestSingleInstanceLock()){app.quit();}else{
   app.on('second-instance',()=>{window?.show();window?.focus();});
   app.whenReady().then(async()=>{
-    let java=process.env.XHLCLI_JAVA||'java';
-    if(!process.env.XHLCLI_JAVA&&process.platform==='darwin'){
-      try{java=path.join(execFileSync('/usr/libexec/java_home',['-v','21'],{encoding:'utf8'}).trim(),'bin/java');}catch{}
-    }
+    const java=resolveJava({isPackaged:app.isPackaged,resourcesPath:process.resourcesPath});
     const jar=app.isPackaged?path.join(process.resourcesPath,'xhlcli.jar'):path.join(__dirname,'../../target/xhlcli-1.0.1.jar');
     child=spawn(java,['-cp',jar,'com.xhlcli.desktop.DesktopMain',...(process.env.XHLCLI_DESKTOP_TEST_HOME?['--home',home]:[])],{stdio:['pipe','pipe','pipe'],cwd:home,env:process.env});
     backend=new Backend(child,message=>{if(window&&!window.isDestroyed())window.webContents.send('desktop:event',message);});
@@ -33,7 +31,7 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
       {label:'编辑',submenu:[{role:'undo',label:'撤销输入'},{role:'redo',label:'重做输入'},{type:'separator'},{role:'cut',label:'剪切'},{role:'copy',label:'复制'},{role:'paste',label:'粘贴'},{role:'selectAll',label:'全选'}]},
       {label:'显示',submenu:[{label:'显示主窗口',click:()=>window.show()},{role:'resetZoom',label:'实际大小'},{role:'zoomIn',label:'放大'},{role:'zoomOut',label:'缩小'},{role:'togglefullscreen',label:'全屏'}]}
     ]));
-  }).catch(error=>dialog.showErrorBox('XhlCLI 启动失败',error.message));
+  }).catch(error=>{dialog.showErrorBox('XhlCLI 启动失败',error.message);app.quit();});
 }
 function trusted(event){if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||event.senderFrame.url!==pathToFileURL(index).href)throw new Error('拒绝不受信任的界面请求');}
 ipcMain.handle('desktop:request',async(event,method,params={})=>{

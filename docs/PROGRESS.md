@@ -2,6 +2,7 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
+| 桌面压缩包分发 | Apple 芯片 Mac ZIP 内置 Java；空配置启动及隔离模型/文件/历史验收通过；Java 628 项、Node 5 项通过 | 未公证；未在另一台 Mac 或旧版 macOS 实测 | ZIP 与中文说明已生成，见[分发验收](engineering/desktop-mvp-verification.md#桌面压缩包增量验收2026-11-06) |
 | 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 代码及测试修复已同步 origin/main，远程 CI 通过；按人工步骤验收真实 Provider |
 | 前次交付 | 记忆召回、后台 task、技能入口、Phase 19 的原有交付保留 | 各自验证范围沿用历史记录 | 下方前次任务记录及 PROJECT 索引 |
 | 后续 v1.1 | 可信任务生命周期仍为独立规划，未整体交付 | D01 等待设计核实 | 按原计划推进，与本次桌面交付分开 |

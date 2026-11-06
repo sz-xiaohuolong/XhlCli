@@ -32,7 +32,7 @@
 
 `DesktopChanges` 用 Side-History 前后快照生成本轮 diff；撤销前检查全部文件、执行位、叶子和祖先链接，不重置用户 Git 索引。后续编辑冲突拒绝；若恢复途中发生 I/O 故障，报告已恢复数量并给出撤销前备份。命令工具补充已捕获子进程树的取消、超时和中断清理，确认退出后才返回。
 
-首版仍依赖本机 Java 21，未内置 JRE、账户同步或交互终端。实际验证范围见[桌面验收](engineering/desktop-mvp-verification.md)，产品边界与输入限制见[需求](prd/desktop-codex-ui.md)。
+Apple 芯片 Mac 分发包内置 Temurin Java 21 JRE，主进程在打包模式下固定使用包内可执行文件；开发模式保留系统 Java 定位。构建脚本固定官方版本与 SHA-256，ZIP 包含许可和对应源码，仅使用 ad-hoc 签名，尚未公证。账户同步与交互终端仍未提供。实际验证范围见[桌面验收](engineering/desktop-mvp-verification.md)，产品边界与输入限制见[需求](prd/desktop-codex-ui.md)。
 
 ## 2.1 本次实现增量：自动 Team 与失败重规划（Phase 19）
 
