@@ -910,12 +910,14 @@ class ReactAgentTest {
         @Override
         public ToolResult execute(ToolCall call, CancellationToken cancellationToken) {
             CountDownLatch cancelled = new CountDownLatch(1);
+            // 先记录调用再通知测试线程，避免取消返回早于工具线程更新计数。
+            ToolResult result = super.execute(call, cancellationToken);
             try (CancellationToken.Registration ignored = cancellationToken.onCancel(cancelled::countDown)) {
                 started.countDown();
                 if (!cancelled.await(1, TimeUnit.SECONDS)) {
                     throw new AssertionError("test did not time out the tool");
                 }
-                return super.execute(call, cancellationToken);
+                return result;
             } catch (InterruptedException failure) {
                 Thread.currentThread().interrupt();
                 throw new AssertionError(failure);
