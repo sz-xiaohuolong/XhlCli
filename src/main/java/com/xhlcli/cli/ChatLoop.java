@@ -701,6 +701,32 @@ public final class ChatLoop {
         return promptAssembler;
     }
 
+    private void handleSkillInvocation(String input) {
+        String[] parts = input.trim().split("\\s+", 2);
+        String name = parts[0].substring(1);
+        if (skillRegistry == null || skillRegistry.find(name).isEmpty()) {
+            renderer.printUnknownCommand(input.trim());
+            return;
+        }
+        if (parts.length < 2 || parts[1].isBlank()) {
+            renderer.printMessage("用法: /" + name + " <任务描述>");
+            return;
+        }
+
+        // 每次显式调用独立加载，确保重复调用和热重载后仍携带当前正文。
+        var loader = new com.xhlcli.skill.tool.LoadSkillTool(skillRegistry);
+        var arguments = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode().put("name", name);
+        var output = loader.execute(arguments, new CancellationToken());
+        if (!"loaded".equals(output.data().path("status").asText())) {
+            renderer.printMessage(output.summary());
+            return;
+        }
+
+        renderer.printMessage("已加载技能: " + name);
+        sendTurn("请使用以下已加载的技能完成任务。\n\n" + output.summary()
+                + "\n\n用户任务：\n" + parts[1]);
+    }
+
     private void handleSkill(String input) {
         if (skillRegistry == null) {
             renderer.printMessage("Skill 注册中心未初始化。");
@@ -1007,7 +1033,7 @@ public final class ChatLoop {
                 case SNAPSHOT -> handleSnapshot(input);
                 case RESTORE -> handleRestore(input);
                 case TASK -> handleTask(input);
-                case UNKNOWN -> renderer.printUnknownCommand(input.trim());
+                case UNKNOWN -> handleSkillInvocation(input);
                 case USER_MESSAGE -> sendTurn(input);
             }
         }

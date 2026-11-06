@@ -83,6 +83,7 @@ Team 最终结果经 `ReactAgent.recordExternalTurn()` 写入进程内对话，�
   - **元数据解析与沙箱化引用 (`SkillParser` + `SkillReferenceResolver`)**：解析 `SKILL.md` 标准 YAML Frontmatter (`name`, `description`, `allowed-tools`, `author`, `tags`) 与 Markdown 正文；相对路径引用严格限制在 Skill 根目录内，彻底拦截 `../` 越界路径逃逸攻击。
   - **渐进式披露与按需加载 (`SkillIndex` + `LoadSkillTool`)**：启动期向系统提示词仅注入名称与简要描述组成的紧凑索引（< 2500 字符）；模型任务匹配时触发本地工具 `load_skill`，正文按需注入当前上下文，同一 Run 内部自动幂等去重防 Prompt 膨胀。
   - **终端管理命令与审计脱敏 (`ChatLoop` + `PromptExporter`)**：终端挂载 `/skill [list|show|enable|disable|reload]` 与 `/prompt [show|export]` 指令族；支持完整系统提示词结构化导出，全量脱敏 API Key 与疑似敏感凭据。
+  - **显式技能调用（2026-11-06）**：`/<技能名> <任务描述>` 在未命中内置命令时，按当前 `SkillRegistry` 查找（忽略大小写）；复用 `LoadSkillTool` 校验启用与解析状态、读取正文，再将正文和任务作为本轮输入交给现有执行链路。每次调用独立读取，遵循项目覆盖与热重载结果；未知名称仍报未知命令，缺少任务时提示用法，加载失败不启动任务。
 - **Web 检索与浏览器安全沙箱子系统 (Phase 13)**：
   - **网络安全围栏 (`NetworkPolicy`)**：强制实施协议白名单（仅允许 `http`, `https`），通过 DNS 解析深度拦截私网 IPv4/IPv6、Loopback (`127.0.0.1`, `localhost`)、Link-Local (`169.254.x.x`) 与 `0.0.0.0`；重定向跃点全链路动态校验防 SSRF 穿透；内置 Token Bucket 算法执行 30 次/60 秒速率控制。
   - **多源搜索引擎抽象与降级 (`SearchProvider`)**：统一领域抽象 `SearchResult` 与 `SearchProvider` 接口，完整实现 `SerpApiSearchProvider` (Google Search)、`SearxngSearchProvider` (开源元搜索)、`ZhipuSearchProvider` (智谱 Web Search) 以及零配置免 Key 的 `DuckDuckGoSearchProvider` 兜底降级方案，通过 `SearchProviderFactory` 根据环境配置自动组装最佳 Provider。

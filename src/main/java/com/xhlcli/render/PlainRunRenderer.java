@@ -86,6 +86,7 @@ public final class PlainRunRenderer implements TerminalRenderer {
         out.println("  /mcp [list|status|tools|resources|read|restart] Model Context Protocol management");
         out.println("  /browser [status|connect|disconnect|tabs] Browser session and CDP management");
         out.println("  /skill [list|show|enable|disable|reload] Reusable workflow skills management");
+        out.println("  /<技能名> <任务描述>    加载指定技能并执行任务（内置命令优先）");
         out.println("  /prompt [show|export]  Show or export layered system prompt with audit redaction");
         out.println("  /snapshot [list|status|clean] View, check status, or clean side-git snapshots");
         out.println("  /restore <N>           Restore to pre-turn snapshot N (default 1)");

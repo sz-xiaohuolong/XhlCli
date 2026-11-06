@@ -104,6 +104,7 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
         println("  \u001B[33m/model [list|use|status]\u001B[0m 管理与切换 AI 模型提供商");
         println("  \u001B[33m/mcp [list|status|...]\u001B[0m  MCP 服务器与外部工具管理");
         println("  \u001B[33m/skill [list|show|...]\u001B[0m 技能库管理与热重载");
+        println("  \u001B[33m/<技能名> <任务描述>\u001B[0m 加载指定技能并执行任务（内置命令优先）");
         println("  \u001B[33m/browser [status|...]\u001B[0m  浏览器 CDP 连接与调试");
         println("  \u001B[33m/plan [goal]\u001B[0m           启动 Plan-and-Execute 规划任务");
         println("  \u001B[33m/team <goal>\u001B[0m           启动 Multi-Agent 团队协同");

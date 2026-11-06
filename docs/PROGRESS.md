@@ -2,6 +2,7 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
+| 本次小修复 | `/<技能名> <任务描述>` 已支持确定性加载并执行；新增 6 项回归，接入远程更新前全量 559 项测试通过 | 仅离线验证；按用户要求，接入远程更新后不重跑测试 | 已授权以 `feat` 提交同步 `origin/main`；沿用已有测试结果，不重复测试 |
 | 前次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 无本次阻塞；真实模型质量未测 | TASK-19-01～05 完成，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
 | 本次实施 | task 后台独立只读执行、工作区隔离、取消确认和跨重启结果查询；575 项测试通过 | 真实 JAR 验收已通过；真实模型质量、跨主机执行未验证 | 见 [task 计划](plans/2026-11-06-task-background-lifecycle.md)与[交付证据](engineering/task-background-lifecycle-verification.md) |
 | 当前规划 | `v1.1` 第一批“可信任务生命周期”的需求、拟议设计、实施计划和验收矩阵已形成 | D01 安全文件操作仍待评审；本轮 task 采用无迁移本机文件锁方案，v1.1 整体未完成 | 按 [TASK-01](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)核实能力与迁移条件，闭合具体决定 |
@@ -11,6 +12,8 @@
 ---
 
 ## 本次任务
+
+2026-11-06 显式技能调用入口修复：仅在未知内置命令分支查询技能注册表，复用 `LoadSkillTool` 读取正文，再进入现有任务链路。已覆盖禁用/损坏拒绝、缺少任务提示、同名内置命令优先、大小写与多行输入、重复调用、项目覆盖与热重载。接入远程后台任务更新前，`./mvnw test -Dtest=SkillPromptCliTest,ChatLoopTest,ChatCommandParserTest,LoadSkillToolTest,SkillRegistryTest` 34 项通过；`./mvnw test` 559 项通过（0 失败、0 错误、0 跳过）。README、终端帮助及 TECH_DESIGN 已同步；未打包或发布。 用户授权以 `feat` 提交同步 `origin/main`，接入远程更新后不重复测试。
 
 task：功能开发、独立审查与真实 JAR 离线验收完成；`./mvnw verify` 575 项通过。实现提交 `252d37df8356d848804b0d9adc929b1f4df534f5` 已推送 origin/main，远程 CI `42190335434` 成功；不打 Tag、不发布版本。原工作区的其他未提交修改保留，交付代码位于独立工作区。最新终端验收及同步状态见 [task 交付证据](engineering/task-background-lifecycle-verification.md)。
 

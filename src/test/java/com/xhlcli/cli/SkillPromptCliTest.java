@@ -17,6 +17,8 @@ import com.xhlcli.prompt.PromptLayer;
 import com.xhlcli.prompt.PromptSource;
 import com.xhlcli.render.PlainRunRenderer;
 import com.xhlcli.skill.SkillRegistry;
+import com.xhlcli.skill.SkillDefinition;
+import com.xhlcli.skill.SkillMetadata;
 import com.xhlcli.skill.builtin.BuiltinSkills;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -60,8 +63,11 @@ class SkillPromptCliTest {
     }
 
     static class StubAgent implements AgentRunner {
+        final List<String> inputs = new ArrayList<>();
+
         @Override
         public RunResult run(String input, RunEventSink events, CancellationToken token) {
+            inputs.add(input);
             return new RunResult("r1", RunStatus.COMPLETED, "ok", "", 0, TokenUsage.unknown());
         }
 
@@ -102,6 +108,91 @@ class SkillPromptCliTest {
                 LogLevel.INFO, new AgentSettings(10, Duration.ofSeconds(600)),
                 Map.of(ConfigKey.API_KEY, ConfigSource.DOT_ENV, ConfigKey.MODEL, ConfigSource.DEFAULT)
         );
+    }
+
+    @Test
+    void slashSkillLoadsInstructionsBeforeRunningTask() {
+        StubAgent agent = runInputs("  /GIT-FEATURE-WORKFLOW\t检查代码\n保留已有修改  ");
+
+        assertEquals(1, agent.inputs.size());
+        assertTrue(agent.inputs.getFirst().contains("Conventional Commits"));
+        assertTrue(agent.inputs.getFirst().contains("检查代码\n保留已有修改"));
+        assertFalse(errContent.toString(StandardCharsets.UTF_8).contains("Unknown command"));
+    }
+
+    @Test
+    void slashSkillLoadsEachInvocationWithoutChangingOrdinaryInput() {
+        StubAgent agent = runInputs("/git-feature-workflow 检查代码", "普通问题",
+                "/git-feature-workflow 再次检查");
+
+        assertEquals(3, agent.inputs.size());
+        assertTrue(agent.inputs.getFirst().contains("Conventional Commits"));
+        assertEquals("普通问题", agent.inputs.get(1));
+        assertTrue(agent.inputs.getLast().contains("Conventional Commits"));
+        assertTrue(agent.inputs.getLast().contains("再次检查"));
+    }
+
+    @Test
+    void slashSkillRejectsDisabledAndBrokenSkills() {
+        skillRegistry.disable("git-feature-workflow");
+        skillRegistry.registerBuiltin(SkillDefinition.error("broken", PromptSource.BUILTIN,
+                null, null, "技能配置缺少描述"));
+
+        StubAgent agent = runInputs("/git-feature-workflow 检查代码", "/broken 检查代码");
+
+        assertTrue(agent.inputs.isEmpty());
+        String out = outContent.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("disabled"));
+        assertTrue(out.contains("技能配置缺少描述"));
+    }
+
+    @Test
+    void slashSkillWithoutTaskShowsUsage() {
+        StubAgent agent = runInputs("/git-feature-workflow  ");
+
+        assertTrue(agent.inputs.isEmpty());
+        assertTrue(outContent.toString(StandardCharsets.UTF_8).contains(
+                "用法: /git-feature-workflow <任务描述>"));
+    }
+
+    @Test
+    void builtinCommandsTakePriorityAndUnknownCommandsStayUnknown() {
+        skillRegistry.registerBuiltin(SkillDefinition.healthy(SkillMetadata.of("help", "同名技能"),
+                PromptSource.BUILTIN, null, null, "不应执行"));
+
+        StubAgent agent = runInputs("/help", "/missing-skill 检查代码");
+
+        assertTrue(agent.inputs.isEmpty());
+        assertTrue(outContent.toString(StandardCharsets.UTF_8).contains("/skill"));
+        assertTrue(errContent.toString(StandardCharsets.UTF_8).contains("Unknown command: /missing-skill"));
+    }
+
+    @Test
+    void slashSkillUsesReloadedProjectOverride(@TempDir Path tempDir) throws Exception {
+        Path skillDir = Files.createDirectories(tempDir.resolve("git-feature-workflow"));
+        Files.writeString(skillDir.resolve("SKILL.md"), """
+                ---
+                name: git-feature-workflow
+                description: 项目专用流程
+                ---
+                先执行项目专属检查。
+                """);
+        skillRegistry = new SkillRegistry(null, tempDir, BuiltinSkills.all());
+
+        StubAgent agent = runInputs("/skill reload", "/git-feature-workflow 检查代码");
+
+        assertEquals(1, agent.inputs.size());
+        assertTrue(agent.inputs.getFirst().contains("先执行项目专属检查。"));
+        assertFalse(agent.inputs.getFirst().contains("Conventional Commits"));
+    }
+
+    private StubAgent runInputs(String... inputs) {
+        StubAgent agent = new StubAgent();
+        ChatLoop loop = new ChatLoop(new MockScriptedReader(List.of(inputs)),
+                new ChatCommandParser(), agent, renderer, createConfig());
+        loop.setSkillRegistry(skillRegistry);
+        loop.run();
+        return agent;
     }
 
     @Test

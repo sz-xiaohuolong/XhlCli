@@ -147,6 +147,7 @@ java -jar target/xhlcli-1.0.1.jar --version
 | `/mcp [list\|status\|tools\|resources\|read\|restart]` | MCP 外部工具与资源协议管理 |
 | `/browser [status\|connect\|disconnect\|tabs]` | 浏览器沙箱与 CDP 宿主连接控制台 |
 | `/skill [list\|show\|enable\|disable\|reload]` | 可复用工程技能与工作流管理 |
+| `/<技能名> <任务描述>` | 显式加载已启用的技能并执行任务，例如 `/git-feature-workflow 检查代码`；内置命令优先 |
 | `/prompt [show\|export]` | 查看或脱敏导出分层系统提示词与审计信息 |
 | `/history [list\|clear]` | 查看安全历史记录或清空持久化历史 |
 | `/snapshot [status\|clean]` | Side-Git 隔离快照状态、历史列表与重置 |
