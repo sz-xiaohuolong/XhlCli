@@ -31,4 +31,37 @@ class DesktopConfigTest {
         assertEquals("environment-key",config.environment(home).get("OPENAI_API_KEY"));
         assertEquals(17,DesktopJson.MAPPER.readTree(dir.resolve("config.json").toFile()).path("maxIterations").asInt());
     }
+    @Test void modelPickerOnlyListsConfiguredModels() throws Exception {
+        var config=new DesktopConfig(home,Map.of());
+        config.save(DesktopJson.MAPPER.createObjectNode().put("provider","deepseek")
+                .put("model","deepseek-flash").put("baseUrl","http://localhost:18791").put("apiKey","test-key"));
+        var result=config.describe(home);
+        assertEquals(1,result.path("models").size());
+        assertEquals("deepseek:deepseek-flash",result.path("models").get(0).path("id").asText());
+        assertEquals("deepseek:deepseek-flash",result.path("defaultModel").asText());
+        assertFalse(result.path("providers").get(3).path("configured").asBoolean());
+    }
+    @Test void unconfiguredPickerHasNoImplicitLocalModel() throws Exception {
+        var result=new DesktopConfig(home,Map.of()).describe(home);
+        assertTrue(result.path("models").isEmpty());
+        assertEquals("",result.path("defaultModel").asText());
+    }
+    @Test void explicitlySavedOllamaAppearsWithoutAnApiKey() throws Exception {
+        var config=new DesktopConfig(home,Map.of());
+        config.save(DesktopJson.MAPPER.createObjectNode().put("provider","ollama")
+                .put("model","local-code").put("baseUrl","http://localhost:11434"));
+        var result=config.describe(home);
+        assertEquals(1,result.path("models").size());
+        assertEquals("ollama:local-code",result.path("models").get(0).path("id").asText());
+        assertTrue(result.path("providers").get(3).path("configured").asBoolean());
+    }
+    @Test void pickerUsesProjectAndEnvironmentCredentialsIncludingClaudeAlias() throws Exception {
+        Files.writeString(home.resolve(".env"),"OPENAI_API_KEY=project-test-key\nOLLAMA_BASE_URL=http://localhost:11434\n");
+        var result=new DesktopConfig(home,Map.of("CLAUDE_API_KEY","alias-test-key")).describe(home);
+        assertEquals(java.util.List.of("openai:gpt-4o","anthropic:claude-3-5-sonnet-20241022","ollama:qwen2.5-coder"),
+                java.util.stream.StreamSupport.stream(result.path("models").spliterator(),false)
+                        .map(model->model.path("id").asText()).toList());
+        assertTrue(result.path("providers").get(2).path("configured").asBoolean());
+    }
+
 }

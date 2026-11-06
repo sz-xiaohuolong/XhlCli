@@ -10,6 +10,8 @@
 
 ## 本次任务：桌面 MVP
 
+2026-11-06 模型选择器修复：只展示当前项目有效配置的模型，自定义名称按保存值显示；未配置 Ollama 不再默认可选。空配置与历史失效选择保留输入并提示配置或重选。新增 4 项回归先复现失败后通过；`./mvnw -q verify` 624 项全绿，Node 2 项与前端构建、macOS 打包通过。已更新并重启本机应用，agent-desktop 实测用户下拉菜单仅含占位提示和 `deepseek-flash`。
+
 2026-11-06，Reflecting / 本次代码交付完成。用户已冻结 macOS 普通编程核心闭环并授权开发、桌面验证及推送；本次交付以[桌面需求](prd/desktop-codex-ui.md)为准。核心离线闭环 VERIFIED，完整 AC 的边缘故障、真实模型质量与其他平台为 PARTIAL；逐项证据和人工步骤见[验收记录](engineering/desktop-mvp-verification.md)。
 
 | 任务 | 当前状态 | 结果入口 |

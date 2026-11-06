@@ -48,19 +48,34 @@ final class DesktopConfig {
         });
         return registry.createClient(descriptor, DiagnosticSink.NO_OP);
     }
+    private boolean configured(String provider, Map<String,String> env, ObjectNode user) {
+        if(provider.equals("ollama"))return !env.getOrDefault("OLLAMA_BASE_URL","").isBlank()
+                ||!user.path("providers").path(provider).path("model").asText("").isBlank();
+        return !env.getOrDefault(provider.toUpperCase(Locale.ROOT)+"_API_KEY","").isBlank()
+                ||(provider.equals("anthropic")&&!env.getOrDefault("CLAUDE_API_KEY","").isBlank());
+    }
+    private String modelName(Path workspace, String provider, ObjectNode user, LlmProviderRegistry registry) throws Exception {
+        if(provider.equals("deepseek"))return limits(workspace).model();
+        String saved=user.path("providers").path(provider).path("model").asText("").strip();
+        return saved.isBlank()?registry.findModel(provider).orElseThrow().modelName():saved;
+    }
+    private List<ModelDescriptor> configuredModels(Path workspace) throws Exception {
+        var env=environment(workspace);var user=userConfig();var registry=registry(workspace);
+        var models=new ArrayList<ModelDescriptor>();
+        for(String provider:List.of("deepseek","openai","anthropic","ollama")) {
+            if(configured(provider,env,user))models.add(descriptor(registry,provider,modelName(workspace,provider,user,registry)));
+        }
+        return models;
+    }
     String defaultModel(Path workspace) throws Exception {
-        var registry=registry(workspace);
-        String provider=registry.listModels().stream().filter(m->m.configured()&&!m.provider().equals("ollama"))
-                .findFirst().orElse(registry.findModel("ollama").orElseThrow()).provider();
-        String name=provider.equals("deepseek")?limits(workspace).model():userConfig().path("providers").path(provider)
-                .path("model").asText(registry.findModel(provider).orElseThrow().modelName());
-        return provider+":"+name;
+        return configuredModels(workspace).stream().findFirst().map(ModelDescriptor::id).orElse("");
     }
     ObjectNode describe(Path workspace) throws Exception {
         var env = environment(workspace); var user = userConfig();
         var result = DesktopJson.MAPPER.createObjectNode();
-        result.put("defaultModel",defaultModel(workspace));
-        result.set("models",DesktopJson.MAPPER.valueToTree(registry(workspace).listModels()));
+        var models=configuredModels(workspace);
+        result.put("defaultModel",models.stream().findFirst().map(ModelDescriptor::id).orElse(""));
+        result.set("models",DesktopJson.MAPPER.valueToTree(models));
         var providers=result.putArray("providers");
         var dotEnv=ChatConfigLoader.readDotEnv(workspace.resolve(".env"));
         for (String provider:List.of("deepseek","openai","anthropic","ollama")) {
@@ -68,9 +83,9 @@ final class DesktopConfig {
             String source=environment.containsKey(key)?"进程环境变量":dotEnv.containsKey(key)?"项目 .env":"全局配置";
             if(provider.equals("ollama")) source="本地服务";
             String fallback=switch(provider) {case "openai"->"https://api.openai.com/v1";case "anthropic"->"https://api.anthropic.com";case "ollama"->"http://localhost:11434";default->"https://api.deepseek.com";};
-            var item=providers.addObject(); item.put("id",provider); item.put("configured",provider.equals("ollama")||!env.getOrDefault(key,"").isBlank());
+            var item=providers.addObject(); item.put("id",provider); item.put("configured",configured(provider,env,user));
             item.put("source",source);item.put("baseUrl",env.getOrDefault(base,fallback));
-            item.put("model",provider.equals("deepseek")?limits(workspace).model():user.path("providers").path(provider).path("model").asText(registry(workspace).findModel(provider).orElseThrow().modelName()));
+            item.put("model",modelName(workspace,provider,user,registry(workspace)));
         }
         return result;
     }
