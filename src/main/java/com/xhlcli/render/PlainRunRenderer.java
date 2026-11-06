@@ -81,6 +81,7 @@ public final class PlainRunRenderer implements TerminalRenderer {
         out.println("  /search-text <pattern> Exact regex/text code search");
         out.println("  /plan [goal]           Plan-and-Execute structured task");
         out.println("  /team <goal>           Multi-Agent collaborative team task (Planner + Workers + Reviewer)");
+        out.println("  /team-mode [auto|manual]  查询或切换自动团队选择");
         out.println("  /model [list|use|status] Manage and switch models & providers");
         out.println("  /mcp [list|status|tools|resources|read|restart] Model Context Protocol management");
         out.println("  /browser [status|connect|disconnect|tabs] Browser session and CDP management");
@@ -103,6 +104,7 @@ public final class PlainRunRenderer implements TerminalRenderer {
         out.println("readTimeout=" + config.readTimeout().toSeconds() + "s");
         out.println("requestTimeout=" + config.requestTimeout().toSeconds() + "s");
         out.println("agentMaxIterations=" + config.agentSettings().maxIterations() + " (" + config.source(ConfigKey.AGENT_MAX_ITERATIONS) + ")");
+        out.println("teamMode=" + config.teamMode().name().toLowerCase(java.util.Locale.ROOT) + " (" + config.source(ConfigKey.TEAM_MODE) + ")");
         out.println("agentTimeout=" + config.agentSettings().timeout().toSeconds() + "s (" + config.source(ConfigKey.AGENT_TIMEOUT) + ")");
         out.println("maxConcurrency=" + config.agentSettings().maxConcurrency() + " (" + config.source(ConfigKey.MAX_CONCURRENCY) + ")");
         out.println("toolTimeout=" + config.agentSettings().toolTimeout().toSeconds() + "s (" + config.source(ConfigKey.TOOL_TIMEOUT) + ")");

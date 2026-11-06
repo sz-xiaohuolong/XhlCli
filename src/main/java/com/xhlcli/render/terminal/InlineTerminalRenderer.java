@@ -107,6 +107,7 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
         println("  \u001B[33m/browser [status|...]\u001B[0m  浏览器 CDP 连接与调试");
         println("  \u001B[33m/plan [goal]\u001B[0m           启动 Plan-and-Execute 规划任务");
         println("  \u001B[33m/team <goal>\u001B[0m           启动 Multi-Agent 团队协同");
+        println("  /team-mode [auto|manual]  查询或切换自动团队选择");
         println("  \u001B[33m/search <query>\u001B[0m        混合语义代码检索");
         println("  \u001B[33m/search-text <pat>\u001B[0m     精准全文/正则搜索");
         println("  \u001B[33m/index [status|clean]\u001B[0m  代码库 AST 语义索引运维");
@@ -128,6 +129,7 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
         println("readTimeout=" + config.readTimeout().toSeconds() + "s");
         println("requestTimeout=" + config.requestTimeout().toSeconds() + "s");
         println("agentMaxIterations=" + config.agentSettings().maxIterations() + " (" + config.source(ConfigKey.AGENT_MAX_ITERATIONS) + ")");
+        println("teamMode=" + config.teamMode().name().toLowerCase(java.util.Locale.ROOT) + " (" + config.source(ConfigKey.TEAM_MODE) + ")");
         println("agentTimeout=" + config.agentSettings().timeout().toSeconds() + "s (" + config.source(ConfigKey.AGENT_TIMEOUT) + ")");
         println("maxConcurrency=" + config.agentSettings().maxConcurrency() + " (" + config.source(ConfigKey.MAX_CONCURRENCY) + ")");
         println("toolTimeout=" + config.agentSettings().toolTimeout().toSeconds() + "s (" + config.source(ConfigKey.TOOL_TIMEOUT) + ")");

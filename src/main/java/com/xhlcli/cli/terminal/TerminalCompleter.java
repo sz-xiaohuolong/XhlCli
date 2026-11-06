@@ -23,7 +23,7 @@ public final class TerminalCompleter implements Completer {
 
     private static final List<String> PRIMARY_COMMANDS = List.of(
             "/help", "/config", "/clear", "/history", "/model", "/mcp", "/skill",
-            "/plan", "/team", "/search", "/search-text", "/index", "/prompt",
+            "/plan", "/team", "/team-mode", "/search", "/search-text", "/index", "/prompt",
             "/browser", "/save", "/memory", "/context", "/compact",
             "/snapshot", "/restore", "/task", "/exit"
     );

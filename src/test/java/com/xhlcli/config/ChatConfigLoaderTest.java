@@ -18,6 +18,28 @@ class ChatConfigLoaderTest {
     Path tempDir;
 
     @Test
+    void teamModeUsesExistingPrecedenceAndRejectsInvalidValues(@org.junit.jupiter.api.io.TempDir java.nio.file.Path root) throws Exception {
+        java.nio.file.Files.createDirectories(root.resolve(".xhlcli"));
+        java.nio.file.Files.writeString(root.resolve(".xhlcli/config.json"), "{\"teamMode\":\"auto\"}");
+        assertEquals(TeamMode.AUTO, ChatConfigLoader.load(new String[]{}, Map.of(), root, root).teamMode());
+        java.nio.file.Files.writeString(root.resolve(".env"), "XHLCLI_TEAM_MODE=manual");
+        assertEquals(TeamMode.MANUAL, ChatConfigLoader.load(new String[]{}, Map.of(), root, root).teamMode());
+        assertEquals(TeamMode.AUTO, ChatConfigLoader.load(new String[]{}, Map.of("XHLCLI_TEAM_MODE", "auto"), root, root).teamMode());
+        assertEquals(TeamMode.MANUAL, ChatConfigLoader.load(new String[]{"--team-mode", "manual"}, Map.of("XHLCLI_TEAM_MODE", "auto"), root, root).teamMode());
+        org.junit.jupiter.api.Assertions.assertThrows(ConfigurationException.class, () -> ChatConfigLoader.load(
+                new String[]{"--team-mode", "invalid"}, Map.of(), root, root));
+    }
+
+    @Test
+    void acceptsTeamModeOption() throws Exception {
+        var root = java.nio.file.Files.createTempDirectory("xhl-team-config");
+        try {
+            org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> ChatConfigLoader.load(
+                new String[]{"--team-mode", "auto"}, java.util.Map.of(), root, root));
+        } finally { java.nio.file.Files.delete(root); }
+    }
+
+    @Test
     void appliesCliEnvironmentDotEnvUserConfigAndDefaultPrecedence() throws Exception {
         Path projectDir = Files.createDirectory(tempDir.resolve("project"));
         Path userHome = Files.createDirectory(tempDir.resolve("home"));

@@ -96,6 +96,7 @@ export DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 | Agent maximum iterations | 10 |
 | Agent overall timeout | 600 秒 |
 | Log level | `WARN` |
+| Team 自动选择 | `manual`（默认关闭） |
 
 配置解析优先级：命令行参数 > 进程环境变量 (`ENVIRONMENT`) > 项目 `.env` (`DOT_ENV`) > `~/.xhlcli/config.json` (`USER_CONFIG`) > 默认值。
 
@@ -103,7 +104,7 @@ export DEEPSEEK_API_KEY=replace_with_your_deepseek_api_key
 
 ```bash
 ./mvnw clean package -DskipTests
-java -jar target/xhlcli-1.0.0.jar
+java -jar target/xhlcli-1.0.1.jar
 ```
 
 如果 macOS 同时安装了多个 JDK：
@@ -116,11 +117,11 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 元信息命令：
 
 ```bash
-java -jar target/xhlcli-1.0.0.jar --help
-java -jar target/xhlcli-1.0.0.jar --version
+java -jar target/xhlcli-1.0.1.jar --help
+java -jar target/xhlcli-1.0.1.jar --version
 ```
 
-可用启动参数：`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
+可用启动参数：`--team-mode`（`manual` 或 `auto`）、`--model`、`--base-url`、`--connect-timeout`、`--read-timeout`、`--request-timeout`、`--max-iterations`、`--agent-timeout`、`--log-level`。`--max-iterations` 取值为 1–100，`--agent-timeout` 取值为 1–3600 秒。交互中使用 `/config` 只会显示非敏感配置和 Key 的配置状态，不会显示 Key 值。
 
 ## 对话命令
 
@@ -130,7 +131,8 @@ java -jar target/xhlcli-1.0.0.jar --version
 | `/config` | 显示非敏感配置与来源 |
 | `/clear` | 清空当前进程内的会话历史 |
 | `/plan [goal]` | 触发 DAG 拓扑分层规划与受控执行 |
-| `/team <goal>` | Multi-Agent 协作团队执行任务（Planner + Workers + Reviewer） |
+| `/team <goal>` | 手动启动 Team，由规划者、执行者、审查者分工完成任务 |
+| `/team-mode [auto\|manual]` | 查询或切换当前会话的自动团队选择，不写全局配置 |
 | `/model [list\|use\|status]` | 模型与 Provider 动态切换管理 |
 | `/mcp [list\|status\|tools\|resources\|read\|restart]` | MCP 外部工具与资源协议管理 |
 | `/browser [status\|connect\|disconnect\|tabs]` | 浏览器沙箱与 CDP 宿主连接控制台 |
@@ -142,6 +144,26 @@ java -jar target/xhlcli-1.0.0.jar --version
 | `/task [list\|add\|log\|cancel]` | 后台持久任务队列与执行状态管理 |
 | `/exit` | 安全退出 |
 | Ctrl+C | 取消正在生成的响应 |
+
+## 自动选择 Team 与失败重规划
+
+Team 是多个专职 Agent 分工执行同一个目标的模式。保持默认手动行为；启用后，每轮普通输入由无工具权限的模型判断走普通模式还是 Team，并显示原因：
+
+```bash
+java -jar target/xhlcli-1.0.1.jar --team-mode auto
+```
+
+也可用 `XHLCLI_TEAM_MODE=auto` 或全局配置 `"teamMode": "auto"`。启动配置优先级同上。会话中用 `/team-mode manual` 关闭，用 `/team <目标>` 随时手动启动。自动选择每轮增加一次模型请求；失败或格式不合法时回退普通模式，取消后不继续执行。
+
+Team 中一个步骤最多修正重试两次。仍未通过审查时，规划者根据失败原因、工具记录和文件变化判断是否需要换方案：完成步骤比例低于 50% 可调整剩余计划，达到 50% 后只调整失败分支；整个任务最多换两次计划。已完成成果保留，权限拒绝或证据不完整时停止自动换图。只改步骤编号不能获得新的重试次数。
+
+可复现的离线终端验收（需 Python 3；无需真实 Key）：
+
+```bash
+python3 scripts/team_acceptance_demo.py
+```
+
+[人工验收、验证证据与业务流程](docs/engineering/team-routing-and-replanning-verification.md)。重启后的 `/history` 仅显示安全输入历史，完整聊天、Team 计划和执行状态不跨进程恢复。
 
 ## 故障排查
 
@@ -155,20 +177,14 @@ java -jar target/xhlcli-1.0.0.jar --version
 
 ## 文档导航
 
-本项目遵循严格的 [Vibe Workflow 规范](docs/vibe/) 进行生命周期治理，分为持续演进的 Living Documents 与按版本归档的 Release-scoped Artifacts：
+本项目使用 `vibe-workflow` 管理需求、实施与验证，文档沿用原有分类。每份正文只保留一个权威位置，版本通过项目地图关联。
 
-- **项目全局资产映射 (Document Map)**：[`docs/vibe/PROJECT.md`](docs/vibe/PROJECT.md)
-- **项目当前进度与门禁 (Living Progress)**：[`docs/vibe/PROGRESS.md`](docs/vibe/PROGRESS.md)
-- **真实系统架构基线 (Living Architecture)**：[`docs/vibe/TECH_DESIGN.md`](docs/vibe/TECH_DESIGN.md)
-- **产品总览需求 (PRD)**：[`docs/vibe/PRD.md`](docs/vibe/PRD.md)
-- **阶段交付路线图 (Roadmap)**：[`docs/vibe/ROADMAP.md`](docs/vibe/ROADMAP.md)
-- **版本归档中心 (Release Artifacts)**：[`docs/vibe/releases/`](docs/vibe/releases/)
-  - `v0.1` (Phase 00: 工程骨架)
-  - `v0.2` (Phase 01~04: 终端对话、ReAct、工具与审批)
-  - `v0.3` ~ `v0.15.1` (Phase 05~17: 记忆、RAG、Plan、并行、Multi-Agent、MCP、Web、Prompt分层、快照、Runtime、多模态)
-  - `v1.0` (Phase 18: 静态官网与开源发布)
-  - `v1.0.1` (Patch: 用户全局配置支持 API Key)
-- **安全策略**：[`SECURITY.md`](SECURITY.md)
+- [项目定位、文档地图与版本追溯](docs/PROJECT.md)
+- [当前进度与下一步](docs/PROGRESS.md)
+- [当前技术架构](docs/TECH_DESIGN.md)、[产品总览](docs/PRD.md)、[路线图](docs/ROADMAP.md)
+- 分类正文：[需求](docs/prd/)、[设计](docs/specs/)、[实施计划](docs/plans/)、[研究与验收](docs/engineering/)
+- 当前 v1.1：[需求](docs/prd/v1.1-trusted-task-lifecycle.md)、[拟议设计](docs/specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md)、[实施计划](docs/plans/2026-10-16-v1.1-trusted-task-lifecycle.md)、[验收矩阵](docs/engineering/v1.1-trusted-task-lifecycle-verification.md)
+- [Agent 工作约定](AGENTS.md)、[安全策略](SECURITY.md)
 
 ## 当前验收状态
 

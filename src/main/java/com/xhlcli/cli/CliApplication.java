@@ -40,7 +40,7 @@ public final class CliApplication {
         return switch (option) {
             case "--model", "--base-url", "--connect-timeout", "--read-timeout",
                     "--request-timeout", "--max-iterations", "--agent-timeout",
-                    "--max-concurrency", "--tool-timeout", "--log-level" -> true;
+                    "--max-concurrency", "--tool-timeout", "--log-level", "--team-mode" -> true;
             default -> false;
         };
     }
@@ -49,6 +49,7 @@ public final class CliApplication {
         out.println("Usage: xhlcli [options]");
         out.println("  --help       Show this help message");
         out.println("  --version    Show the current version");
+        out.println("  --team-mode <manual|auto>  普通输入的团队选择策略（默认 manual）");
         out.println("  --model <name>");
         out.println("  --base-url <url>");
         out.println("  --connect-timeout <seconds>");

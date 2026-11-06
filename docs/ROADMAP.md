@@ -23,7 +23,10 @@
 | P2 | [Phase 17](prd/phase-17-runtime-and-multimodal.md) | 已交付（2026-10-07，v0.15.1） | Runtime 与多模态（Phase 17A: SQLite 后台持久任务、租约恢复、本地环回 API 与 SSE 游标流；Phase 17B: 图片多模态上下文预处理、Alpha Flatten、缩放压缩、剪贴板抓图与视觉防御护栏） |
 | P2 | [Phase 18](prd/phase-18-open-source-release.md) | 已交付（2026-10-07，v1.0.0） | 开源发行与发布工程（Impeccable 静态官网、交互式终端模拟器、指令速查表、Vercel 部署配置、跨平台 install.sh 脚本与 1.0.0 正式发版） |
 | P2 | [v1.0.1 Patch](specs/2026-10-07-v1.0.1-user-config-api-key-design.md) | 已交付（2026-10-07，v1.0.1） | 全局用户配置 ~/.xhlcli/config.json 支持 API Key 与 Provider 凭据级联 |
-| P1 | Phase 19 (v1.1.0) | 规划中（待定义） | 下一阶段核心特性演进与能力增强 |
+| P1 | [Phase 19 自动 Team 与重规划](prd/phase-19-team-routing-and-replanning.md) | 实现与验收见[当前进度](PROGRESS.md) | 普通输入自动选 Team、失败后调整剩余图、两次上限、成果与权限保留 |
+| P1 | [v1.1 可信任务生命周期](prd/v1.1-trusted-task-lifecycle.md)（目标 v1.1.0） | 规划中（2026-10-16，设计提案待评审，未实现） | 第一批可信任务生命周期：快照边界 R01、工作区与租约 R02/R03、取消与实际停止 R04/R05、可靠压缩 R06/R07、能力声明校准 |
+
+v1.1 的[需求](prd/v1.1-trusted-task-lifecycle.md)、[拟议设计](specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md)、[实施计划](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)与[验收矩阵](engineering/v1.1-trusted-task-lifecycle-verification.md)为后续独立规划入口；Phase 19 不代表这些修复已完成。历史交付状态保留当时记录；Runtime 入口、实时 SSE、浏览器操作和工具化 Reviewer 的缺口见[审查报告](engineering/xhlcli-claude-qoder-review-2026-10-16.md)，本批只校准相关声明，不补齐这些产品能力。
 
 ## 状态定义
 

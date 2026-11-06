@@ -142,6 +142,14 @@ public final class ChatConfigLoader {
                 new Resolved<>(LogLevel.WARN.name(), ConfigSource.DEFAULT));
         sources.put(ConfigKey.LOG_LEVEL, logLevel.source());
 
+        Resolved<String> teamMode = firstNonBlank(
+                resolved(cli.get(ConfigKey.TEAM_MODE), ConfigSource.CLI),
+                resolved(environment.get("XHLCLI_TEAM_MODE"), ConfigSource.ENVIRONMENT),
+                resolved(dotEnv.get("XHLCLI_TEAM_MODE"), ConfigSource.DOT_ENV),
+                resolved(userConfig.teamMode(), ConfigSource.USER_CONFIG),
+                new Resolved<>("manual", ConfigSource.DEFAULT));
+        sources.put(ConfigKey.TEAM_MODE, teamMode.source());
+
         return new ChatConfig(
                 apiKey.value(),
                 model.value().trim(),
@@ -155,13 +163,14 @@ public final class ChatConfigLoader {
                         Duration.ofSeconds(parseRange(agentTimeout.value(), "Agent timeout", 1, 3600)),
                         (int) parseRange(maxConcurrency.value(), "Max concurrency", 1, 16),
                         Duration.ofSeconds(parseRange(toolTimeout.value(), "Tool timeout", 1, 3600))),
-                sources);
+                TeamMode.parse(teamMode.value()), sources);
     }
 
     private static Map<ConfigKey, String> parseCli(String[] args) throws ConfigurationException {
         Map<ConfigKey, String> values = new EnumMap<>(ConfigKey.class);
         for (int index = 0; index < args.length; index++) {
             ConfigKey key = switch (args[index]) {
+                case "--team-mode" -> ConfigKey.TEAM_MODE;
                 case "--model" -> ConfigKey.MODEL;
                 case "--base-url" -> ConfigKey.BASE_URL;
                 case "--connect-timeout" -> ConfigKey.CONNECT_TIMEOUT;
@@ -346,10 +355,11 @@ public final class ChatConfigLoader {
             Long agentTimeoutSeconds,
             String logLevel,
             Long maxConcurrency,
-            Long toolTimeoutSeconds) {
+            Long toolTimeoutSeconds,
+            String teamMode) {
 
         public static UserConfig empty() {
-            return new UserConfig(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+            return new UserConfig(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         public String getEffectiveApiKey() {

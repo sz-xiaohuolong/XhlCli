@@ -16,6 +16,50 @@ import static org.junit.jupiter.api.Assertions.*;
 class SafeHistoryTest {
 
     @Test
+    @DisplayName("重启后读取安全输入，每条记录只追加一次")
+    void restoresPersistedInputsWithoutDuplicatingEarlierEntries(@TempDir Path root) throws IOException {
+        Path path = root.resolve("history");
+        SafeHistory first = new SafeHistory(path);
+        try (var terminal = attach(first)) {
+            first.add(Instant.now(), "自动团队验收");
+            first.add(Instant.now(), "追问成果");
+        }
+        SafeHistory second = new SafeHistory(path);
+        try (var terminal = attach(second)) {
+            assertFalse(second.isMemoryOnly());
+            assertEquals(List.of("自动团队验收", "追问成果"), second.listRecent(20));
+            second.add(Instant.now(), "重启后的输入");
+        }
+        assertEquals(3, Files.readAllLines(path).size());
+        SafeHistory third = new SafeHistory(path);
+        try (var terminal = attach(third)) { assertEquals(3, third.size()); }
+    }
+
+    private static org.jline.terminal.Terminal attach(SafeHistory history) throws IOException {
+        var terminal = new org.jline.terminal.impl.DumbTerminal(
+                new java.io.ByteArrayInputStream(new byte[0]), new java.io.ByteArrayOutputStream());
+        var reader = org.jline.reader.LineReaderBuilder.builder().terminal(terminal).history(history).build();
+        history.attach(reader);
+        return terminal;
+    }
+
+    @Test
+    @DisplayName("恢复超过内存上限的历史后仍能读取最近二十条")
+    void listsRecentEntriesAfterRestoringLongHistory(@TempDir Path root) throws IOException {
+        Path path = root.resolve("history");
+        var lines = new java.util.ArrayList<String>();
+        for (int i = 0; i < 1000; i++) lines.add((1700000000000L + i) + ":输入" + i);
+        Files.write(path, lines);
+        SafeHistory history = new SafeHistory(path);
+        try (var terminal = attach(history)) {
+            var recent = history.listRecent(20);
+            assertEquals(20, recent.size());
+            assertEquals("输入980", recent.getFirst());
+            assertEquals("输入999", recent.getLast());
+        }
+    }
+
+    @Test
     @DisplayName("Should add normal inputs and skip duplicates and blank lines")
     void shouldAddNormalInputsAndSkipDuplicates(@TempDir Path tempDir) {
         Path historyFile = tempDir.resolve("history");

@@ -51,11 +51,17 @@ public final class SafeHistory extends DefaultHistory {
             if (!Files.exists(historyPath)) {
                 Files.createFile(historyPath);
             }
-            read(historyPath, false);
         } catch (Exception e) {
             // 文件不可写或损坏时优雅降级为内存历史
             this.memoryOnly = true;
         }
+    }
+
+    @Override
+    public void attach(LineReader reader) {
+        // JLine 读取时间戳格式时需要已绑定的读取器；由 attach 在绑定后加载。
+        if (!memoryOnly) reader.setVariable(LineReader.HISTORY_FILE, historyPath);
+        super.attach(reader);
     }
 
     @Override
@@ -66,7 +72,7 @@ public final class SafeHistory extends DefaultHistory {
         super.add(time, line);
         if (!memoryOnly && historyPath != null) {
             try {
-                append(historyPath, false);
+                append(historyPath, true);
             } catch (Exception ignored) {
                 // 写入磁盘异常时不中断主流程
             }
@@ -112,7 +118,7 @@ public final class SafeHistory extends DefaultHistory {
     public List<String> listRecent(int limit) {
         int n = Math.max(1, limit);
         List<String> list = new ArrayList<>();
-        var it = iterator(Math.max(0, size() - n));
+        var it = iterator(first() + Math.max(0, size() - n));
         while (it.hasNext()) {
             list.add(it.next().line());
         }

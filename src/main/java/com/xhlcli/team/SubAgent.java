@@ -56,6 +56,14 @@ public class SubAgent {
     private final List<ChatMessage> conversationHistory;
     private final ObjectMapper mapper;
     private final int maxIterations;
+    private final StringBuilder toolEvidence = new StringBuilder();
+    private boolean toolFailure;
+    private boolean toolEvidenceComplete = true;
+
+    public synchronized String toolEvidence() { return toolEvidence.toString(); }
+    public synchronized boolean hasToolFailure() { return toolFailure; }
+    public synchronized boolean isToolEvidenceComplete() { return toolEvidenceComplete; }
+
 
     public SubAgent(String name, TeamRole role, LlmClient llmClient) {
         this(name, role, llmClient, null, List.of(), DEFAULT_MAX_ITERATIONS);
@@ -141,6 +149,9 @@ public class SubAgent {
             return TeamMessage.error(name, role, "任务已被取消");
         }
 
+        toolEvidence.setLength(0);
+        toolFailure = false;
+        toolEvidenceComplete = true;
         String inputContent = task.content();
         if (inputContent == null || inputContent.isBlank()) {
             inputContent = "请根据分配的角色开始执行工作。";
@@ -181,6 +192,16 @@ public class SubAgent {
                         }
                         finalOut.println("🔧 [" + name + "] 调用工具: " + tc.name());
                         ToolResult toolResult = toolExecutor.execute(tc, cancellationToken);
+                        if (toolResult.status() != com.xhlcli.model.ToolResultStatus.SUCCESS) toolFailure = true;
+                        String record = tc.name() + " " + toolResult.status() + ": "
+                                + TeamRouter.bounded(toolResult.summary(), 1500) + "\n";
+                        if (toolEvidence.length() + record.length() <= 12000) toolEvidence.append(record);
+                        else toolEvidenceComplete = false;
+                        if (toolResult.status() == com.xhlcli.model.ToolResultStatus.CANCELLED
+                                || toolResult.status() == com.xhlcli.model.ToolResultStatus.TIMEOUT
+                                || toolResult.summary().contains("[HITL]") || toolResult.summary().contains("[POLICY]")) {
+                            return TeamMessage.error(name, role, "工具执行已停止：" + toolResult.summary());
+                        }
                         String observation = toolResult.observationJson(mapper);
                         conversationHistory.add(ChatMessage.tool(tc.id(), observation));
                     }

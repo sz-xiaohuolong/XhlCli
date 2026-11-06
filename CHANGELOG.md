@@ -2,6 +2,13 @@
 
 本项目的重要变更记录在此文件中，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## 未发布
+
+- 新增普通输入的自动 Team 选择，支持 `--team-mode`、环境/全局配置及会话命令，保留 `/team`。
+- 新增步骤修正耗尽后的有界重规划，保留已完成成果；以真实工具、审查与工作区证据交接，阻止权限拒绝绕行及无效依赖图执行。
+- 修复安全输入历史在终端绑定前加载失败、重复追加旧记录的问题；完整聊天仍不跨进程恢复。
+- 将平行工作流文档归并到原 `prd/specs/plans/engineering` 分类，统一项目地图和进度入口。
+
 ## [1.0.1] - 2026-10-07
 
 ### Added

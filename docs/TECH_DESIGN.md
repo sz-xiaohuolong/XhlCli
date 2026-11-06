@@ -3,7 +3,7 @@
 > 文档状态：已确认，可用于分期实现
 > 设计版本：v1.0
 > Java 基线：21
-> 更新日期：2026-09-21
+> 更新日期：2026-11-06（本次更新自动 Team、重规划与输入历史读取）
 > 产品需求：[`PRD.md`](PRD.md)
 
 > 实现状态（2026-10-07）：已完成 Phase 00~17 的完整交付（v0.15.1）。当前已具备受控 ReAct、9 个本地工具、安全围栏与人工审批 (HITL)、上下文预算与分层记忆、精确代码检索、代码库增量 RAG、Plan-and-Execute DAG 拓扑调度、有界受控并发调度 (Bounded Parallelism)、Multi-Agent 专职协作架构、多模型路由适配层、Model Context Protocol (MCP) 生态扩展子系统、Web 检索与浏览器安全沙箱子系统、Skill 与 Prompt 分层治理子系统、终端产品化与交互治理子系统、Side-History 隔离快照与版本恢复子系统，以及后台持久任务/Localhost Runtime API 与图片多模态上下文预处理/视觉防御护栏子系统。后续章节中的产品化终态仍为目标架构。
@@ -22,7 +22,19 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
-## 2.1 当前已交付技术基线 (Phase 17, v0.15.1)
+## 2.1 本次实现增量：自动 Team 与失败重规划（Phase 19）
+
+`ChatLoop` 在普通输入执行前按 `TeamMode` 选择入口；`TeamRouter` 以系统约束和最近八条正文做一次无工具分类，15 秒超时或无效响应回退普通模式，用户取消不会启动执行器。`/team` 直接进入原有编排器；默认 manual，启动配置和会话切换分别维护。
+
+`TeamOrchestrator` 每轮独立保存失败证据、已完成成果、评估状态与两次重规划配额。批次执行者全部返回后，只有审查修正耗尽的逻辑失败可以进入评估；任意权限、执行或审查异常阻止整体换图。审查必须返回有效结构化结论。进度按当前计划已完成步骤数/总步骤数计算，低于 50% 可换剩余图，达到 50% 只改失败分支。
+
+`TeamPlanValidator` 校验依赖图、已完成 ID 和后半程无关待办；通过目标、类型及依赖结构识别只改编号的同构失败任务。结构校验不能证明业务语义一定正确，仍需规划者判断与步骤审查。
+
+`SubAgent` 收集实际工具状态与摘要；`TeamWorkspaceSnapshot` 只读采集文件指纹，排除生成物与内部目录、不跟随软链接。各次审查缺陷、工具记录与文件变化一起交接；必要证据缺失或完整包超过 64000 字符时停止自动重规划，不截掉尾部证据继续执行。文件不会自动回滚。
+
+Team 最终结果经 `ReactAgent.recordExternalTurn()` 写入进程内对话，支持下一轮追问。`SafeHistory` 在终端读取器绑定后加载原有文件，并增量追加输入；它不保存完整聊天或恢复 Team 状态。验收与流程说明见 [本次证据](engineering/team-routing-and-replanning-verification.md)。v1.1 的快照、后台任务租约和底层取消修复仍为独立待实施规划。
+
+## 2.2 历史已交付技术基线 (Phase 17, v0.15.1)
 
 - **图片多模态上下文预处理与视觉防御护栏子系统 (Phase 17B)**：
   - **多模态消息模型扩展 (`ContentPart` + `ChatMessage`)**：创建 `ContentPart` record 支持 `text`, `imageBase64`, `imageUrl`, `mimeType`；扩展 `ChatMessage` 增加 `contentParts` 列表与 `hasImages()`, `imagePartCount()`, `withoutImageContent()` 辅助方法，保证全部既有 500+ 单测无缝兼容。
@@ -528,7 +540,7 @@ API Key 支持进程环境变量、项目 `.env` 与用户全局 `~/.xhlcli/conf
 → 验证、文档、真实提交
 ```
 
-详细映射见 [`docs/engineering/source-adoption-map.md`](docs/engineering/source-adoption-map.md)。参考仓库工作树可能包含用户改动，读取历史必须使用 `git show <commit>:<path>`；不得通过 reset 或 checkout 清理其工作树。
+详细映射见 [`docs/engineering/source-adoption-map.md`](engineering/source-adoption-map.md)。参考仓库工作树可能包含用户改动，读取历史必须使用 `git show <commit>:<path>`；不得通过 reset 或 checkout 清理其工作树。
 
 ## 19. 分期兼容策略
 
@@ -543,7 +555,7 @@ API Key 支持进程环境变量、项目 `.env` 与用户全局 `~/.xhlcli/conf
 | 决策 | 选择 | 原因 |
 |---|---|---|
 | 执行模型 | 单进程模块化单体 | 本地 CLI 部署简单，模块接口足够隔离 |
-| 核心闭环 | ReAct 默认，Plan/Team 显式 | 简单任务低开销，复杂任务可控 |
+| 核心闭环 | 默认 ReAct，Plan/Team 显式；auto 可自动选择 Team | 保持手动兼容，按需增加一次无工具模式判断 |
 | 工具扩展 | 内置 Tool + MCP | 本地核心可靠，外部能力标准化 |
 | 代码理解 | 精确搜索优先、RAG 辅助 | 可解释、低成本、减少语义噪声 |
 | 安全 | Policy + HITL + Audit + Snapshot | 多层控制，不把 Prompt 当防线 |

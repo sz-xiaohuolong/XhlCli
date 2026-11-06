@@ -37,6 +37,84 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChatLoopTest {
     @Test
+    void manualToggleStopsClassificationAndMalformedResponseFallsBackOnce() {
+        FakeAgent agent = new FakeAgent();
+        Harness h = new Harness(new ListInput(List.of("/team-mode auto", "第一个请求", "/team-mode manual", "第二个请求", "/exit")), agent);
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        com.xhlcli.llm.LlmClient llm = (messages, tools, listener, token) -> {
+            calls.incrementAndGet();
+            return new com.xhlcli.model.ChatResponse("无效格式", TokenUsage.unknown());
+        };
+        h.loop.setLlmClient(llm);
+        h.loop.setTeamOrchestrator(new com.xhlcli.team.TeamOrchestrator(llm));
+        h.loop.run();
+        assertEquals(List.of("第一个请求", "第二个请求"), agent.inputs);
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void cancellingClassificationDoesNotLaunchEitherRunner() {
+        FakeAgent agent = new FakeAgent();
+        Harness h = new Harness(new ListInput(List.of("/team-mode auto", "复杂请求", "/exit")), agent);
+        com.xhlcli.llm.LlmClient llm = (messages, tools, listener, token) -> {
+            h.loop.cancelActiveResponse();
+            return new com.xhlcli.model.ChatResponse("{\"mode\":\"TEAM\",\"reason\":\"分工\"}", TokenUsage.unknown());
+        };
+        var team = new com.xhlcli.team.TeamOrchestrator(llm);
+        h.loop.setLlmClient(llm); h.loop.setTeamOrchestrator(team);
+        h.loop.run();
+        assertTrue(agent.inputs.isEmpty()); assertTrue(team.history().isEmpty());
+        assertTrue(h.out().contains("已取消"));
+    }
+
+    @Test
+    void teamResultReachesRealReactFollowupAndClearRemovesIt() {
+        var requests = new ArrayList<List<ChatMessage>>();
+        com.xhlcli.llm.LlmClient llm = (messages, tools, listener, token) -> {
+            String role = messages.getFirst().content();
+            String response;
+            if (role.contains("Task Planning Specialist")) response = "{\"steps\":[{\"id\":\"a\",\"description\":\"分析接口\",\"type\":\"ANALYSIS\",\"dependencies\":[]}]}";
+            else if (role.contains("Execution Specialist")) response = "接口结论：复用现有适配器";
+            else if (role.contains("Quality Review Specialist")) response = "{\"approved\":true,\"summary\":\"通过\"}";
+            else { requests.add(List.copyOf(messages)); response = "已解释"; }
+            return new com.xhlcli.model.ChatResponse(response, TokenUsage.unknown());
+        };
+        try (var scheduler = new com.xhlcli.agent.ScheduledTimeoutScheduler()) {
+            var react = new com.xhlcli.agent.ReactAgent(ChatMessage.system("项目约束：只读"), llm,
+                    (call, token) -> { throw new AssertionError("此场景无需工具"); }, List.of(),
+                    new com.xhlcli.agent.RunLimits(5, Duration.ofSeconds(10)), scheduler,
+                    new com.fasterxml.jackson.databind.ObjectMapper(), java.time.Clock.systemUTC(), () -> "followup");
+            Harness h = new Harness(new ListInput(List.of("/team 分析接口", "解释刚才的结果", "/clear", "再次提问", "/exit")), react);
+            h.loop.setTeamOrchestrator(new com.xhlcli.team.TeamOrchestrator(llm, null, List.of(), null,
+                    new PrintStream(new ByteArrayOutputStream())));
+            h.loop.run();
+            assertEquals(2, requests.size());
+            assertTrue(requests.getFirst().stream().anyMatch(m -> m.content().contains("复用现有适配器")));
+            assertFalse(requests.getLast().stream().anyMatch(m -> m.content().contains("复用现有适配器")));
+        }
+    }
+
+    @Test
+    void autoModeRoutesOrdinaryInputToExistingTeam() {
+        FakeAgent agent = new FakeAgent();
+        Harness h = new Harness(new ListInput(List.of("/team-mode auto", "实现跨模块功能", "/exit")), agent);
+        var responses = new java.util.ArrayDeque<>(List.of(
+            "{\"mode\":\"TEAM\",\"reason\":\"需要跨模块分工\"}",
+            "{\"steps\":[{\"id\":\"s1\",\"description\":\"实现功能\",\"type\":\"ANALYSIS\",\"dependencies\":[]}]}",
+            "已完成功能", "{\"approved\":true,\"summary\":\"通过\",\"issues\":[]}"));
+        com.xhlcli.llm.LlmClient llm = (messages, tools, listener, token) ->
+            new com.xhlcli.model.ChatResponse(responses.remove(), List.of(), new TokenUsage(1, 1, true));
+        var team = new com.xhlcli.team.TeamOrchestrator(llm, null, List.of(), null,
+            new PrintStream(new ByteArrayOutputStream()));
+        h.loop.setTeamOrchestrator(team);
+        h.loop.setLlmClient(llm);
+        assertEquals(0, h.loop.run());
+        assertTrue(agent.inputs.isEmpty(), "自动选择 Team 后不能再执行普通 Agent");
+        assertEquals(2, team.history().size());
+        assertTrue(h.out().contains("跨模块分工"));
+    }
+
+    @Test
     void routesCommandsBlankInputAndFiveTurnsWithoutCallingCommandsAsPrompts() {
         FakeAgent agent = new FakeAgent();
         Harness harness = new Harness(new ListInput(List.of(

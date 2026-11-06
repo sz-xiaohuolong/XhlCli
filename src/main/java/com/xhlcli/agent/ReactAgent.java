@@ -437,6 +437,14 @@ public final class ReactAgent implements AgentRunner {
         committedHistory = List.of(systemMessage);
     }
 
+    /** 接收同一前台会话内 Team 的最终结果，供下一轮追问使用。 */
+    public synchronized void recordExternalTurn(String input, String result) {
+        List<ChatMessage> updated = new ArrayList<>(committedHistory);
+        updated.add(ChatMessage.user(input));
+        updated.add(ChatMessage.assistant(result));
+        committedHistory = List.copyOf(updated);
+    }
+
     @Override
     public synchronized List<ChatMessage> history() {
         return committedHistory;

@@ -23,6 +23,7 @@ public final class ChatCommandParser {
             case "/index" -> ChatCommand.INDEX;
             case "/search" -> ChatCommand.SEARCH;
             case "/plan" -> ChatCommand.PLAN;
+            case "/team-mode" -> ChatCommand.TEAM_MODE;
             case "/team" -> ChatCommand.TEAM;
             case "/model" -> ChatCommand.MODEL;
             case "/mcp" -> ChatCommand.MCP;

@@ -14,6 +14,7 @@ public record ChatConfig(
         Duration requestTimeout,
         LogLevel logLevel,
         AgentSettings agentSettings,
+        TeamMode teamMode,
         Map<ConfigKey, ConfigSource> sources) {
 
     public ChatConfig {
@@ -24,7 +25,15 @@ public record ChatConfig(
         requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
         logLevel = Objects.requireNonNull(logLevel, "logLevel");
         agentSettings = Objects.requireNonNull(agentSettings, "agentSettings");
+        teamMode = Objects.requireNonNull(teamMode, "teamMode");
         sources = Map.copyOf(sources);
+    }
+
+    public ChatConfig(String apiKey, String model, URI baseUrl, Duration connectTimeout,
+            Duration readTimeout, Duration requestTimeout, LogLevel logLevel,
+            AgentSettings agentSettings, Map<ConfigKey, ConfigSource> sources) {
+        this(apiKey, model, baseUrl, connectTimeout, readTimeout, requestTimeout,
+                logLevel, agentSettings, TeamMode.MANUAL, sources);
     }
 
     public ChatConfig(

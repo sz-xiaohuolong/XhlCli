@@ -1,0 +1,34 @@
+复现程序: XhlReviewProbe
+退出码: 0
+临时证据目录=/var/folders/8d/vl0tk1c51szc23l5s_j4y2fw0000gn/T/xhl-review-3568476890707962476
+快照恢复成功=true; 外部文件内容=快照内容; 工作区文件仍为符号链接=true
+第一实例仍在运行时，新实例构造后任务状态=ENQUEUED
+同一任务第二实例也开始执行=true
+工作区 B 的 runner 执行了=应在 A 执行
+调度器返回=TIMEOUT; 已开始=true; token已取消=false
+调度器超时返回后任务仍继续=true
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+
+复现程序: XhlCancelProbe
+退出码: 0
+取消已返回，持久状态=CANCELED
+取消后后台仍发模型请求=true; 模型令牌已取消=false
+取消任务仍执行模型=true
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+
+复现程序: XhlCommandTimeoutProbe
+退出码: 0
+真实命令调度结果=TIMEOUT; token已取消=false; 此时文件存在=false
+超时后真实命令写入文件=超时后真实命令仍写入
+
+复现程序: XhlAgentTimeoutProbe
+退出码: 0
+真实工具完成事件=SUCCESS
+真实工具完成事件=SUCCESS
+模型收到工具观察={"status":"timeout","summary":"Tool execution timed out after 0s","data":{},"elapsed_ms":106,"truncated":false,"original_chars":0,"continue_hint":""}
+模型收到工具观察={"status":"success","summary":"命令执行完成 (exit code: 0)\n","data":{},"elapsed_ms":99,"truncated":false,"original_chars":2,"continue_hint":""}
+Agent结果=COMPLETED; 超时命令后续仍写入=第一条超时命令在第二条执行时仍写入

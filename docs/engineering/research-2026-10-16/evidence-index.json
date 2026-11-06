@@ -1,0 +1,410 @@
+{
+  "审查日期": "2026-10-16",
+  "时区": "Asia/Shanghai",
+  "项目提交": "690a4e17578369c62eef04b5b426e994b8b1d153",
+  "项目版本": "1.0.1",
+  "持久原始证据目录": "/Users/daiyifei/.codex/research/xhlcli/2026-10-16",
+  "临时来源说明": "原始REA参数、manifest保留首次/tmp来源路径；通过归档包与SHA256可以重建。未将第三方源码导入项目。",
+  "分析范围": "当前Claude原生核心未知；历史Claude与当前Qoder的选定静态路径，不是全程序运行验证。",
+  "rea_records": [
+    {
+      "file": "claude-2.1.301-rea.json",
+      "evidence_id": "ev_978c55a1fd05e45505e81ae5402c29a46bb7ae7dff6510c07b706d5a8c64ca9c",
+      "statistics": {
+        "relevant_files": 5,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 186921,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 3,
+        "visited_ast_nodes": 7448,
+        "findings": 119,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "graph_coverage": {
+        "status": "complete",
+        "truncated": false,
+        "omitted_count": 0,
+        "limits": []
+      },
+      "semantic_graph_coverage_status": "unknown",
+      "scope_note": "完整覆盖仅针对该次指定输入；所有动态关系及运行可达性仍受原始limitations约束"
+    },
+    {
+      "file": "claude-2.1.19-rea.json",
+      "evidence_id": "ev_ee4393bd970bc47648da7485db413e77bd815ec4e15dd9bf2c2e75adc59832a8",
+      "statistics": {
+        "relevant_files": 8,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 11653800,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 1,
+        "visited_ast_nodes": 1521,
+        "findings": 20,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "graph_coverage": {
+        "status": "partial",
+        "truncated": false,
+        "omitted_count": null,
+        "limits": [
+          {
+            "name": "javascript_analysis_worker_heap_limit_bytes",
+            "value": 1098907648,
+            "unit": "bytes"
+          },
+          {
+            "name": "javascript_analysis_worker_timeout_ms",
+            "value": 300000,
+            "unit": "milliseconds"
+          }
+        ]
+      },
+      "semantic_graph_coverage_status": "partial",
+      "scope_note": "完整覆盖仅针对该次指定输入；所有动态关系及运行可达性仍受原始limitations约束"
+    },
+    {
+      "file": "claude-2.1.19-selected-rea.json",
+      "evidence_id": "ev_be2b37cbedd353252d2d5b2687b9885db25903b0ab478e7c9587c7a855e5d56e",
+      "statistics": {
+        "relevant_files": 10,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 36380,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 9,
+        "visited_ast_nodes": 8476,
+        "findings": 0,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "graph_coverage": {
+        "status": "complete",
+        "truncated": false,
+        "omitted_count": 0,
+        "limits": []
+      },
+      "semantic_graph_coverage_status": "unknown",
+      "scope_note": "完整覆盖仅针对该次指定输入；所有动态关系及运行可达性仍受原始limitations约束"
+    },
+    {
+      "file": "qoder-rea-1.1.72.json",
+      "evidence_id": "ev_a4a1f7da4bddae55faf4312b0ad70545fdc7a0d66337e6e83c03ee3805e62c52",
+      "statistics": {
+        "relevant_files": 9,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 66856036,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 2,
+        "visited_ast_nodes": 1690,
+        "findings": 29,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "graph_coverage": {
+        "status": "partial",
+        "truncated": false,
+        "omitted_count": null,
+        "limits": [
+          {
+            "name": "javascript_analysis_worker_heap_limit_bytes",
+            "value": 1098907648,
+            "unit": "bytes"
+          },
+          {
+            "name": "javascript_analysis_worker_timeout_ms",
+            "value": 300000,
+            "unit": "milliseconds"
+          }
+        ]
+      },
+      "semantic_graph_coverage_status": "partial",
+      "scope_note": "完整覆盖仅针对该次指定输入；所有动态关系及运行可达性仍受原始limitations约束"
+    },
+    {
+      "file": "qoder-rea-selected-1.1.72.json",
+      "evidence_id": "ev_50345f14da83912e8cb3e4c6ab3c542fa8b44e3478ac1c886bf8f9742f214500",
+      "statistics": {
+        "relevant_files": 10,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 28840,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 9,
+        "visited_ast_nodes": 4344,
+        "findings": 0,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "graph_coverage": {
+        "status": "complete",
+        "truncated": false,
+        "omitted_count": 0,
+        "limits": []
+      },
+      "semantic_graph_coverage_status": "unknown",
+      "scope_note": "完整覆盖仅针对该次指定输入；所有动态关系及运行可达性仍受原始limitations约束"
+    }
+  ],
+  "archive_files": [
+    {
+      "path": "anthropic-ai-claude-code-2.1.19.tgz",
+      "bytes": 26568054,
+      "sha256": "f2725673be2456f47316be8a4876e2bf9981ead6fedbd3c9d68f7092d7b2a4ac"
+    },
+    {
+      "path": "anthropic-ai-claude-code-2.1.301.tgz",
+      "bytes": 29067,
+      "sha256": "a6c33587bc5cab060f7eb6a9aa1dab1030f9fe5dd1bd73ffdfac4a6c71987e67"
+    },
+    {
+      "path": "claude-2.1.19-npm-pack.json",
+      "bytes": 2550,
+      "sha256": "e564bb62c004c9efa5cde5c1f5d4b7246d38eee4903a8cdadc02e81e6645f485"
+    },
+    {
+      "path": "claude-2.1.19-rea.json",
+      "bytes": 295712,
+      "sha256": "2a7ba58cc4ec31c9008f74bb8d1ef55e9cc652a679269945f99e77f1a47089f9"
+    },
+    {
+      "path": "claude-2.1.19-selected-rea.json",
+      "bytes": 8628996,
+      "sha256": "8e5e1957e944f8873faf241bb3add38ac1e19024ff7b1e0d71d6b350f72ba01a"
+    },
+    {
+      "path": "claude-2.1.301-binary-strings.json",
+      "bytes": 2241,
+      "sha256": "a0f47f0ec9502cebe60f16119a9917acd91fdaf06091f8909b0eb2f7fdf6ec95"
+    },
+    {
+      "path": "claude-2.1.301-npm-pack.json",
+      "bytes": 1101,
+      "sha256": "f0110b13b06372b3e81f8c99e44e5b992fe3039d14792667410d6958102179a1"
+    },
+    {
+      "path": "claude-2.1.301-rea.json",
+      "bytes": 2177669,
+      "sha256": "64fbbdd23425ee15518e8383aabc6950ef63a918e7f8a84b5cb24236c5f48473"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/agent-loop.js",
+      "bytes": 8173,
+      "sha256": "cfb8ee1729de70d8d84c333cf79f5ef3a5069d721f050c46a0de6bba8c1b8180"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/concurrency.js",
+      "bytes": 1751,
+      "sha256": "660764ccc88946d63b37cc8ea59b125915333e9e935ff26805bc1b7183f9840a"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/full-compact.js",
+      "bytes": 2504,
+      "sha256": "2f6dd7f58bc6af765cbba0e32a3c4fef615be48628bf39deacf8dcfecf6740b3"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/mcp-subagent.js",
+      "bytes": 989,
+      "sha256": "562ba6afedd56b4d85b5b39b6e849b0eb8784f3563a238fe1ef945358f84baa3"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/micro-compact.js",
+      "bytes": 2366,
+      "sha256": "189cf2bbf7396ac727fd24e55b894bc9d2cb6bd54f6d9878f77b960eb233a19e"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/pretool-hook.js",
+      "bytes": 2662,
+      "sha256": "c61d12f1c04274f725b985dcbcdf6d6c81999b2be6ff9b817ae3c612129d69fc"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/selection-manifest.json",
+      "bytes": 4689,
+      "sha256": "e668db9d33ec26755d5fbdf6f345b5166414394ef0fd2129ecc934e61f8475a6"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/skills.js",
+      "bytes": 1463,
+      "sha256": "8af902a0d6c11219083e00614cf5f7e811c72463ad48bf91f67d27b56723a86d"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/subagent.js",
+      "bytes": 3636,
+      "sha256": "3268d00e9fbf5cabdb53a587448ca2687cbd40a9db74c6d2c738e0ea5454173a"
+    },
+    {
+      "path": "claude-code-2.1.19-selected/tool-permissions.js",
+      "bytes": 8147,
+      "sha256": "d63d2a481ab580643c4d82c18e5dedc09e04909e50abc5d0a2f3f10ba5a08c7d"
+    },
+    {
+      "path": "claude-npm-release-times.json",
+      "bytes": 22075,
+      "sha256": "06a209495e6002b07a6e0be190e0b63a0b2017e56da8dac28ee32a6c5616625f"
+    },
+    {
+      "path": "qoder-ai-qodercli-1.1.72.tgz",
+      "bytes": 30882970,
+      "sha256": "a2ac901ed3794c48c9ed2091b7bf3bccf2154dd541cf404b40031d1505666fbb"
+    },
+    {
+      "path": "qoder-installation-jina-20261016.md",
+      "bytes": 4157,
+      "sha256": "d4be38bf95ecc99a06fa91e6d1ddd91b528a4f5a90757e0a45dd424292b7487a"
+    },
+    {
+      "path": "qoder-npm-1.1.72.json",
+      "bytes": 17241,
+      "sha256": "9b64b16a82e41c016a89207d05cf4d9ab4f70cff9c1cceec6377fc05dac20cf9"
+    },
+    {
+      "path": "qoder-pack-1.1.72.json",
+      "bytes": 4000,
+      "sha256": "b4952a7732bd1362668d225ef0bb6c63942cac863f81d5865baa360b293a6b6b"
+    },
+    {
+      "path": "qoder-rea-1.1.72.json",
+      "bytes": 2055041,
+      "sha256": "a1ef964b7cb521965cfe57f4c7201b7d4e9a895652d0b1382c8d37d670d36925"
+    },
+    {
+      "path": "qoder-rea-selected-1.1.72.json",
+      "bytes": 5062847,
+      "sha256": "f1d96a124973637273022f6eeb81d5c3e32743029531e0505f2e07bf712d916d"
+    },
+    {
+      "path": "qoder-selected-1.1.72/dream-helpers.js",
+      "bytes": 1310,
+      "sha256": "f4ca7b9535817f7b593f2fd99d213cd1ff4db9511b3387bf9db1fdf4d2c1196f"
+    },
+    {
+      "path": "qoder-selected-1.1.72/dream-manager.js",
+      "bytes": 4409,
+      "sha256": "7062e7796e990367d559e8df644e1c6e13c89d7ca6b7b1fa5709f68c0f59cd2e"
+    },
+    {
+      "path": "qoder-selected-1.1.72/dream-permission.js",
+      "bytes": 466,
+      "sha256": "c48844c2312020bd7e9d354d6915fb9bc2fa758e0b76c0f67b79b037fa74d2f4"
+    },
+    {
+      "path": "qoder-selected-1.1.72/memory-context.js",
+      "bytes": 766,
+      "sha256": "7a0faf57a60026c09e68b7494d0b47d0605cc824db7d2906571f8c84d3700754"
+    },
+    {
+      "path": "qoder-selected-1.1.72/memory-format.js",
+      "bytes": 8662,
+      "sha256": "122a5449faa8da97606fe134672f78d42b6e7226df670004f1cd40ab040fcfe8"
+    },
+    {
+      "path": "qoder-selected-1.1.72/plugin-loader.js",
+      "bytes": 2015,
+      "sha256": "86655009d72cc2c254ca2d868461fd12c33572c724dff1060dce0355701f7f29"
+    },
+    {
+      "path": "qoder-selected-1.1.72/selection-manifest.json",
+      "bytes": 6989,
+      "sha256": "f789a880cdbf0da71ac7c6839b269dfb2f8c9709062e31def64e73fcd110ebef"
+    },
+    {
+      "path": "qoder-selected-1.1.72/session-capabilities.js",
+      "bytes": 1340,
+      "sha256": "8defa1c5fae53e37d541af06b3ad45e3b08173d1935e8d931726d0a209eaac89"
+    },
+    {
+      "path": "qoder-selected-1.1.72/session-initialize.js",
+      "bytes": 2168,
+      "sha256": "536e9fbc9dd7a44bb2c93e76a42ddcd0b86cc83958d20eba057a86add5d5ab0a"
+    },
+    {
+      "path": "qoder-selected-1.1.72/skill-methods.js",
+      "bytes": 715,
+      "sha256": "eb2f1969f4ef7b8067c1bb69a3da9fb280d87676a01bd113866722f19c7a4e47"
+    },
+    {
+      "path": "xhlcli-baseline-test-20261016.log",
+      "bytes": 27929,
+      "sha256": "3fe225381808837ef2d30a904ec459f476e9298e49a2c7a39aee9e7102633861"
+    },
+    {
+      "path": "xhlcli-claude-checkpointing-20261016.md",
+      "bytes": 8571,
+      "sha256": "fa847b2732650ea0758d4e152395670a04c58721435c1401362337ff5c13f464"
+    },
+    {
+      "path": "xhlcli-claude-hooks-20261016.md",
+      "bytes": 233368,
+      "sha256": "b238a02fa485d4df28238dd990cd14029e4d5aed71023408aae98e68bf2e2cec"
+    },
+    {
+      "path": "xhlcli-claude-subagents-20261016.md",
+      "bytes": 101040,
+      "sha256": "f1d9699e730beb4ee6dc6c18a92767ed3b9fb584af33fcdffa4bd737aa8ab78f"
+    },
+    {
+      "path": "xhlcli-claude-works-20261016.md",
+      "bytes": 20132,
+      "sha256": "6c92802c47d7efd754a2865f15e25e93014f0c2c5a1bf800956a6bfe51bbddee"
+    },
+    {
+      "path": "xhlcli-exa-claude-20261016.txt",
+      "bytes": 34730,
+      "sha256": "685deccfbfde8a127fb0a4e48d4a0479fac0b0bf04b7deefbd322c19ed17af58"
+    },
+    {
+      "path": "xhlcli-qoder-cli-features-20261016.md",
+      "bytes": 15404,
+      "sha256": "271417a7171214d63cdb6b74ac7eaa648ad564f8c6b9a5e42c5e9e9e8a3d1c59"
+    },
+    {
+      "path": "xhlcli-qoder-cli-wiki-20261016.md",
+      "bytes": 5217,
+      "sha256": "4759c02773889ac55a66225265348b92dec26e1673a41a47ada911bd5087aed5"
+    },
+    {
+      "path": "xhlcli-qoder-doc-index-20261016.txt",
+      "bytes": 89612,
+      "sha256": "790af77d5728bc07774b76ee9d5a264cc1f8ff9d041e3b7c4046ba3eb50a960e"
+    },
+    {
+      "path": "xhlcli-qoder-experts-20261016.md",
+      "bytes": 9229,
+      "sha256": "82322f18291444c54f97c9e08638f49c1403a125696435c5cbde637fc81458e3"
+    },
+    {
+      "path": "xhlcli-qoder-how-20261016.md",
+      "bytes": 5377,
+      "sha256": "fe54f8c586860f4fcdfef465477ea9832065111c5ef86b53115f283c05f45c23"
+    },
+    {
+      "path": "xhlcli-qoder-memory-20261016.md",
+      "bytes": 5826,
+      "sha256": "c9b23dead7d91adacc828359acbfaeee561c66906ff3775043db1895b55837c8"
+    },
+    {
+      "path": "xhlcli-qoder-modes-20261016.md",
+      "bytes": 4929,
+      "sha256": "9a814191c4a5cc09b9da73e790e1c996a19d59a6c1ffded85d0a04bef08a86f9"
+    },
+    {
+      "path": "xhlcli-qoder-retirement-20261016.md",
+      "bytes": 5362,
+      "sha256": "1078e898db6b6b4133f610fff34cac7c25bac97b2195a40a22108c33223c6b0d"
+    },
+    {
+      "path": "xhlcli-qoder-sdk-20261016.md",
+      "bytes": 8456,
+      "sha256": "1cc4d14234b31ee6d9089117e00bbd5935e60719604e5c755b7ece50362f71d2"
+    },
+    {
+      "path": "xhlcli-qoder-wiki-20261016.md",
+      "bytes": 8021,
+      "sha256": "477275b716bd5434ce4d244d5af5fc7316e150978c6a10bb44285e128ae2687a"
+    },
+    {
+      "path": "xhlcli-review-20261016.md",
+      "bytes": 13591,
+      "sha256": "24fee069ad3de3463ea3f01acf0f1902817ee84f93f98809798b7e5c7e1fac24"
+    }
+  ]
+}

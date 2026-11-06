@@ -1,7 +1,8 @@
 # XhlCLI 技术设计规范索引 (Technical Design Specs Index)
 
-本目录归档 XhlCLI 各分期开发的技术方案设计规范（Specs / Proposed Designs）。  
-按照 `vibe-workflow` 规范，本目录下的文件均为各阶段交付完毕后封存的设计基准，而当前可运行的真实技术基线统一由 [`docs/TECH_DESIGN.md`](../TECH_DESIGN.md) 维护。
+本目录保存 XhlCLI 的技术设计正文，包含当前拟议记录和已交付历史材料。使用 `vibe-workflow` 时继续沿用本目录，不生成平行版本正文副本。
+
+当前执行状态见 [PROGRESS](../PROGRESS.md)，唯一版本追溯地图见 [PROJECT](../PROJECT.md)。历史正文保留当时状态；索引中的发布归属不代表本次重新批准或验收。 当前已核验架构由 [TECH_DESIGN](../TECH_DESIGN.md)维护。
 
 ## 设计规范清单
 
@@ -23,6 +24,8 @@
 | **Phase 14** | [`2026-10-05-phase-14-skills-and-prompts-design.md`](2026-10-05-phase-14-skills-and-prompts-design.md) | `v0.12.0` | [`2026-10-05-phase-14-skills-and-prompts.md`](../plans/2026-10-05-phase-14-skills-and-prompts.md) | 已交付封存 |
 | **Phase 15** | [`2026-10-06-phase-15-terminal-productization-design.md`](2026-10-06-phase-15-terminal-productization-design.md) | `v0.13.0` | [`2026-10-06-phase-15-terminal-productization.md`](../plans/2026-10-06-phase-15-terminal-productization.md) | 已交付封存 |
 | **Phase 16** | [`2026-10-07-phase-16-snapshot-and-recovery-design.md`](2026-10-07-phase-16-snapshot-and-recovery-design.md) | `v0.14.0` | [`2026-10-07-phase-16-snapshot-and-recovery.md`](../plans/2026-10-07-phase-16-snapshot-and-recovery.md) | 已交付封存 |
-| **Phase 17** | [`2026-10-07-phase-17-runtime-and-multimodal-design.md`](2026-10-07-phase-17-runtime-and-multimodal-design.md) | `v0.15.0` (规划) | [`2026-10-07-phase-17-runtime-and-multimodal.md`](../plans/2026-10-07-phase-17-runtime-and-multimodal.md) | 待用户批准 |
-
-
+| **Phase 17** | [`2026-10-07-phase-17-runtime-and-multimodal-design.md`](2026-10-07-phase-17-runtime-and-multimodal-design.md) | `v0.15.0` / `v0.15.1` | [`2026-10-07-phase-17-runtime-and-multimodal.md`](../plans/2026-10-07-phase-17-runtime-and-multimodal.md) | 已交付历史记录 |
+| **Phase 18** | [官网与开源发布设计](2026-10-07-phase-18-release-and-website-design.md) | `v1.0.0` | [计划](../plans/2026-10-07-phase-18-release-and-website.md) | 已交付历史记录 |
+| **v1.0.1** | [全局配置 API Key 设计](2026-10-07-v1.0.1-user-config-api-key-design.md) | `v1.0.1` | [计划](../plans/2026-10-07-v1.0.1-user-config-api-key.md) | 已交付历史记录 |
+| **v1.1** | [可信任务生命周期拟议设计](2026-10-16-v1.1-trusted-task-lifecycle-design.md) | 目标 `v1.1.0` | [计划](../plans/2026-10-16-v1.1-trusted-task-lifecycle.md) | PROPOSED，未实施 |
+| **Phase 19** | [自动 Team 与重规划设计](2026-11-06-phase-19-team-routing-and-replanning-design.md) | 代码同步，未发布版本 | [计划](../plans/2026-11-06-phase-19-team-routing-and-replanning.md) | APPROVED；实施结果见 [验收](../engineering/team-routing-and-replanning-verification.md) |

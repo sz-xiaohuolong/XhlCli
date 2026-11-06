@@ -24,6 +24,8 @@ public final class ChatLoop {
     private java.nio.file.Path projectDirectory;
     private com.xhlcli.agent.PlanExecuteAgent planAgent;
     private com.xhlcli.team.TeamOrchestrator teamOrchestrator;
+    private com.xhlcli.config.TeamMode teamMode;
+    private final com.xhlcli.team.TeamRouter teamRouter = new com.xhlcli.team.TeamRouter();
     private com.xhlcli.llm.LlmClient currentClient;
     private com.xhlcli.llm.LlmProviderRegistry providerRegistry;
     private com.xhlcli.llm.DiagnosticSink diagnostics;
@@ -329,25 +331,7 @@ public final class ChatLoop {
             renderer.printMessage("💡 提示：检测到极简任务，Multi-Agent 团队协同更适合多模块重构与跨文件复杂任务。已启动协同处理...");
         }
 
-        CancellationToken token = new CancellationToken();
-        if (!activeResponse.compareAndSet(null, token)) {
-            throw new IllegalStateException("A response is already active");
-        }
-        renderer.updateStatus(new TerminalStatus("Team", "Collaborating", config.model()));
-        String turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId("team");
-        String summary = com.xhlcli.snapshot.SnapshotService.generateSummary("team", goal);
-        if (snapshotService != null) {
-            snapshotService.snapshotBeforeTurn(turnId, summary);
-        }
-        try {
-            teamOrchestrator.run(goal, renderer::accept, token);
-        } finally {
-            if (snapshotService != null) {
-                snapshotService.snapshotAfterTurnAsync(turnId, summary);
-            }
-            renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
-            activeResponse.compareAndSet(token, null);
-        }
+        executeTurn(goal, true);
     }
 
     private void handleModel(String input) {
@@ -953,6 +937,7 @@ public final class ChatLoop {
         this.renderer = Objects.requireNonNull(renderer, "renderer");
         this.config = Objects.requireNonNull(config, "config");
         this.hitlHandler = hitlHandler;
+        this.teamMode = config.teamMode();
     }
 
     private com.xhlcli.render.TerminalExtSummary getExtensionSummary() {
@@ -983,7 +968,10 @@ public final class ChatLoop {
 
             switch (commandParser.parse(input)) {
                 case HELP -> renderer.printHelp();
-                case CONFIG -> renderer.printConfig(config);
+                case CONFIG -> {
+                    renderer.printConfig(config);
+                    renderer.printMessage("当前会话 team-mode=" + teamMode.name().toLowerCase(java.util.Locale.ROOT));
+                }
                 case CLEAR -> {
                     agent.clearHistory();
                     if (teamOrchestrator != null) {
@@ -1010,6 +998,7 @@ public final class ChatLoop {
                 case SEARCH -> searchSemantic(input);
                 case PLAN -> handlePlan(input);
                 case TEAM -> handleTeam(input);
+                case TEAM_MODE -> handleTeamMode(input);
                 case MODEL -> handleModel(input);
                 case MCP -> handleMcp(input);
                 case BROWSER -> handleBrowser(input);
@@ -1033,26 +1022,62 @@ public final class ChatLoop {
         return true;
     }
 
-    private void sendTurn(String input) {
-        if (input.isBlank()) {
+    private void handleTeamMode(String input) {
+        String[] parts = input.trim().split("\\s+");
+        if (parts.length > 2) {
+            renderer.printMessage("用法：/team-mode [auto|manual]");
             return;
         }
-        CancellationToken token = new CancellationToken();
-        if (!activeResponse.compareAndSet(null, token)) {
-            throw new IllegalStateException("A response is already active");
-        }
-        renderer.updateStatus(new TerminalStatus("ReAct", "Thinking", config.model()));
-        String turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId("react");
-        String summary = com.xhlcli.snapshot.SnapshotService.generateSummary("react", input);
-        if (snapshotService != null) {
-            snapshotService.snapshotBeforeTurn(turnId, summary);
-        }
         try {
-            agent.run(input, renderer::accept, token);
-        } finally {
-            if (snapshotService != null) {
-                snapshotService.snapshotAfterTurnAsync(turnId, summary);
+            if (parts.length == 2) teamMode = com.xhlcli.config.TeamMode.parse(parts[1]);
+            renderer.printMessage("当前会话 team-mode=" + teamMode.name().toLowerCase(java.util.Locale.ROOT)
+                    + "；/team <目标> 始终可手动启动团队。会话切换不写入全局配置。");
+        } catch (com.xhlcli.config.ConfigurationException e) {
+            renderer.printMessage(e.getMessage());
+        }
+    }
+
+    private void sendTurn(String input) {
+        if (!input.isBlank()) executeTurn(input, false);
+    }
+
+    private void executeTurn(String input, boolean explicitTeam) {
+        CancellationToken token = new CancellationToken();
+        if (!activeResponse.compareAndSet(null, token)) throw new IllegalStateException("A response is already active");
+        String turnId = null;
+        String summary = null;
+        try {
+            boolean useTeam = explicitTeam;
+            String context = com.xhlcli.team.TeamRouter.context(agent.history(), projectDirectory);
+            if (!explicitTeam && teamMode == com.xhlcli.config.TeamMode.AUTO
+                    && teamOrchestrator != null && currentClient != null) {
+                renderer.updateStatus(new TerminalStatus("AUTO", "选择执行模式", config.model()));
+                var decision = teamRouter.select(currentClient, input, context, token);
+                if (token.isCancelled()) {
+                    renderer.printMessage("已取消模式选择，本轮未执行任务。");
+                    return;
+                }
+                useTeam = decision.team();
+                renderer.printMessage((useTeam ? "进入 Team 模式：" : "使用普通模式：") + decision.reason());
             }
+            if (token.isCancelled()) return;
+            String mode = useTeam ? "team" : "react";
+            renderer.updateStatus(new TerminalStatus(useTeam ? "Team" : "ReAct", "执行中", config.model()));
+            turnId = com.xhlcli.snapshot.SnapshotService.generateTurnId(mode);
+            summary = com.xhlcli.snapshot.SnapshotService.generateSummary(mode, input);
+            if (snapshotService != null) snapshotService.snapshotBeforeTurn(turnId, summary);
+            if (useTeam) {
+                var result = teamOrchestrator.runWithContext(input, context, renderer::accept, token);
+                if (agent instanceof com.xhlcli.agent.ReactAgent react) {
+                    react.recordExternalTurn(input, "[Team " + result.status() + "]\n" + result.finalAnswer());
+                }
+                if (result.status() == com.xhlcli.model.RunStatus.CANCELED)
+                    renderer.printMessage("团队任务已取消，已有修改保留。");
+            } else {
+                agent.run(input, renderer::accept, token);
+            }
+        } finally {
+            if (snapshotService != null && turnId != null) snapshotService.snapshotAfterTurnAsync(turnId, summary);
             renderer.updateStatus(new TerminalStatus("IDLE", "Ready", config.model()));
             activeResponse.compareAndSet(token, null);
         }

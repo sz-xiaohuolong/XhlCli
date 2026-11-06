@@ -2,18 +2,29 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| **Release Baseline** | `Current Release: v1.0.1 (Patch Delivered)`；`Workflow State: READY_FOR_NEXT_RELEASE`；`Operational Status: ACTIVE` | 无阻塞 | 等待下一阶段 (Phase 19 / v1.1.0) 需求输入与冻结 |
-| **最新交付** | `v1.0.1 全局 ~/.xhlcli/config.json 支持 API Key 与 Provider 凭据级联` (VERIFIED) | 无缺口 | 保持发布基线，准备新特性规划 |
-| **全量验证** | 525 项自动化测试 100% 绿灯；`mvn clean package` 成功构建 `xhlcli-1.0.1.jar` | 无未覆盖 AC | 随时就绪执行下一轮 TDD |
+| 本次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 远程同步待执行 | TASK-19-05，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
+| 当前规划 | `v1.1` 第一批“可信任务生命周期”的需求、拟议设计、实施计划和验收矩阵已形成 | D01 安全文件操作与 D02 任务迁移/恢复方案待评审；功能未实现 | 按 [TASK-01](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)核实能力与迁移条件，闭合具体决定 |
+| 代码基线 | 已发布 `v1.0.1`；2026-10-16 `./mvnw test` 525 项通过；离线探针复现 7 项 P1 | 7 项缺陷尚未修复；原套件通过不能覆盖新增验收 | 按 [13 项 AC](engineering/v1.1-trusted-task-lifecycle-verification.md)建立失败回归与验收证据 |
+| 前次整理 | 2026-10-17 文档按原目录归并，AGENTS 明确继续沿用原分类 | 未执行 v1.1 功能验收或发布 | 归并完整性、351 条链接与 diff 检查通过；功能实施仍未开始 |
 
 ---
 
-## 1. 定位信息 (Context Baseline)
+## 本次任务
 
-- **Current Release**: `v1.0.1` (Patch: 用户全局配置支持 API Key)
+Phase 19：Shipping / READY_TO_SHIP，功能 VERIFIED（离线范围）。TASK-19-01～04 已完成，05 待提交与远程同步。需求 FROZEN，用户已授权同步 origin/main；不打 Tag 或发布新版本。成果、失败边界、人工步骤与证据见 [本次验收](engineering/team-routing-and-replanning-verification.md)。
+
+## 1. 后续 v1.1 独立规划基线
+
+- **Current Release**: `v1.1`（目标版本 `v1.1.0`，可信任务生命周期）
+- **Published Baseline**: `v1.0.1`（用户全局配置支持 API Key）
+- **Current Stage / Workflow State**: `Planning / SPECIFIED`（范围基线已确定，设计与计划为提案，尚未进入 Building）
+- **Operational Status**: `ACTIVE`（文档归并完成，下一步为技术能力核实与具体方案评审）
+- **Verification Status / Shipping Authorization**: `UNVERIFIED / NOT_REQUESTED`（针对 v1.1 功能）
+- **Current Task / Next Task（v1.1 独立规划）**: 文档归并与维护规则更新已完成；下一项为 `TASK-01`，实施任务均未开始
+- **Last Stable Commit**: `690a4e17578369c62eef04b5b426e994b8b1d153`
 - **Last Stable Tag**: `v1.0.0` (Commit: `2741d36`)
-- **Working Tree**: `clean`（525 项测试 100% 绿灯）
-- **Last Audited Date**: 2026-10-07
+- **Working Tree**: 本次包含 Phase 19 源码、测试、验收脚本，以及此前已授权的研究报告与文档归并；v1.1 R01～R07 功能仍未实施。当前 Git 同步结果见本次任务记录。
+- **Last Audited Date**: v1.1 研究基线为 2026-10-16；Phase 19 的实际验证另见本次验收。
 - **Document Map**: [`docs/PROJECT.md`](PROJECT.md)
 - **Architecture Baseline**: [`docs/TECH_DESIGN.md`](TECH_DESIGN.md)
 - **Changelog**: [`CHANGELOG.md`](../CHANGELOG.md)
@@ -45,25 +56,27 @@
 | **Phase 17B** (`v0.15.1`) | 图片多模态上下文预处理、Alpha Flatten、缩放压缩、剪贴板抓图与视觉防御护栏 | `VERIFIED` | Multimodal Golden Test 物证 |
 | **Phase 18** (`v1.0.0`) | 现代化静态官网 (`website/`)、终端模拟器、指令速查表、Vercel 部署、`install.sh` | `VERIFIED` | 静态官网评测报告与发版 |
 | **Patch 1.0.1** (`v1.0.1`) | 全局用户配置 `~/.xhlcli/config.json` 支持 API Key 与多 Provider 级联 | `VERIFIED` | 525 项测试全绿，jar 冒烟通过 |
-| **Phase 19 / v1.1.0** | 待定义新特性与产品演进 | `NOT_STARTED` | 等待人类决策与需求冻结 |
+| **Phase 19** | 自动 Team、失败重规划、结果上下文交接与输入历史修复 | `VERIFIED`（离线验收，待远程同步） | [需求](prd/phase-19-team-routing-and-replanning.md) → [验收](engineering/team-routing-and-replanning-verification.md) |
+| **v1.1**（目标 `v1.1.0`） | R01～R07 修复、能力声明校准 | `SPECIFIED`；设计 `PROPOSED`，计划 `DRAFT` | [需求](prd/v1.1-trusted-task-lifecycle.md) → [设计](specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md) → [计划](plans/2026-10-16-v1.1-trusted-task-lifecycle.md) → [待执行验收](engineering/v1.1-trusted-task-lifecycle-verification.md) |
 
 ---
 
-## 3. 最新验证物证 (Verification Evidence)
+## 3. 历史交付与当前证据
+
+Phase 19 的打包与 CLI 验收单独记录于[本次证据](engineering/team-routing-and-replanning-verification.md)。下表为历史记录，不覆盖本次源码；v1.1 功能结果以[本批验收矩阵](engineering/v1.1-trusted-task-lifecycle-verification.md)为准。历史阶段 VERIFIED 表示当时验收，不覆盖后续发现的 R01～R07。
 
 | 检查项 | 命令 / 流程 | 结果 | 耗时 / 细节 | 证据位置 |
 |---|---|---|---|---|
-| **全量自动化测试套件** | `./mvnw test` | `525 Tests, 0 Failures, 0 Errors, 0 Skipped` | 15.94s | `target/surefire-reports/` |
-| **Jar 打包与 Shade** | `./mvnw clean package -DskipTests` | `BUILD SUCCESS` | 生成 `target/xhlcli-1.0.1.jar` | `target/` |
-| **CLI 启动与元信息** | `java -jar target/xhlcli-1.0.1.jar --version` | `XhlCLI 1.0.1` | 冒烟通过 | 标准输出 |
-| **一键安装器测试** | `bash install.sh` | 成功安装并输出快捷配置指导 | 本地验证通过 | `~/.xhlcli/bin/xhlcli` |
+| **2026-10-16 基线测试** | `./mvnw test` | `525 Tests, 0 Failures, 0 Errors, 0 Skipped` | 16.160s；适用于当时的基线提交 | [验证记录](engineering/research-2026-10-16/verification.md)与日志摘要 |
+| **历史 Jar 打包与 Shade** | `./mvnw clean package -DskipTests` | `BUILD SUCCESS` | 生成 `target/xhlcli-1.0.1.jar` | `target/` |
+| **历史 CLI 启动与元信息** | `java -jar target/xhlcli-1.0.1.jar --version` | `XhlCLI 1.0.1` | 冒烟通过 | 标准输出 |
+| **历史一键安装器测试** | `bash install.sh` | 成功安装并输出快捷配置指导 | 本地验证通过 | `~/.xhlcli/bin/xhlcli` |
 
 ---
 
-## 4. 下一步行动指南 (Next Steps)
+## 4. 后续 v1.1 行动指南（独立于本次交付）
 
-1. **当前状态**：`v1.0.1` 代码、测试、安装器与文档已实现绝对一致闭环。
-2. **新迭代准入门禁 (Entry Gate)**：
-   - 依据 `vibe-workflow` 宪法第一条：“工程开始前必须冻结需求 (Requirement Status == FROZEN)”。
-   - 当用户提出下一阶段的新特性、新架构或新产品需求时，首先执行需求澄清（Requirement Clarification）与范围冻结，生成对应的子 PRD / SPEC。
-   - 随后进入标准研发管线：`SPECIFIED` → `DESIGNED` → `PLANNED` → `BUILDING` → `VERIFYING` → `READY_TO_SHIP`。
+1. 沿用用户已明确的第一批范围，不再启动需求访谈；入口为 [v1.1 目标](prd/v1.1-trusted-task-lifecycle.md)。
+2. 执行 TASK-01 的目录操作能力验证与旧库迁移条件调查，评审设计 D01/D02；未闭合前保留提案，不迁移真实任务库或进入完整 Release Building。
+3. 按 TASK-02～TASK-08 推进小闭环，逐项将 R01～R07 转成正式失败回归，补能力声明证据；当前均未开始。
+4. TASK-09 汇总适用证据，满足所有 AC 后再评估验证与发布状态。报告第二、三批仍不属于 v1.1，本轮没有提交、推送、版本升级或发布。后续继续使用原分类目录，以 PROJECT 为唯一文档地图、PROGRESS 为唯一当前进度。

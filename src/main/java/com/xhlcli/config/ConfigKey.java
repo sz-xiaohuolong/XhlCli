@@ -11,5 +11,6 @@ public enum ConfigKey {
     AGENT_TIMEOUT,
     MAX_CONCURRENCY,
     TOOL_TIMEOUT,
+    TEAM_MODE,
     LOG_LEVEL
 }

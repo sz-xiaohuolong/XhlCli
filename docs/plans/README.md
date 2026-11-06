@@ -1,7 +1,8 @@
 # XhlCLI 实施计划索引 (Implementation Plans Index)
 
-本目录归档 XhlCLI 各分期开发的详细实施路线与任务清单（Implementation Plans）。  
-按照 `vibe-workflow` 规范，本目录下的文件均为各阶段交付完毕后封存的只读追溯凭证（Released Artifacts）。
+本目录保存 XhlCLI 的实施计划正文，包含当前拟议记录和已交付历史材料。使用 `vibe-workflow` 时继续沿用本目录，不生成平行版本正文副本。
+
+当前执行状态见 [PROGRESS](../PROGRESS.md)，唯一版本追溯地图见 [PROJECT](../PROJECT.md)。历史正文保留当时状态；索引中的发布归属不代表本次重新批准或验收。
 
 ## 实施计划清单
 
@@ -24,6 +25,8 @@
 | **Phase 14** | [`2026-10-05-phase-14-skills-and-prompts.md`](2026-10-05-phase-14-skills-and-prompts.md) | `v0.12.0` | [`2026-10-05-phase-14-skills-and-prompts-design.md`](../specs/2026-10-05-phase-14-skills-and-prompts-design.md) | 已交付封存 |
 | **Phase 15** | [`2026-10-06-phase-15-terminal-productization.md`](2026-10-06-phase-15-terminal-productization.md) | `v0.13.0` | [`2026-10-06-phase-15-terminal-productization-design.md`](../specs/2026-10-06-phase-15-terminal-productization-design.md) | 已交付封存 |
 | **Phase 16** | [`2026-10-07-phase-16-snapshot-and-recovery.md`](2026-10-07-phase-16-snapshot-and-recovery.md) | `v0.14.0` | [`2026-10-07-phase-16-snapshot-and-recovery-design.md`](../specs/2026-10-07-phase-16-snapshot-and-recovery-design.md) | 已交付封存 |
-| **Phase 17** | [`2026-10-07-phase-17-runtime-and-multimodal.md`](2026-10-07-phase-17-runtime-and-multimodal.md) | `v0.15.0` (规划) | [`2026-10-07-phase-17-runtime-and-multimodal-design.md`](../specs/2026-10-07-phase-17-runtime-and-multimodal-design.md) | 待用户批准 |
-
-
+| **Phase 17** | [`2026-10-07-phase-17-runtime-and-multimodal.md`](2026-10-07-phase-17-runtime-and-multimodal.md) | `v0.15.0` / `v0.15.1` | [`2026-10-07-phase-17-runtime-and-multimodal-design.md`](../specs/2026-10-07-phase-17-runtime-and-multimodal-design.md) | 已交付历史记录 |
+| **Phase 18** | [官网与开源发布计划](2026-10-07-phase-18-release-and-website.md) | `v1.0.0` | [设计](../specs/2026-10-07-phase-18-release-and-website-design.md) | 已交付历史记录 |
+| **v1.0.1** | [全局配置 API Key 计划](2026-10-07-v1.0.1-user-config-api-key.md) | `v1.0.1` | [设计](../specs/2026-10-07-v1.0.1-user-config-api-key-design.md) | 已交付历史记录 |
+| **v1.1** | [可信任务生命周期实施计划](2026-10-16-v1.1-trusted-task-lifecycle.md) | 目标 `v1.1.0` | [设计](../specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md) | DRAFT，未实施 |
+| **Phase 19** | [自动 Team 与重规划计划](2026-11-06-phase-19-team-routing-and-replanning.md) | 代码同步，未发布版本 | [设计](../specs/2026-11-06-phase-19-team-routing-and-replanning-design.md) | 结果见 [验收](../engineering/team-routing-and-replanning-verification.md) |

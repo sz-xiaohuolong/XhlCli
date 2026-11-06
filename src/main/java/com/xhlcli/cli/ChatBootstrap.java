@@ -305,6 +305,7 @@ public final class ChatBootstrap implements ChatRunner {
 
                 com.xhlcli.team.TeamOrchestrator teamOrchestrator = new com.xhlcli.team.TeamOrchestrator(
                         client, executor, registry.definitions(), memoryManager, out);
+                teamOrchestrator.setProjectDirectory(projectDirectory);
                 loop.setTeamOrchestrator(teamOrchestrator);
 
                 mcpManager.addToolsUpdatedListener(defs -> {
