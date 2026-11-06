@@ -2,7 +2,7 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 本次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 远程同步待执行 | TASK-19-05，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
+| 本次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 无本次阻塞；真实模型质量未测 | TASK-19-01～05 完成，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
 | 当前规划 | `v1.1` 第一批“可信任务生命周期”的需求、拟议设计、实施计划和验收矩阵已形成 | D01 安全文件操作与 D02 任务迁移/恢复方案待评审；功能未实现 | 按 [TASK-01](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)核实能力与迁移条件，闭合具体决定 |
 | 代码基线 | 已发布 `v1.0.1`；2026-10-16 `./mvnw test` 525 项通过；离线探针复现 7 项 P1 | 7 项缺陷尚未修复；原套件通过不能覆盖新增验收 | 按 [13 项 AC](engineering/v1.1-trusted-task-lifecycle-verification.md)建立失败回归与验收证据 |
 | 前次整理 | 2026-10-17 文档按原目录归并，AGENTS 明确继续沿用原分类 | 未执行 v1.1 功能验收或发布 | 归并完整性、351 条链接与 diff 检查通过；功能实施仍未开始 |
@@ -11,7 +11,7 @@
 
 ## 本次任务
 
-Phase 19：Shipping / READY_TO_SHIP，功能 VERIFIED（离线范围）。TASK-19-01～04 已完成，05 待提交与远程同步。需求 FROZEN，用户已授权同步 origin/main；不打 Tag 或发布新版本。成果、失败边界、人工步骤与证据见 [本次验收](engineering/team-routing-and-replanning-verification.md)。
+Phase 19：Reflecting / 本次代码交付完成，功能 VERIFIED（离线范围）。TASK-19-01～05 已完成。需求 FROZEN，用户已授权同步 origin/main；不打 Tag 或发布新版本。实现提交 `2cbd7e0c13b13d7ab8cc5c861896c20b956030e8` 已推送，远程 SHA 核对一致。成果、失败边界、人工步骤与证据见 [本次验收](engineering/team-routing-and-replanning-verification.md)。
 
 ## 1. 后续 v1.1 独立规划基线
 
@@ -56,7 +56,7 @@ Phase 19：Shipping / READY_TO_SHIP，功能 VERIFIED（离线范围）。TASK-1
 | **Phase 17B** (`v0.15.1`) | 图片多模态上下文预处理、Alpha Flatten、缩放压缩、剪贴板抓图与视觉防御护栏 | `VERIFIED` | Multimodal Golden Test 物证 |
 | **Phase 18** (`v1.0.0`) | 现代化静态官网 (`website/`)、终端模拟器、指令速查表、Vercel 部署、`install.sh` | `VERIFIED` | 静态官网评测报告与发版 |
 | **Patch 1.0.1** (`v1.0.1`) | 全局用户配置 `~/.xhlcli/config.json` 支持 API Key 与多 Provider 级联 | `VERIFIED` | 525 项测试全绿，jar 冒烟通过 |
-| **Phase 19** | 自动 Team、失败重规划、结果上下文交接与输入历史修复 | `VERIFIED`（离线验收，待远程同步） | [需求](prd/phase-19-team-routing-and-replanning.md) → [验收](engineering/team-routing-and-replanning-verification.md) |
+| **Phase 19** | 自动 Team、失败重规划、结果上下文交接与输入历史修复 | `VERIFIED`（离线验收，已同步远程） | [需求](prd/phase-19-team-routing-and-replanning.md) → [验收](engineering/team-routing-and-replanning-verification.md) |
 | **v1.1**（目标 `v1.1.0`） | R01～R07 修复、能力声明校准 | `SPECIFIED`；设计 `PROPOSED`，计划 `DRAFT` | [需求](prd/v1.1-trusted-task-lifecycle.md) → [设计](specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md) → [计划](plans/2026-10-16-v1.1-trusted-task-lifecycle.md) → [待执行验收](engineering/v1.1-trusted-task-lifecycle-verification.md) |
 
 ---
