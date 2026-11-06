@@ -5,7 +5,7 @@ import './composer-controls.css';
 const labels={default:'默认',none:'关闭',low:'低',medium:'中',high:'高',max:'最高'};
 const permissions=[
   {id:'on-request',label:'按需审批',description:'需要权限的工具操作先由你确认。',icon:Hand},
-  {id:'auto',label:'帮我审批',description:'自动批准工具调用（含命令执行）及等待中的审批，路径保护仍有效。',icon:ShieldCheck}
+  {id:'auto',label:'帮我审批',description:'自动批准工具调用（含命令执行）及等待中的工具审批。计划仍需你确认，路径保护仍有效。',icon:ShieldCheck}
 ];
 export function ComposerControls({models,model,effort,onModel,onEffort,approvalMode,onApproval,approvalDisabled,modelDisabled,approvalSaving,modelSaving,onSettings}){
   const [open,setOpen]=useState(null),[choosingModel,setChoosingModel]=useState(false),[preview,setPreview]=useState(null);

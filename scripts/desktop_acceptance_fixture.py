@@ -24,7 +24,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/event-stream')
         self.end_headers()
         try:
-            if last.get('role') == 'tool':
+            if '计划验收' in user:
+                system = str(messages[0].get('content', '')) if messages else ''
+                if 'Mode: Plan Builder' in system:
+                    self.text(json.dumps({'summary': '先展示大纲，确认后创建文档。' if '只写大纲' in user else '创建技术说明文档，并核对 Markdown 结构。', 'tasks': [
+                        {'id': 'task_1', 'description': '创建 `plan-demo.md`，包含标题、列表、引用、表格和代码块。', 'type': 'FILE_WRITE', 'dependencies': []}
+                    ]}, ensure_ascii=False))
+                elif last.get('role') == 'tool':
+                    self.text('# 验收文档已保存\n\n> 这是隔离模型的演示结果，写入由真实工具完成。\n\n## 完成内容\n\n- **文件**：`plan-demo.md`\n- 计划已由用户确认\n\n| 检查项 | 结果 |\n| --- | --- |\n| 文件写入 | 已完成 |\n| Markdown 结构 | 标题、列表、引用、表格、代码块 |\n\n```text\n计划确认后执行\n保留换行\n```\n')
+                else:
+                    self.tool('write_file', {'path': 'plan-demo.md', 'content': '# 计划验收文档\n\n确认后才写入。\n'})
+                    return
+            elif last.get('role') == 'tool':
                 self.text('工具已返回结果。\n\n')
                 self.text('请展开工具记录检查输出；文件差异可在本轮变更中查看。')
             elif '验收写入' in user:

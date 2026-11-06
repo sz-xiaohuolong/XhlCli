@@ -36,7 +36,7 @@ final class DesktopStore implements AutoCloseable {
                 if (!session.has("reasoningEffort"))((ObjectNode)session).put("reasoningEffort","default");
                 for (var turn : session.withArray("turns")) {
                     String status = turn.path("status").asText();
-                    if (status.equals("running") || status.equals("approval") || status.equals("canceling")) {
+                    if (status.equals("running") || status.equals("approval") || status.equals("canceling") || status.equals("plan_review")) {
                         ((ObjectNode) turn).put("status", "interrupted");
                         ((ObjectNode) turn).put("error", "上次执行已中断，未自动重跑");
                     }

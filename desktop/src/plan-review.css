@@ -1,0 +1,31 @@
+.plan-review{margin:22px 0;border:1px solid var(--line);border-radius:12px;padding:22px 24px;background:#fff}
+.plan-heading{display:flex;gap:10px;align-items:center;color:#39454d;margin-bottom:14px}
+.plan-heading h2{margin:0;font-size:17px;font-weight:600;line-height:1.5}
+.plan-goal{font-weight:550}
+.plan-summary{color:#56616a}
+.plan-steps{padding-left:22px;margin:20px 0}
+.plan-steps>li{padding-left:5px;margin:16px 0}
+.plan-steps>li::marker{color:#5c6871;font-size:13px;font-variant-numeric:tabular-nums}
+.plan-steps .markdown>:first-child{margin-top:0}
+.plan-steps .markdown>:last-child{margin-bottom:0}
+.plan-dependency{font-size:11px;line-height:1.65;color:#5c6871;margin:5px 0 0}
+.plan-boundary{font-size:12px;line-height:1.8;color:#56616a;border-top:1px solid var(--line);padding-top:16px;margin:20px 0 16px}
+.plan-feedback{display:flex;flex-direction:column;gap:8px;font-size:12px;color:#48545d}
+.plan-feedback textarea{box-sizing:border-box;resize:vertical;min-height:72px;max-height:220px;width:100%;padding:10px 12px;border:1px solid #cbd1d5;border-radius:8px;font:inherit;line-height:1.75}
+.plan-actions,.plan-actions>div{display:flex;align-items:center;gap:10px}
+.plan-actions{justify-content:space-between;flex-wrap:wrap;margin-top:18px}
+.plan-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 13px;border:1px solid var(--line);border-radius:8px;font-size:12px;white-space:nowrap}
+.plan-actions button:not(.primary):hover{background:#f3f5f6}
+.plan-review button:disabled{opacity:.5;cursor:not-allowed}
+.plan-error{font-size:12px;line-height:1.7;color:#9a3532;margin:12px 0 0}
+.plan-history{padding:0}
+.plan-history>summary{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:14px 18px;font-size:12px;color:#48545d}
+.plan-history>summary::-webkit-details-marker{display:none}
+.plan-history>summary small{margin-left:auto;color:#56616a;font-size:11px}
+.plan-history[open]>summary>svg:last-child{transform:rotate(90deg)}
+.plan-history-body{padding:0 24px 12px}
+.markdown h4,.markdown h5,.markdown h6{font-size:14px;line-height:1.5;margin:20px 0 9px}
+.markdown hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.markdown pre{white-space:pre;overflow-wrap:normal;max-width:100%}
+.markdown table{max-width:100%}
+@media(max-width:760px){.plan-review{padding:18px 16px}.plan-history{padding:0}.plan-history-body{padding:0 16px 10px}.plan-actions{gap:12px}.plan-actions>div{flex-wrap:wrap}.plan-history>summary{flex-wrap:wrap}.plan-history>summary small{margin-left:0}}

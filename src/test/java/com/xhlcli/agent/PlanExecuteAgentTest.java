@@ -161,6 +161,53 @@ class PlanExecuteAgentTest {
         assertTrue(result.contains("工具执行完毕并已验收"));
     }
 
+    @Test
+    void preservesMarkdownBlockBoundariesInFinalAnswer() {
+        String markdown = "# 标题\n\n> 引用\n\n- **重点**\n\n| 列 | 值 |\n| --- | --- |\n| 一 | 二 |\n\n```text\n代码\n```";
+        var client = new StubLlmClient(List.of(markdown));
+        var agent = new PlanExecuteAgent(client, null, List.of(), new StubPlanner(client), null,
+                (goal, plan) -> PlanExecuteAgent.PlanReviewDecision.execute(), new PrintStream(new ByteArrayOutputStream()));
+        var result = agent.run("生成说明", event -> {}, new CancellationToken());
+        assertTrue(result.finalAnswer().contains("\n\n" + markdown));
+    }
+
+    @Test
+    void toolIterationLimitDoesNotTurnNumberedToolOutputIntoSuccessfulAnswer() {
+        ChatResponse call = new ChatResponse("", List.of(new ToolCall("read", "read_file", "{}")), TokenUsage.unknown());
+        var client = new StubLlmClient(call, call, call, call, call);
+        ToolExecutor executor = (tool, token) -> new ToolResult(tool.id(), tool.name(), ToolResultStatus.SUCCESS,
+                "1 | # 标题\n2 | **原始工具输出**", new ObjectMapper().createObjectNode(), 0, false, 0, "");
+        var agent = new PlanExecuteAgent(client, executor, List.of(), new StubPlanner(client), null,
+                (goal, plan) -> PlanExecuteAgent.PlanReviewDecision.execute(), new PrintStream(new ByteArrayOutputStream()));
+        var result = agent.run("验证文档", event -> {}, new CancellationToken());
+        assertEquals(RunStatus.LIMIT_REACHED, result.status());
+        assertTrue(!result.finalAnswer().contains("1 | #"));
+        assertTrue(!result.finalAnswer().contains("计划执行完成"));
+    }
+
+    @Test
+    void reachingLimitStopsLaterIndependentTasksInSequentialDesktopExecution() {
+        ChatResponse call = new ChatResponse("", List.of(new ToolCall("read", "read_file", "{}")), TokenUsage.unknown());
+        var client = new StubLlmClient(call, call, call, call, call,
+                new ChatResponse("第二步不应被请求", List.of(), TokenUsage.unknown()));
+        var planner = new Planner(client) {
+            @Override public ExecutionPlan createPlan(String goal, CancellationToken token) {
+                var plan = new ExecutionPlan("two-independent", goal);
+                plan.addTask(new Task("task_1", "读取内容", Task.TaskType.FILE_READ));
+                plan.addTask(new Task("task_2", "写入文件", Task.TaskType.FILE_WRITE));
+                plan.computeExecutionOrder();return plan;
+            }
+        };
+        ToolExecutor executor = (tool, token) -> new ToolResult(tool.id(), tool.name(), ToolResultStatus.SUCCESS,
+                "读取结果", new ObjectMapper().createObjectNode(), 0, false, 0, "");
+        var agent = new PlanExecuteAgent(client, executor, List.of(), planner, null,
+                (goal, plan) -> PlanExecuteAgent.PlanReviewDecision.execute(), new PrintStream(new ByteArrayOutputStream()));
+        agent.setMaxConcurrency(1);
+        var result = agent.run("读取后写入", event -> {}, new CancellationToken());
+        assertEquals(RunStatus.LIMIT_REACHED, result.status());
+        assertEquals(1, client.responses.size(), "上限后的下一步不应发送模型请求");
+    }
+
     private static final class StubPlanner extends Planner {
         private String lastGoal = "";
 

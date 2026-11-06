@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import {Turn} from './turn-view.jsx';
+import {applyTurnEvent} from './conversation-events.mjs';
 import {Blocks,Home,Clock3,Settings,Folder,FolderOpen,SquarePen,Search,PanelLeft,ArrowUp,Plus,X,ChevronRight,ChevronDown,ChevronLeft,ShieldCheck,Terminal,FileText,Image,Check,Square,LoaderCircle,Copy,Archive,Pin,MoreHorizontal,Undo2,Files,ExternalLink,SlidersHorizontal,ArrowLeft,AlertCircle,RefreshCw,MessageSquare} from 'lucide-react';
 import './style.css';
 import ScheduledTasks from './ScheduledTasks.jsx';
@@ -10,45 +10,9 @@ import {commandSuggestions,needsModel} from './commands.mjs';
 import {ComposerControls} from './composer-controls.jsx';
 
 const api=window.xhl;
-const running=turn=>['running','approval','canceling'].includes(turn?.status);
-const statusLabel={running:'正在处理',approval:'等待你的确认',canceling:'正在停止',completed:'已完成',canceled:'已停止',failed:'执行失败',interrupted:'已中断',limit_reached:'达到执行限制'};
+const running=turn=>['running','approval','plan_review','canceling'].includes(turn?.status);
 const request=(method,params={})=>api.request(method,params);
 function IconButton({icon:Icon,label,active=false,...props}){return <button className={'icon-button'+(active?' active':'')} title={label} aria-label={label} {...props}><Icon size={19} strokeWidth={1.65}/></button>;}
-function RichText({text}){return <Markdown remarkPlugins={[remarkGfm]} components={{a:({href,children})=><a href={href} onClick={event=>{event.preventDefault();if(href)api.openExternal(href).catch(()=>{});}}>{children}</a>,img:()=> <span className="muted">[外部图片未加载]</span>}}>{text}</Markdown>;}
-function timeline(turn){
-  const items=[];
-  for(const event of turn.events||[]){
-    if(event.type==='TextDelta'){
-      if(items.at(-1)?.type==='text')items.at(-1).text+=event.data.text;else items.push({type:'text',text:event.data.text});
-    }
-    if(event.type==='tool.call')items.push({type:'tool',call:event.data});
-    if(event.type==='tool.result'){const item=items.findLast(item=>item.type==='tool'&&item.call.id===event.data.callId);if(item)item.result=event.data;}
-  }
-  if(!items.some(item=>item.type==='text')&&turn.answer)items.push({type:'text',text:turn.answer});
-  return items;
-}
-function Turn({turn,session,onChanges,onApproval,notify}){
-  const resolved=new Set((turn.events||[]).filter(event=>event.type==='approval.resolved').map(event=>event.data.id));
-  const approval=(turn.events||[]).findLast(event=>event.type==='approval.request'&&!resolved.has(event.data.id));
-  return <article className="turn">
-    <div className="user-message">{turn.input}{turn.attachments?.length>0&&<div className="attachment-list">{turn.attachments.map((file,index)=><span key={index}><FileText size={14}/>{file.path.split('/').pop()}</span>)}</div>}</div>
-    <div className="turn-state">{running(turn)?<LoaderCircle className="spin" size={15}/>:<span className={'state-dot '+turn.status}/>}<span>{statusLabel[turn.status]||turn.status}</span><span className="turn-model">{turn.model?.split(':').slice(1).join(':')}</span></div>
-    <div className="assistant-content">
-      {timeline(turn).map((item,index)=>item.type==='text'?<div className="markdown" key={index}><RichText text={item.text}/></div>:<details className="tool-item" key={index}>
-        <summary>{item.result?(item.result.status==='SUCCESS'?<Check size={15}/>:<AlertCircle size={15}/>):running(turn)?<LoaderCircle className="spin" size={15}/>:<Terminal size={15}/>}<span>{item.call.name}</span><span className="tool-summary">{item.result?.summary||'执行工具'}</span><ChevronRight size={14}/></summary>
-        <div className="tool-detail"><div className="small-label">参数</div><pre>{formatJson(item.call.argumentsJson)}</pre>{item.result&&<><div className="small-label">结果 · {item.result.status}</div><pre>{item.result.summary}{'\n'}{formatJson(item.result.data)}</pre></>}</div>
-      </details>)}
-      {approval&&running(turn)&&<section className="approval"><div className="approval-heading"><ShieldCheck size={21}/><div><strong>允许这次操作？</strong><p>{approval.data.request.riskDescription}</p></div></div><pre>{approval.data.request.toolName}{'\n'}{formatJson(approval.data.request.arguments)}</pre><div className="approval-actions"><button onClick={()=>onApproval(approval.data.id,false)}>拒绝</button><button className="primary" onClick={()=>onApproval(approval.data.id,true)}>允许本次</button></div></section>}
-      {(turn.events||[]).some(event=>event.type==='command.progress')&&<details className="command-progress"><summary>查看指令执行过程</summary><pre>{turn.events.filter(event=>event.type==='command.progress').map(event=>event.data.text).join('\n')}</pre></details>}
-      {turn.error&&!['completed','canceled'].includes(turn.status)&&<div className="inline-error"><AlertCircle size={17}/><span>{turn.error}</span></div>}
-      {(turn.events||[]).some(event=>event.type==='approval.automatic')&&<p className="notice">帮我审批已自动批准 {(turn.events||[]).filter(event=>event.type==='approval.automatic').length} 次工具操作</p>}
-      {(turn.events||[]).filter(event=>event.type==='notice').map((event,index)=><p className="notice" key={index}>{event.data.message}</p>)}
-      {turn.before&&turn.after&&turn.changeCount!==0&&<div className="change-card"><div className="change-symbol"><Files size={22}/></div><div><strong>{turn.undone?'本轮改动已撤销':'本轮文件改动'}</strong><p>查看差异并检查工作成果</p></div><button onClick={()=>onChanges(turn)}><span>查看变更</span><ChevronRight size={15}/></button></div>}
-      {!running(turn)&&<div className="message-actions"><IconButton icon={Copy} label="复制回答" onClick={()=>{api.copyText(turn.answer||timeline(turn).filter(x=>x.type==='text').map(x=>x.text).join('\n')).then(()=>notify('已复制回答')).catch(()=>notify('复制失败'));}}/><time>{new Date(turn.finishedAt||turn.startedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</time></div>}
-    </div>
-  </article>;
-}
-function formatJson(value){if(typeof value!=='string')return JSON.stringify(value,null,2);try{return JSON.stringify(JSON.parse(value),null,2);}catch{return value;}}
 
 function App(){
   const [state,setState]=useState({projects:[],sessions:[]}),[selected,setSelected]=useState(null),[projectId,setProjectId]=useState(null);
@@ -73,7 +37,7 @@ function App(){
       if(event.event==='backend.error'){setError(event.data.message);return;}
       if(!event.sessionId)return;
       if(event.event==='session.model'){setState(current=>({...current,sessions:current.sessions.map(item=>item.id===event.sessionId?{...item,model:event.data.model,reasoningEffort:'default'}:item)}));return;}
-      setState(current=>({...current,sessions:current.sessions.map(s=>s.id!==event.sessionId?s:{...s,turns:s.turns.map(turn=>turn.id!==event.turnId?turn:event.event==='turn.finished'?event.data:{...turn,status:event.event==='approval.request'?'approval':event.event==='approval.resolved'?'running':turn.status,events:[...(turn.events||[]),{type:event.event,data:event.data}]})})}));
+      setState(current=>({...current,sessions:current.sessions.map(s=>s.id!==event.sessionId?s:{...s,turns:s.turns.map(turn=>applyTurnEvent(turn,event))})}));
     });
   },[]);
   useEffect(()=>{act(async()=>{const config=await request('config.get',session?{sessionId:session.id}:project?{projectId:project.id}:{});setModels(config.models);setDefaultModel(config.defaultModel);});},[selected,project?.id,page]);
@@ -143,7 +107,7 @@ function App(){
           <header className="chat-header"><div className="breadcrumb"><Folder size={16}/><span>{project?.name||'工作区'}</span>{session&&<><ChevronRight size={13}/><span className="breadcrumb-title">{session.title}</span></>}</div><div className="header-actions">{session&&<><button className="subtle-button" onClick={()=>act(()=>api.openTerminal(session.id))}><Terminal size={15}/>打开终端<ExternalLink size={12}/></button><div className="menu-wrapper"><IconButton icon={MoreHorizontal} label="聊天操作" onClick={()=>setMenu(!menu)}/>{menu&&<div className="dropdown"><button onClick={()=>{setRename(session.id);setName(session.title);setMenu(false);}}><SquarePen size={15}/>重命名</button><button onClick={()=>{update({pinned:!session.pinned});setMenu(false);}}><Pin size={15}/>{session.pinned?'取消置顶':'置顶聊天'}</button><button onClick={()=>{update({archived:!session.archived});setMenu(false);}}><Archive size={15}/>{session.archived?'恢复聊天':'归档聊天'}</button></div>}</div></>}</div></header>
           <div className="chat-workspace"><div className="conversation">
             <div className="conversation-scroll" ref={viewport} onScroll={event=>{const e=event.currentTarget;nearBottom.current=e.scrollHeight-e.scrollTop-e.clientHeight<100;}}>
-              {loading?<div className="empty-state"><LoaderCircle size={28} className="spin"/><h2>正在连接 XhlCLI</h2><p>加载你的本地工作区</p></div>:!session?.turns.length?<div className="empty-state"><div className="empty-emblem"><Terminal size={32} strokeWidth={1.35}/></div><h2>一起完成下一件事</h2><p>{project?<>在 <strong>{project.name}</strong> 中探索、修改与验证代码</>:'打开一个项目，让想法变成代码'}</p>{!project?<button className="primary open-project" onClick={addProject}><FolderOpen size={17}/>打开项目</button>:<div className="prompt-suggestions">{['了解这个项目的结构','帮我检查最近的代码改动','运行测试并分析失败原因'].map(text=><button key={text} onClick={()=>{setDraft(text);inputRef.current?.focus();}}><MessageSquare size={15}/>{text}<ArrowUp size={14}/></button>)}</div>}</div>:<div className="conversation-content">{session.turns.map(turn=><Turn key={turn.id} turn={turn} session={session} onChanges={viewChanges} notify={notify} onApproval={(approvalId,allow)=>act(async()=>{await request('approval.respond',{sessionId:session.id,approvalId,allow});await refresh();})}/>)}</div>}
+              {loading?<div className="empty-state"><LoaderCircle size={28} className="spin"/><h2>正在连接 XhlCLI</h2><p>加载你的本地工作区</p></div>:!session?.turns.length?<div className="empty-state"><div className="empty-emblem"><Terminal size={32} strokeWidth={1.35}/></div><h2>一起完成下一件事</h2><p>{project?<>在 <strong>{project.name}</strong> 中探索、修改与验证代码</>:'打开一个项目，让想法变成代码'}</p>{!project?<button className="primary open-project" onClick={addProject}><FolderOpen size={17}/>打开项目</button>:<div className="prompt-suggestions">{['了解这个项目的结构','帮我检查最近的代码改动','运行测试并分析失败原因'].map(text=><button key={text} onClick={()=>{setDraft(text);inputRef.current?.focus();}}><MessageSquare size={15}/>{text}<ArrowUp size={14}/></button>)}</div>}</div>:<div className="conversation-content">{session.turns.map(turn=><Turn key={turn.id} turn={turn} session={session} onChanges={viewChanges} notify={notify} onPlan={async(planId,action,feedback)=>{await request('plan.respond',{sessionId:session.id,planId,action,feedback});await refresh();}} onApproval={(approvalId,allow)=>act(async()=>{await request('approval.respond',{sessionId:session.id,approvalId,allow});await refresh();})}/>)}</div>}
             </div>
             <div className="composer-area"><div className="composer" onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();appendFiles(Array.from(event.dataTransfer.files).map(file=>api.pathForFile(file)).filter(Boolean));}}>
               {attachments.length>0&&<div className="composer-attachments">{attachments.map((file,index)=><span key={file.path+index}>{file.type==='image'?<Image size={14}/>:<FileText size={14}/>}<span>{file.path.split('/').pop()}</span><button title="移除附件" aria-label={'移除附件 '+file.path.split('/').pop()} onClick={()=>setAttachments(current=>current.filter((_,i)=>i!==index))}><X size={12}/></button></span>)}</div>}
@@ -174,7 +138,7 @@ function SettingsPage({project,session,approvalMode,onError,notify,onSaved}){
   return <div className="settings-scroll"><div className="settings-content"><h1>模型与连接</h1><p className="settings-intro">连接你使用的模型，继续熟悉的编程工作。</p><h2>模型提供方</h2><div className="provider-tabs">{['deepseek','openai','anthropic','ollama'].map(item=><button key={item} className={provider===item?'selected':''} onClick={()=>setProvider(item)}>{({deepseek:'DeepSeek',openai:'OpenAI',anthropic:'Anthropic',ollama:'Ollama'})[item]}</button>)}</div>
     <div className="settings-group"><div className="setting-row"><div><strong>连接状态</strong><p>当前项目生效的配置来源：{current?.source||'正在读取'}</p></div><span className={'connection-badge '+(current?.configured?'configured':'')}><span/>{current?.configured?'已配置':'尚未配置'}</span></div><label className="setting-row"><div><strong>模型名称</strong><p>输入提供方支持的模型标识</p></div><input aria-label="模型名称" value={form.model} onChange={event=>setForm({...form,model:event.target.value})}/></label><label className="setting-row"><div><strong>服务地址</strong><p>沿用 XhlCLI 的 Provider 协议</p></div><input aria-label="服务地址" value={form.baseUrl} onChange={event=>setForm({...form,baseUrl:event.target.value})}/></label>{provider!=='ollama'&&<label className="setting-row"><div><strong>API Key</strong><p>留空保留已保存的密钥</p></div><input aria-label="API Key" type="password" autoComplete="off" placeholder={current?.configured?'已配置 · 输入可替换':'输入 API Key'} value={form.apiKey} onChange={event=>setForm({...form,apiKey:event.target.value})}/></label>}</div>
     <div className="settings-actions"><span>保存到 XhlCLI 全局配置；环境变量与项目配置优先。</span><button disabled={!!busy||!current?.configured} onClick={test}>{busy==='test'?<LoaderCircle size={15} className="spin"/>:<RefreshCw size={15}/>}测试已保存配置</button><button className="primary" disabled={!!busy||!form.model||!form.baseUrl} onClick={save}>{busy==='save'?'正在保存…':'保存配置'}</button></div><p className="test-note">连接测试会向当前模型发送一次简短请求。修改后请先保存。</p>
-    <h2>工作区</h2><div className="settings-group"><div className="setting-row"><div><strong>当前项目</strong><p>{project?.path||'尚未选择项目'}</p></div><Folder size={20}/></div><div className="setting-row"><div><strong>工具权限</strong><p>{approvalMode==='auto'?'当前聊天自动批准工具调用（含命令执行），路径保护仍有效。':'当前聊天需要权限的操作由你确认；可在输入框切换审批模式。'}</p></div><span className="value-text"><ShieldCheck size={16}/>{approvalMode==='auto'?'帮我审批':'按需审批'}</span></div><div className="setting-row"><div><strong>界面语言</strong><p>应用界面与操作提示</p></div><span>简体中文</span></div><div className="setting-row"><div><strong>本地会话</strong><p>消息和工具记录保存在本机，重新打开后可继续。</p></div><span className="value-text"><Check size={16}/>自动保存</span></div></div>
+    <h2>工作区</h2><div className="settings-group"><div className="setting-row"><div><strong>当前项目</strong><p>{project?.path||'尚未选择项目'}</p></div><Folder size={20}/></div><div className="setting-row"><div><strong>工具权限</strong><p>{approvalMode==='auto'?'当前聊天自动批准工具调用（含命令执行）；计划仍需你确认，路径保护仍有效。':'当前聊天需要权限的操作由你确认；可在输入框切换审批模式。'}</p></div><span className="value-text"><ShieldCheck size={16}/>{approvalMode==='auto'?'帮我审批':'按需审批'}</span></div><div className="setting-row"><div><strong>界面语言</strong><p>应用界面与操作提示</p></div><span>简体中文</span></div><div className="setting-row"><div><strong>本地会话</strong><p>消息和工具记录保存在本机，重新打开后可继续。</p></div><span className="value-text"><Check size={16}/>自动保存</span></div></div>
     <footer className="settings-footer">XhlCLI Desktop · MVP<span>由现有 XhlCLI 引擎提供能力</span></footer></div></div>;
 }
 

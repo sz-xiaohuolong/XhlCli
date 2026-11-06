@@ -213,8 +213,11 @@ public class PlanExecuteAgent implements AgentRunner {
             }
 
             PlanReviewDecision decision = reviewHandler.review(plan.getGoal(), plan);
-            if (decision == null || decision.action() == PlanReviewAction.EXECUTE) {
-                return PlanRunOutcome.executed(executePlan(plan, events, cancellationToken, replanCount));
+            if (decision == null) {
+                return PlanRunOutcome.canceled("⏹️ 未确认执行，计划已停止。");
+            }
+            if (decision.action() == PlanReviewAction.EXECUTE) {
+                return executePlan(plan, events, cancellationToken, replanCount);
             }
 
             if (decision.action() == PlanReviewAction.CANCEL) {
@@ -223,7 +226,7 @@ public class PlanExecuteAgent implements AgentRunner {
 
             String feedback = decision.feedback() == null ? "" : decision.feedback().trim();
             if (feedback.isEmpty()) {
-                return PlanRunOutcome.executed(executePlan(plan, events, cancellationToken, replanCount));
+                return PlanRunOutcome.canceled("⏹️ 未收到修改意见，计划未执行。");
             }
 
             out.println("📝 已收到补充要求，正在重新规划...\n");
@@ -231,7 +234,7 @@ public class PlanExecuteAgent implements AgentRunner {
         }
     }
 
-    private String executePlan(ExecutionPlan plan, RunEventSink events,
+    private PlanRunOutcome executePlan(ExecutionPlan plan, RunEventSink events,
                                CancellationToken cancellationToken, int replanCount) throws IOException {
         out.println("🚀 开始执行计划...\n");
         plan.markStarted();
@@ -239,7 +242,7 @@ public class PlanExecuteAgent implements AgentRunner {
 
         while (true) {
             if (cancellationToken != null && cancellationToken.isCancelled()) {
-                return "⏹️ 已取消当前计划执行。";
+                return PlanRunOutcome.canceled("⏹️ 已取消当前计划执行。");
             }
 
             List<Task> executableTasks = getExecutableTasksInOrder(plan);
@@ -263,10 +266,17 @@ public class PlanExecuteAgent implements AgentRunner {
                 task.markFailed(error.getMessage());
                 out.println("❌ 失败 [" + task.getId() + "]: " + error.getMessage() + "\n");
 
+                // 已执行的工具可能有副作用；达到上限或缺少回答时不自动重放。
+                if (error instanceof IncompleteTaskException incomplete) {
+                    return new PlanRunOutcome(incomplete.getMessage(), true, incomplete.status);
+                }
+                if (cancellationToken != null && cancellationToken.isCancelled()) {
+                    return PlanRunOutcome.canceled("⏹️ 已取消当前计划执行。");
+                }
                 if (plan.getProgress() < 0.5 && replanCount < MAX_REPLAN_ATTEMPTS) {
                     out.println("🔄 尝试重新规划...\n");
                     ExecutionPlan replanned = planner.replan(plan, error.getMessage(), cancellationToken);
-                    return reviewAndExecutePlan(replanned, events, cancellationToken, replanCount + 1).result();
+                    return reviewAndExecutePlan(replanned, events, cancellationToken, replanCount + 1);
                 }
 
                 if (!finalResult.isEmpty()) {
@@ -278,7 +288,7 @@ public class PlanExecuteAgent implements AgentRunner {
 
         if (!plan.isAllCompleted() && !plan.hasFailed()) {
             plan.markFailed();
-            return "⚠️ 计划未能继续推进，存在未满足依赖的任务。";
+            return PlanRunOutcome.failed("⚠️ 计划未能继续推进，存在未满足依赖的任务。");
         }
 
         String planSummary = finalResult.isEmpty()
@@ -287,11 +297,11 @@ public class PlanExecuteAgent implements AgentRunner {
 
         if (plan.hasFailed()) {
             plan.markFailed();
-            return planSummary.isBlank() ? "⚠️ 计划部分完成，有任务失败。" : "⚠️ 计划部分完成，有任务失败。\n" + planSummary;
+            return PlanRunOutcome.failed(planSummary.isBlank() ? "⚠️ 计划部分完成，有任务失败。" : "⚠️ 计划部分完成，有任务失败。\n\n" + planSummary);
         }
 
         plan.markCompleted();
-        return planSummary.isBlank() ? "✅ 计划执行完成！" : "✅ 计划执行完成！\n" + planSummary;
+        return PlanRunOutcome.executed(planSummary.isBlank() ? "✅ 计划执行完成！" : "✅ 计划执行完成！\n\n" + planSummary);
     }
 
     private List<Task> getExecutableTasksInOrder(ExecutionPlan plan) {
@@ -324,7 +334,12 @@ public class PlanExecuteAgent implements AgentRunner {
             for (int i = 0; i < executableTasks.size(); i += maxConcurrency) {
                 int end = Math.min(i + maxConcurrency, executableTasks.size());
                 List<Task> chunk = executableTasks.subList(i, end);
-                combinedResults.addAll(executeTaskBatch(plan, chunk, cancellationToken));
+                var results = executeTaskBatch(plan, chunk, cancellationToken);
+                combinedResults.addAll(results);
+                if (results.stream().anyMatch(result -> result.error() instanceof IncompleteTaskException)
+                        || cancellationToken != null && cancellationToken.isCancelled()) {
+                    break;
+                }
             }
             return combinedResults;
         }
@@ -404,6 +419,8 @@ public class PlanExecuteAgent implements AgentRunner {
                 任务描述：%s
 
                 如果是 ANALYSIS 或 VERIFICATION 类型任务，且上下文已经足够，请直接输出分析结果，不需要调用工具。
+                最后请用 Markdown 给出面向用户的结果说明，保留标题、段落、列表和代码块的换行。
+                工具返回的行号与原始日志仅是执行证据，不要直接复制为最终回答。
                 """.formatted(task.getType(), task.getDescription());
 
         String taskInput = buildTaskContext(goal, plan, task);
@@ -411,7 +428,6 @@ public class PlanExecuteAgent implements AgentRunner {
         messages.add(ChatMessage.system(prompt));
         messages.add(ChatMessage.user(taskInput));
 
-        StringBuilder allResults = new StringBuilder();
         int iteration = 0;
 
         while (iteration < MAX_TASK_ITERATIONS) {
@@ -436,7 +452,7 @@ public class PlanExecuteAgent implements AgentRunner {
                         content = streamedChunk.toString();
                     }
                     if (content == null || content.isBlank()) {
-                        return allResults.toString().trim();
+                        throw new IncompleteTaskException("步骤 " + task.getId() + " 未返回最终说明，请查看工具记录确认已执行的操作。", RunStatus.FAILED);
                     }
                     return content.trim();
                 }
@@ -451,18 +467,25 @@ public class PlanExecuteAgent implements AgentRunner {
                     if (toolExecutor != null) {
                         ToolResult toolResult = toolExecutor.execute(call, cancellationToken);
                         String observation = toolResult.observationJson(mapper);
-                        allResults.append(toolResult.summary()).append("\n");
                         messages.add(ChatMessage.tool(call.id(), observation));
                     } else {
                         messages.add(ChatMessage.tool(call.id(), "{\"status\":\"error\",\"summary\":\"Tool executor not configured\"}"));
                     }
                 }
+            } catch (IncompleteTaskException e) {
+                throw e;
             } catch (Exception e) {
                 throw new IOException("任务 [" + task.getId() + "] 执行异常: " + e.getMessage(), e);
             }
         }
 
-        return allResults.toString().trim();
+        throw new IncompleteTaskException("步骤 " + task.getId() + " 达到工具调用上限（" + MAX_TASK_ITERATIONS
+                + " 轮），未收到最终回答。请查看工具记录和文件改动后再决定是否继续。", RunStatus.LIMIT_REACHED);
+    }
+
+    private static final class IncompleteTaskException extends IOException {
+        final RunStatus status;
+        IncompleteTaskException(String message, RunStatus status) { super(message); this.status = status; }
     }
 
     private String buildTaskContext(String goal, ExecutionPlan plan, Task task) {
@@ -501,9 +524,10 @@ public class PlanExecuteAgent implements AgentRunner {
         for (Task task : leafTasks) {
             if (task.getResult() != null && !task.getResult().isBlank()) {
                 if (!result.isEmpty()) {
-                    result.append("\n");
+                    result.append("\n\n---\n\n");
                 }
-                result.append("[").append(task.getId()).append("] ").append(task.getResult());
+                // 不把任务编号拼到行首，避免 Markdown 标题、引用、代码围栏失去块边界。
+                result.append(task.getResult());
             }
         }
 

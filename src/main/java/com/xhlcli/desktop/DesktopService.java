@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.*;
 import com.xhlcli.hitl.*;
+import com.xhlcli.agent.PlanExecuteAgent;
+import com.xhlcli.plan.ExecutionPlan;
 import com.xhlcli.llm.*;
 import com.xhlcli.model.*;
 import java.nio.file.*;
@@ -43,6 +45,7 @@ public final class DesktopService implements AutoCloseable {
             case "turn.start" -> start(p);
             case "turn.cancel" -> cancel(p.path("sessionId").asText());
             case "approval.respond" -> approve(p);
+            case "plan.respond" -> respondToPlan(p);
             case "changes" -> changes(p,false);
             case "undo" -> changes(p,true);
             case "config.get" -> config.describe(workspace(p));
@@ -194,7 +197,8 @@ public final class DesktopService implements AutoCloseable {
                 result=new RunResult(running.turnId,RunStatus.COMPLETED,answer,"",0,TokenUsage.unknown());
                 nextHistory=new ArrayList<>(history);nextHistory.add(input);
                 if(!answer.isBlank())nextHistory.add(ChatMessage.assistant(answer.length()>16000?answer.substring(0,16000)+"\n[指令输出已节选]":answer));
-            }else try(var adapter=new DesktopAgent(running.workspace,home,model,config,new ApprovalBridge(running),(type,value)->emit(running,type,value),resources,running.turn.path("reasoningEffort").asText("default"))) {
+            }else try(var adapter=new DesktopAgent(running.workspace,home,model,config,new ApprovalBridge(running),(type,value)->emit(running,type,value),resources,running.turn.path("reasoningEffort").asText("default"),
+                    (goal,plan)->reviewPlan(running,goal,plan))) {
                 adapter.agent.restoreHistory(history);
                 RunEventSink sink=event->emit(running,event.getClass().getSimpleName(),event);
                 result=command==null?adapter.agent.runMessage(input,sink,running.token):adapter.runCommand(command,sink,running.token);
@@ -214,7 +218,7 @@ public final class DesktopService implements AutoCloseable {
             }}
             catch(Exception failure){emit(running,"notice",Map.of("message","结束快照失败，本轮无法安全撤销"));}
             synchronized(this) {
-                running.approval=null;running.turn.put("finishedAt",Instant.now().toString());active.remove(running.sessionId);busy.remove(running.workspace);
+                running.approval=null;running.planReview=null;running.turn.put("finishedAt",Instant.now().toString());active.remove(running.sessionId);busy.remove(running.workspace);
                 try {store.save();}catch(Exception failure){running.turn.put("error","保存失败："+failure.getMessage());running.turn.put("status","failed");}
                 var notification=DesktopJson.MAPPER.createObjectNode();notification.put("event","turn.finished");notification.put("sessionId",running.sessionId);
                 notification.put("turnId",running.turnId);notification.set("data",running.turn.deepCopy());publish.accept(notification);
@@ -237,6 +241,7 @@ public final class DesktopService implements AutoCloseable {
         var turn=active.get(id);if(turn==null)return DesktopJson.MAPPER.createObjectNode().put("status","idle");
         turn.turn.put("status","canceling");turn.token.cancel();
         if(turn.approval!=null)turn.approval.complete(ApprovalResult.reject("任务已取消"));
+        if(turn.planReview!=null)turn.planReview.complete(PlanExecuteAgent.PlanReviewDecision.cancel());
         store.save();return DesktopJson.MAPPER.createObjectNode().put("status","canceling");
     }
     private ObjectNode approve(ObjectNode p) {
@@ -245,6 +250,60 @@ public final class DesktopService implements AutoCloseable {
         boolean accepted=current.approval.complete(p.path("allow").asBoolean()?ApprovalResult.approve():ApprovalResult.reject("用户拒绝"));
         if(!accepted)throw new IllegalStateException("审批已处理");
         return DesktopJson.MAPPER.createObjectNode().put("ok",true);
+    }
+    /** 计划确认独立于工具审批，只有此入口能授权当前版本的计划。 */
+    private ObjectNode respondToPlan(ObjectNode p) {
+        var current=active.get(p.path("sessionId").asText());
+        if(current==null||current.planReview==null||current.planReview.isDone()||current.token.isCancelled()
+                ||!Objects.equals(current.planId,p.path("planId").asText()))
+            throw new IllegalStateException("计划确认已失效，请查看当前计划");
+        String action=p.path("action").asText();
+        var decision=switch(action) {
+            case "execute" -> PlanExecuteAgent.PlanReviewDecision.execute();
+            case "cancel" -> PlanExecuteAgent.PlanReviewDecision.cancel();
+            case "supplement" -> {
+                String feedback=p.path("feedback").asText().strip();
+                if(feedback.isEmpty()||feedback.length()>8000)throw new IllegalArgumentException("修改意见需要 1～8000 个字符");
+                yield PlanExecuteAgent.PlanReviewDecision.supplement(feedback);
+            }
+            default -> throw new IllegalArgumentException("请选择执行、修改或取消计划");
+        };
+        // 先持久化用户决定，保存失败时不会释放执行线程。
+        current.turn.put("status","running");
+        emit(current,"plan.resolved",Map.of("id",current.planId,"action",action,
+                "feedback",Objects.toString(decision.feedback(),"")));
+        current.planReview.complete(decision);
+        return DesktopJson.MAPPER.createObjectNode().put("ok",true);
+    }
+    private PlanExecuteAgent.PlanReviewDecision reviewPlan(ActiveTurn current,String goal,ExecutionPlan plan) {
+        var future=new CompletableFuture<PlanExecuteAgent.PlanReviewDecision>();
+        String id=DesktopStore.id();
+        synchronized(this) {
+            if(current.token.isCancelled())return PlanExecuteAgent.PlanReviewDecision.cancel();
+            current.planReview=future;current.planId=id;current.turn.put("status","plan_review");
+            var tasks=plan.getExecutionOrder().stream().map(plan::getTask).map(task->Map.of(
+                    "id",task.getId(),"description",task.getDescription(),"type",task.getType().name(),
+                    "dependencies",task.getDependencies())).toList();
+            emit(current,"plan.ready",Map.of("id",id,"goal",goal,"summary",Objects.toString(plan.getSummary(),""),"tasks",tasks));
+        }
+        try {
+            while(!current.token.isCancelled())try{return future.get(200,TimeUnit.MILLISECONDS);}catch(TimeoutException ignored){}
+            return PlanExecuteAgent.PlanReviewDecision.cancel();
+        }catch(InterruptedException failure) {
+            Thread.currentThread().interrupt();current.token.cancel();return PlanExecuteAgent.PlanReviewDecision.cancel();
+        }catch(ExecutionException failure) {
+            return PlanExecuteAgent.PlanReviewDecision.cancel();
+        }finally {
+            synchronized(this) {
+                // 停止/退出也记录决定；已确认的版本不会生成第二次决定。
+                if(current.token.isCancelled()&&!future.isDone())future.complete(PlanExecuteAgent.PlanReviewDecision.cancel());
+                boolean resolved=false;
+                for(var event:current.turn.withArray("events"))if("plan.resolved".equals(event.path("type").asText())
+                        &&id.equals(event.path("data").path("id").asText())){resolved=true;break;}
+                if(!resolved)emit(current,"plan.resolved",Map.of("id",id,"action","cancel","feedback",""));
+                current.planReview=null;current.turn.put("status",current.token.isCancelled()?"canceling":"running");
+            }
+        }
     }
     private JsonNode changes(ObjectNode p,boolean undo) throws Exception {
         var session=store.session(p.path("sessionId").asText());ObjectNode turn=null;
@@ -278,7 +337,8 @@ public final class DesktopService implements AutoCloseable {
                 while(!current.token.isCancelled())try{return future.get(200,TimeUnit.MILLISECONDS);}catch(TimeoutException ignored){}
                 return ApprovalResult.reject("任务已取消");
             }catch(Exception failure){return ApprovalResult.reject("审批已中断");}
-            finally {synchronized(DesktopService.this){current.approval=null;current.approvalRequest=null;current.turn.put("status",current.token.isCancelled()?"canceling":"running");emit(current,"approval.resolved",Map.of("id",id));}}
+            finally {synchronized(DesktopService.this){current.approval=null;current.approvalRequest=null;if(active.get(current.sessionId)==current&&Set.of("running","approval","canceling").contains(current.turn.path("status").asText()))
+                    current.turn.put("status",current.token.isCancelled()?"canceling":"running");emit(current,"approval.resolved",Map.of("id",id));}}
         }
         @Override public boolean isEnabled(){return true;}
         @Override public void setEnabled(boolean enabled){if(!enabled)throw new IllegalArgumentException("桌面端保持审批开启");}
@@ -286,10 +346,12 @@ public final class DesktopService implements AutoCloseable {
     private static final class ActiveTurn {
         final String sessionId,turnId;final Path workspace;final ObjectNode turn;final CancellationToken token=new CancellationToken();
         CompletableFuture<ApprovalResult> approval;ApprovalRequest approvalRequest;String approvalId;long lastSave;
+        CompletableFuture<PlanExecuteAgent.PlanReviewDecision> planReview;String planId;
         ActiveTurn(String sessionId,String turnId,Path workspace,ObjectNode turn){this.sessionId=sessionId;this.turnId=turnId;this.workspace=workspace;this.turn=turn;}
     }
     @Override public void close() throws Exception {
-        synchronized(this){closing=true;for(var turn:active.values()){turn.token.cancel();if(turn.approval!=null)turn.approval.complete(ApprovalResult.reject("应用退出"));}}
+        synchronized(this){closing=true;for(var turn:active.values()){turn.token.cancel();if(turn.approval!=null)turn.approval.complete(ApprovalResult.reject("应用退出"));
+            if(turn.planReview!=null)turn.planReview.complete(PlanExecuteAgent.PlanReviewDecision.cancel());}}
         schedules.close();
         workers.shutdown();
         if(!workers.awaitTermination(8,TimeUnit.SECONDS)) {

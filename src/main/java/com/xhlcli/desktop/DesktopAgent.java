@@ -33,13 +33,14 @@ final class DesktopAgent implements AutoCloseable {
     private final DesktopWorkspace resources;
     private final ToolRegistry registry;
     private final ToolExecutor executor;
-    private final HitlHandler approvals;
+    private final PlanExecuteAgent.PlanReviewHandler planReview;
     private final MemoryManager memory;
     private final Path workspace;
     private final BiConsumer<String,Object> detail;
     DesktopAgent(Path workspace, Path home, String model, DesktopConfig config, HitlHandler approvals,
-                 BiConsumer<String,Object> detail,DesktopWorkspace resources,String reasoningEffort) throws Exception {
-        this.resources=resources;this.workspace=workspace;this.approvals=approvals;this.detail=detail;
+                 BiConsumer<String,Object> detail,DesktopWorkspace resources,String reasoningEffort,
+                 PlanExecuteAgent.PlanReviewHandler planReview) throws Exception {
+        this.resources=resources;this.workspace=workspace;this.planReview=Objects.requireNonNull(planReview);this.detail=detail;
         client=config.client(workspace,model,reasoningEffort);
         try {
         var mapper=DesktopJson.MAPPER; var paths=new WorkspacePathResolver(workspace);
@@ -103,13 +104,7 @@ final class DesktopAgent implements AutoCloseable {
             if(name.equals("/plan")) {
                 var planner=new com.xhlcli.plan.Planner(client,output);
                 planner.setProjectMemorySupplier(()->context);
-                var plan=new PlanExecuteAgent(client,executor,registry.definitions(),planner,null,(objective,execution)->{
-                    var tasks=execution.getAllTasks().stream().map(task->Map.of("id",task.getId(),"description",task.getDescription(),"dependencies",task.getDependencies())).toList();
-                    detail.accept("plan.ready",Map.of("goal",objective,"tasks",tasks));
-                    String arguments=DesktopJson.MAPPER.valueToTree(Map.of("goal",objective,"tasks",tasks)).toString();
-                    var decision=approvals.requestApproval(new ApprovalRequest("plan.execute",arguments,"计划执行","确认后执行以下计划；各工具操作仍遵循当前审批模式。",null));
-                    return decision.isApproved()?PlanExecuteAgent.PlanReviewDecision.execute():PlanExecuteAgent.PlanReviewDecision.cancel();
-                },output);
+                var plan=new PlanExecuteAgent(client,executor,registry.definitions(),planner,null,planReview,output);
                 // 桌面按顺序执行计划步骤，保持审批与工具记录可追溯。
                 plan.setMaxConcurrency(1);
                 result=plan.run(goal,events,token);

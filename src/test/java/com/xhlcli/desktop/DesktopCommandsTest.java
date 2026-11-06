@@ -90,8 +90,8 @@ class DesktopCommandsTest {
             try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","test-only","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
                 String id=session(service);
                 service.handle("turn.start",params("sessionId",id,"input","/plan 分析工程模块依赖关系并给出多阶段实施方案"));
-                var approval=await(events,"approval.request");assertEquals("plan.execute",approval.path("request").path("toolName").asText());assertEquals(1,server.getRequestCount());
-                service.handle("approval.respond",params("sessionId",id,"approvalId",approval.path("id").asText()).put("allow",true));
+                var approval=await(events,"plan.ready");assertFalse(approval.path("id").asText().isBlank());assertEquals(1,server.getRequestCount());
+                service.handle("plan.respond",params("sessionId",id,"planId",approval.path("id").asText(),"action","execute"));
                 var finished=await(events,"turn.finished");assertEquals("completed",finished.path("status").asText());assertTrue(finished.path("answer").asText().contains("maple"));
                 assertEquals("completed",command(service,events,id,"继续刚才的计划").path("status").asText());
                 server.takeRequest();server.takeRequest();assertTrue(server.takeRequest(5,TimeUnit.SECONDS).getBody().readUtf8().contains("maple 计划结果"));
@@ -150,8 +150,8 @@ class DesktopCommandsTest {
             try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","test-only","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
                 String id=session(service);
                 service.handle("turn.start",params("sessionId",id,"input","/plan 分析工程模块依赖关系并给出多阶段实施方案"));
-                var approval=await(events,"approval.request");
-                service.handle("approval.respond",params("sessionId",id,"approvalId",approval.path("id").asText()).put("allow",false));
+                var approval=await(events,"plan.ready");
+                service.handle("plan.respond",params("sessionId",id,"planId",approval.path("id").asText(),"action","cancel"));
                 assertEquals("canceled",await(events,"turn.finished").path("status").asText());
                 assertEquals(1,server.getRequestCount());
             }

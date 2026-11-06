@@ -193,3 +193,79 @@ Java 全量回归 620 项、Node 桥接 2 项通过，前端构建和本机 `.ap
 新增 3 项 Node 回归先失败后通过：等待异步写入完成后返回成功、写入错误向上传播、拒绝非文本及伪造子帧且不写入。`cd desktop && npm test` 共 10 项通过，`npm run build` 通过。真实 Electron 点击按钮后，剪贴板与中文、多行、Markdown 回答完全一致，且不再触发网页权限请求；测试在隔离 home 内进行，未调用模型。
 
 本轮只修改桌面复制链路及相应验证记录，没有修改 Java；不重复运行后端全量测试。源码及前端构建已更新，未替换已安装应用或重新分发应用包。现有已打开旧包仍需更新应用并重启后生效。
+
+## 计划确认与 Markdown 修复（2026-11-06）
+
+### 用户现在能做什么
+
+在聊天中发送 `/plan <目标>`，先阅读目标、摘要、步骤与依赖，再选择“同意并执行”“取消计划”，或填写修改意见并“更新计划”。“帮我审批”只负责工具权限，不代替计划确认。确认前不会执行计划步骤；确认后的工具仍沿用当前模式及路径保护。
+
+本次还修复计划最终结果的 Markdown（通过标题、列表、表格等标记表达文档结构的文本格式）展示：保留块结构，不在标题前拼接任务编号，不把工具带行号的原始日志当作正文。达到五轮工具调用上限时明确显示达到限制，并停止派发后续串行步骤。已执行的文件修改保留，可检查差异；旧版已经保存的污染回答不会被猜测性改写。
+
+### 根因与 Codex 参考
+
+旧版 `DesktopAgent` 把计划执行包装为 `plan.execute` 工具审批，`ApprovalBridge` 的自动批准及切换自动模式分支都可放行，导致用户未单独确认就执行。另一个根因在 `PlanExecuteAgent`：用工具摘要兜底最终回答，达到上限也报告完成，再将 `[task_id]` 与正文首行直接拼接，破坏 Markdown 标题位置。原来的前端还会在已有中间文本时漏掉最终回答。
+
+本轮通过 REA（用于分析已发布程序的逆向工程工具）命令行读取本机 Codex `26.1027.61615` 的精选 JavaScript 文件。确认面板分别处理 `permissionRequest` 与 `implementPlan`；只有确认执行才提交 `plan_implementation`，自由反馈走 `plan_feedback`。显示层区分助手、工具、计划等类型，Markdown 原文交给解析组件。
+
+- 计划确认静态证据：`ev_fa04ec810ecdfd55bbd2bae55c02b8dd397cad5830cf0f293d18abf264b66884`，文件 `webview/assets/pending-request-item-panel-cef204561ca3.js`。
+- Markdown 与显示分组证据：`ev_33399c9151aa06c9a29ef45826b821b5c0d398f887cfb3f7660f0844bb12e733`，文件 `markdown-8f8c174db89b.js`、`split-items-into-render-groups-820c0f3a46e7.js`、`plan-implementation-request-e882a8536949.js`。
+- 发行包 SHA-256：`bb88615052255e79b5977885f9a0cc212c268589587c79d4d3b7c4b46e881a95`。原始本地证据在 `/tmp/codex-plan-reference/`。这是精选源码的静态观察，未据此证明 Codex 真实运行或引擎权限行为；分析记录保留 7 个非目标原生组件的校验差异。这里只借鉴交互边界，不复制第三方实现。
+
+### 一次消息从发送到重新显示
+
+1. `app.jsx` 通过 Electron 预加载桥发送 `turn.start`；主进程只允许既定操作，Java `DesktopService` 保存输入并启动本轮执行。
+2. `DesktopCommands` 识别 `/plan`，`DesktopAgent` 装配 `Planner`。规划请求不提供可执行工具，只生成步骤数据。
+3. `DesktopService.reviewPlan` 创建独立确认 ID，持久化 `plan.ready`，将轮次置为 `plan_review`。此时执行线程等待用户决定，与工具审批的等待对象分开。
+4. `turn-view.jsx` 中的 `PlanReview` 读取目标、摘要、步骤和依赖，显示计划及三个操作。`plan.respond` 携带当前确认 ID；后端校验会话、版本、取消状态与是否已处理，先保存决定再释放等待。修改意见产生新计划和新确认；重复或过期请求被拒绝。
+5. 同意后 `PlanExecuteAgent` 执行步骤，工具经原有参数、路径、审批与审计管线；调用和结果分别形成工具事件。自动工具审批仍有效，但不影响计划确认。
+6. 结束后保存最终正文和状态。`turn-view.jsx` 按类型展示计划、工具记录、助手正文，并用 `react-markdown`/`remark-gfm` 解析正文；迟到的审批事件不能复活已结束的轮次。
+7. 页面重新读取 `state` 时从同一批持久事件恢复计划与正文。整个应用重启时，未结束轮次按既有规则中断，不自动重放；旧计划只读展示，完成的正文和工具记录继续可见。
+
+### 前端接口约定
+
+`plan.respond` 是现有私有桌面通信中的新增方法，没有新增 HTTP 服务。
+
+| 字段 | 类型与约束 |
+|---|---|
+| `sessionId` | 当前会话的字符串 ID，必填 |
+| `planId` | `plan.ready.data.id`，仅当前未处理版本有效 |
+| `action` | `execute`、`supplement`、`cancel` 三选一 |
+| `feedback` | `supplement` 时必填，去除首尾空白后 1～8000 个字符 |
+
+成功返回 `{"ok":true}`；无效或重复决定报“计划确认已失效”，非法动作或空意见报参数错误。决定保存失败会停止任务而非放行执行。普通 `approval.respond` 不接受计划确认；旧版遗留计划审批只作为历史，不恢复执行。
+
+### 人工验收
+
+前置条件：Apple 芯片 Mac，打开新构建的 `desktop/release/bundled/mac-arm64/XhlCLI.app`；使用一个可丢弃的项目目录，配置支持工具调用的模型。人工真实模型验收会使用该配置。开发启动可在仓库根目录执行：
+
+```bash
+./mvnw -DskipTests package
+cd desktop
+npm ci
+npm start
+```
+
+1. 在聊天输入框将审批切为“帮我审批”，发送 `/plan 创建 rag-introduction.md，写一篇 RAG 技术介绍并检查文档结构`。预期显示计划、等待确认，目标文件尚不存在，未出现写入或命令执行。
+2. 填写“先缩小为一页概述”，点击“更新计划”。预期出现修改后的计划，仍未写文件；旧版折叠为历史，仅新版本可执行。
+3. 点击“同意并执行”。预期此时才开始工具执行；工具可自动批准，文件按计划生成，结果正文中的标题、列表、引用、表格、代码块保持各自结构，原始工具输出可展开查看。
+4. 退出应用再重新打开同一聊天。预期正文、计划历史和工具记录仍可见，重开不会新增模型请求或重新写文件。
+5. 再发一条计划并点击“取消计划”，或在待确认时点击停止。预期没有本轮写入；重新开启自动审批也不会恢复该计划。待确认时退出应用，重开后该计划仅作历史展示，不自动执行。
+6. 在“按需审批”下重复计划并同意。预期计划确认后，写文件等受控工具还会另外请求权限；这两次决定职责不同。
+
+### 实际验证范围
+
+- 先复现自动模式未进入计划等待状态、Markdown 块边界被破坏、达到上限误报完成三个缺陷；针对性审查又复现达到上限后继续下一串行任务的问题，均修复后通过。
+- Java 相关测试 31 项通过：计划与普通审批隔离、切换模式、修改新版本、过期/重复决定、取消、保存失败不执行、重启状态、工具执行及计划正文/上限。命令：`./mvnw -q -Dtest=DesktopPlanReviewTest,DesktopCommandsTest,DesktopServiceTest,DesktopStoreTest,PlanExecuteAgentTest test`。
+- Node 测试 19 项通过，包含实际 React/Markdown 渲染与终态事件回归；前端构建和 Java 打包通过。只运行本次适用检查，未重跑全量 Java 测试。
+- **本轮确实使用 agent-desktop**：无障碍树输入、发送、修改计划、确认执行、读取界面及截图。项目与会话通过真实后端预先创建；本轮没有验收原生文件选择器。未使用物理鼠标键盘或 `--headed`。
+- 隔离目录 `/tmp/xhl-plan-review-20261106`，配置中使用固定占位凭据，模型仅指向 `127.0.0.1:18871`；启动移除真实 Provider 环境变量，使用独立 home。本轮没有使用用户真实 API Key，没有验证真实模型的内容质量和完整供应商兼容性。
+- GUI 首轮：首次计划 1 次本地请求、修改后共 2 次请求，期间目标文件不存在；明确执行后共 4 次请求，真实写入 `plan-demo.md`，表格与代码块正确展示。计划截图与结果截图如下。
+
+![开启自动工具审批后仍需确认计划](../assets/desktop-plan-review.png)
+
+![计划执行后的 Markdown 正文](../assets/desktop-markdown-result.png)
+
+成品补查：更新后的 `release/bundled/mac-arm64/XhlCLI.app` 在相同隔离 home 重启，agent-desktop 的无障碍读取返回 `window_without_accessibility_element`，一次重读仍失败。随后通过 Playwright 连接该成品的本地调试接口验证：完成态标题、表格和代码块恢复，重启请求数仍为 4；再发送一条计划，页面刷新后仍等待确认且请求数保持 5，点击取消后无新请求，文件修改时间未变。此部分是实际成品的 Web 界面验证，不计为原生无障碍操作成功。结果记录为 `/tmp/xhl-plan-review-20261106/packaged-results.json`。
+
+本机应用与 `desktop/release/XhlCLI-0.1.0-mac-arm64.zip` 已统一更新；分发脚本的内置 Java 校验和签名检查通过。没有复制到 `/Applications`，没有开启自动更新。未新增真实 Provider 验收，也未宣称完整模型质量验证。
