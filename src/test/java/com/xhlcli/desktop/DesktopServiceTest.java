@@ -70,12 +70,20 @@ class DesktopServiceTest {
     }
     @Test void publishesDeltasBeforeCompletionAndCanCancel() throws Exception {
         try(var server=new MockWebServer()) {
-            server.start();server.enqueue(response("第一段".repeat(30), "第二段".repeat(30), "第三段".repeat(30), "第四段".repeat(30)).throttleBody(350,500,TimeUnit.MILLISECONDS));
+            server.start();
+            // 队列的预览响应也会限速读取请求，长系统提示可能先耗尽等待时间。
+            // 使用 Dispatcher 在完整请求到达后才限速响应，单独验证流式与取消。
+            server.setDispatcher(new Dispatcher() {
+                @Override public MockResponse dispatch(RecordedRequest request) {
+                    return response("第一段".repeat(30), "第二段".repeat(30), "第三段".repeat(30), "第四段".repeat(30))
+                            .throttleBody(350,500,TimeUnit.MILLISECONDS);
+                }
+            });
             var events=new LinkedBlockingQueue<ObjectNode>();Path project=Files.createDirectory(temp.resolve("project"));
             try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","fake","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
                 var added=service.handle("project.add",params("path",project.toString()));
                 String id=service.handle("session.create",params("projectId",added.path("id").asText())).path("id").asText();
-                service.handle("turn.start",params("sessionId",id,"input","流式取消"));
+                service.handle("turn.start",params("sessionId",id,"input","流式取消"+"上下文".repeat(5000)));
                 assertFalse(await(events,"TextDelta").path("data").path("text").asText().isBlank());
                 assertEquals("running",service.handle("state",params()).path("sessions").get(0).path("turns").get(0).path("status").asText());
                 service.handle("turn.cancel",params("sessionId",id));
