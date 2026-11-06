@@ -4,7 +4,7 @@
 
 ## 1. 交付结论与边界
 
-主前台 ReactAgent 已实现程序自动检索、相关性排序及有界注入，保留 JSONL，不新增依赖或模型调用。TASK-M01～04 已完成；604 项测试和真实 JAR 离线验收通过。TASK-M05 的远程同步状态见 [PROGRESS](../PROGRESS.md)。本次不打 Tag、不发布新版本，JAR 版本仍为 1.0.1。
+主前台 ReactAgent 已实现程序自动检索、相关性排序及有界注入，保留 JSONL，不新增依赖或模型调用。TASK-M01～05 已完成；604 项测试和真实 JAR 离线验收通过。实现提交 `730810de464733f30a4179ef1d99629a3a431ed7` 已推送 origin/main，远程 SHA 核对一致；GitHub CI `42198339753` 成功，覆盖 Verify 与 JAR 冒烟。当前状态见 [PROGRESS](../PROGRESS.md)。本次不打 Tag、不发布新版本，JAR 版本仍为 1.0.1。
 
 Plan、Team、后台独立 Agent 未接入本次召回；自动路由到 Team 的请求不能据此宣称已覆盖。以下主对话验收使用 `--team-mode manual`。真实模型答案是否漏掉关键约束仍待人工验收，AC-M08 的离线部分完成，模型质量部分尚未验证。
 
@@ -18,6 +18,7 @@ Plan、Team、后台独立 Agent 未接入本次召回；自动路由到 Team �
 | `./mvnw verify` | 604 项，0 失败、0 错误、0 跳过，BUILD SUCCESS | 全量单元/集成与打包 |
 | `java -jar target/xhlcli-1.0.1.jar --help` / `--version` | 均退出 0，版本 XhlCLI 1.0.1 | 成品启动和元信息 |
 | `python3 scripts/memory_recall_acceptance.py` | 退出 0；4 轮恰好 4 次本地模型请求 | 真实 JAR、CLI、序列化请求和磁盘变化 |
+| GitHub CI `42198339753` | success，HEAD 为 `730810d` | 远程 macOS / Java 21 全量 Verify 与 JAR 冒烟 |
 | 针对性独立代码审查 | 发现的两项问题已修复并复核闭合 | 工具定义快照预算一致性、最近实际注入诊断 |
 
 命令必须按表中先构建、后 JAR 验收的顺序执行；构建期间的中间 JAR 不可用于验收。脚本位于 [scripts/memory_recall_acceptance.py](../../scripts/memory_recall_acceptance.py)，自动创建并清理临时 home、A/B 工作区和本地 SSE 服务。原始构建日志在本轮 `/tmp/xhlcli-memory-verify.log`，不提交机器临时日志；可用上述命令重建。

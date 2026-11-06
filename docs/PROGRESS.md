@@ -2,7 +2,7 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 长期记忆召回 | 主前台按需召回、兼容 JSONL、真实请求估算预算与 CLI 诊断完成；604 项测试及真实 JAR 验收通过 | 真实模型答案质量待人工验收；其他 Agent 模式未接入 | TASK-M01～04 完成；TASK-M05 准备提交并按授权同步 origin/main，见[验收](engineering/memory-recall-verification.md) |
+| 长期记忆召回 | 主前台按需召回、兼容 JSONL、真实请求估算预算与 CLI 诊断完成；604 项测试及真实 JAR 验收通过 | 真实模型答案质量待人工验收；其他 Agent 模式未接入 | TASK-M01～05 完成；实现 730810d 已同步 origin/main，远程 CI 通过，见[验收](engineering/memory-recall-verification.md) |
 | 前次小修复 | `/<技能名> <任务描述>` 已支持确定性加载并执行；新增 6 项回归，接入远程更新前全量 559 项测试通过 | 仅离线验证；按用户要求，接入远程更新后不重跑测试 | 已授权以 `feat` 提交同步 `origin/main`；沿用已有测试结果，不重复测试 |
 | 前次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 无本次阻塞；真实模型质量未测 | TASK-19-01～05 完成，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
 | 本次实施 | task 后台独立只读执行、工作区隔离、取消确认和跨重启结果查询；575 项测试通过 | 真实 JAR 验收已通过；真实模型质量、跨主机执行未验证 | 见 [task 计划](plans/2026-11-06-task-background-lifecycle.md)与[交付证据](engineering/task-background-lifecycle-verification.md) |
@@ -14,7 +14,7 @@
 
 ## 本次任务
 
-长期记忆召回第一版：Shipping / READY_TO_SHIP，离线功能 VERIFIED，真实模型质量未验证。TASK-M01～04 完成；`./mvnw verify` 604 项通过，真实 JAR 验收 4 轮恰好 4 次本地模型请求。30 题样例命中 28/30，无关条目 570 → 2，平均记忆 Token 386 → 62；保留同义漏召回限制。TASK-M05 正按既有授权提交并同步 origin/main，不打 Tag、不发版本。设计、人工步骤和证据见[验收](engineering/memory-recall-verification.md)。
+长期记忆召回第一版：Reflecting / 本次代码交付完成，离线功能 VERIFIED，真实模型质量未验证。TASK-M01～05 完成；`./mvnw verify` 604 项通过，真实 JAR 验收 4 轮恰好 4 次本地模型请求。30 题样例命中 28/30，无关条目 570 → 2，平均记忆 Token 386 → 62；保留同义漏召回限制。实现提交 `730810de464733f30a4179ef1d99629a3a431ed7` 已同步 origin/main，远程 SHA 一致；GitHub CI `42198339753` 的 Verify 与 JAR 冒烟成功。不打 Tag、不发版本。设计、人工步骤和证据见[验收](engineering/memory-recall-verification.md)。
 
 2026-11-06 显式技能调用入口修复：仅在未知内置命令分支查询技能注册表，复用 `LoadSkillTool` 读取正文，再进入现有任务链路。已覆盖禁用/损坏拒绝、缺少任务提示、同名内置命令优先、大小写与多行输入、重复调用、项目覆盖与热重载。接入远程后台任务更新前，`./mvnw test -Dtest=SkillPromptCliTest,ChatLoopTest,ChatCommandParserTest,LoadSkillToolTest,SkillRegistryTest` 34 项通过；`./mvnw test` 559 项通过（0 失败、0 错误、0 跳过）。README、终端帮助及 TECH_DESIGN 已同步；未打包或发布。 用户授权以 `feat` 提交同步 `origin/main`，接入远程更新后不重复测试。
 
