@@ -12,7 +12,7 @@
 
 ## 本次任务
 
-task：功能开发、独立审查与真实 JAR 离线验收完成；`./mvnw verify` 575 项通过。用户已授权同步 origin/main，不打 Tag、不发布版本。最新终端验收及同步状态见 [task 交付证据](engineering/task-background-lifecycle-verification.md)。
+task：功能开发、独立审查与真实 JAR 离线验收完成；`./mvnw verify` 575 项通过。实现提交 `252d37df8356d848804b0d9adc929b1f4df534f5` 已推送 origin/main，远程 CI `42190335434` 成功；不打 Tag、不发布版本。原工作区的其他未提交修改保留，交付代码位于独立工作区。最新终端验收及同步状态见 [task 交付证据](engineering/task-background-lifecycle-verification.md)。
 
 前次 Phase 19：Reflecting / 本次代码交付完成，功能 VERIFIED（离线范围）。TASK-19-01～05 已完成。需求 FROZEN，用户已授权同步 origin/main；不打 Tag 或发布新版本。实现提交 `2cbd7e0c13b13d7ab8cc5c861896c20b956030e8` 已推送，远程 SHA 核对一致。成果、失败边界、人工步骤与证据见 [本次验收](engineering/team-routing-and-replanning-verification.md)。
 
