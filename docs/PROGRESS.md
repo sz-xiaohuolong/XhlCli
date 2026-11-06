@@ -1,8 +1,16 @@
 # XhlCLI 项目全局进度 (Progress)
 
+## 最新同步：桌面功能与修复汇总（2026-11-06）
+
+用户授权将本地尚未同步的开发与修复统一提交、推送。功能提交 `c68378602a5eb48837e74003d284f57a15f79475` 已推送 `origin/main`，远程引用已核对一致，共 59 个文件。范围包括每日定时任务、技能管理、九类斜杠指令、审批模式、模型推理强度与工具续轮兼容，以及剪贴板、MCP 退出和分发临时目录修复；对应测试、中文文档及定时任务截图一并纳入。
+
+本次复用仍适用的已有验证：Java 全量构建后生产代码未再修改，追加推理专项通过，当前报告合计 661 项无失败/错误/跳过；桌面 10 项与前端构建、复制按钮真实 Electron 验收通过。没有因 Git 同步重复本机全量测试。CI 状态以本次提交的 GitHub Actions 结果为准。
+
+另一个 `xhlcli-task-background` 工作区无未提交修改，其 HEAD 已包含在 `origin/main`。下文各增量的“未提交/未推送”保留当时交付状态，本节为本批当前同步事实。没有创建 Tag、Release 或重新打包应用；依赖、缓存、用户配置及应用/ZIP 继续按 Git 忽略规则留在本地。
+
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 桌面每日定时任务 | task 复用、侧栏计划与结果完成；错过跳过、不补跑；Java 656 项、Node 7 项、真实 Electron/自动触发/内置 Java 成品验证通过 | 真实新闻质量与其他机器未验证；代码未提交或推送 | 打开独立 schedules 应用包人工验收，见[定时任务证据](engineering/desktop-schedules-verification.md) |
+| 桌面每日定时任务 | task 复用、侧栏计划与结果完成；错过跳过、不补跑；Java 656 项、Node 7 项、真实 Electron/自动触发/内置 Java 成品验证通过 | 真实新闻质量与其他机器未验证；代码已纳入本次统一同步 | 打开独立 schedules 应用包人工验收，见[定时任务证据](engineering/desktop-schedules-verification.md) |
 | 桌面压缩包分发 | Apple 芯片 Mac ZIP 内置 Java；空配置启动及隔离模型/文件/历史验收通过；Java 628 项、Node 5 项通过 | 未公证；未在另一台 Mac 或旧版 macOS 实测 | ZIP 与中文说明已生成，见[分发验收](engineering/desktop-mvp-verification.md#桌面压缩包增量验收2026-11-06) |
 | 桌面审批模式修复 | “按需审批 / 帮我审批”已接通、持久化，真实 Electron 自动写入/命令、切换/重启及保存失败验收通过 | 使用本地测试模型；未新增真实 Provider 验收 | 本机打包完成；代码未提交，见[增量验收](engineering/desktop-mvp-verification.md#5-审批模式增量验收2026-11-06) |
 | 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 代码及测试修复已同步 origin/main，远程 CI 通过；按人工步骤验收真实 Provider |
