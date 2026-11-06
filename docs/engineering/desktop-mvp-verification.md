@@ -103,6 +103,21 @@ Java 全量回归 620 项、Node 桥接 2 项通过，前端构建和本机 `.ap
 首次 CI 的流式测试在 15 秒内未收到 TextDelta。本地使用长输入重现；原因是测试服务的排队限速同时作用于请求上传，尚未读完请求就耗尽了测试等待时间。改用 Dispatcher，在请求完整到达后仅限速响应，并保留长输入回归。修复前该场景失败；修复后 `DesktopServiceTest` 5 项全部通过，流式取消场景约 0.5 秒。生产代码与已验收 `.app` 未改变，不以放宽超时或跳过测试处理失败。
 
 
+## 5. 审批模式增量验收（2026-11-06）
+
+本次修复原输入区“按需审批”静态文字，补齐会话级选择、保存和真实执行。范围由用户本次请求确定，不修改以上桌面 MVP 发布历史。
+
+- TDD：新增默认/保存/校验/隔离测试在实现前失败（预期 `on-request`，实际缺字段）；实现后通过。
+- `./mvnw verify`：627 项通过，0 失败/错误/跳过；随后仅新增保存失败、活动轮次状态一致性和取消回归，`./mvnw test -Dtest=DesktopServiceTest` 9 项通过。后一次没有修改生产 Java 代码，沿用前次全量证据。
+- Java 覆盖：创建/切换/重启恢复、旧数据兼容、非法模式拒绝、会话隔离、自动写入、路径越界拒绝、等待中切换后继续、切回重新审批、过期审批拒绝、取消不复活、磁盘保存失败不放行。
+- `npm test` 2 项桥接测试通过；`npm run build` 通过；impeccable 针对修改的 JSX/CSS 检测没有发现问题。
+- 真实 Electron + 真实 Java 子进程 + 隔离 home/project + 本地 HTTP 模型：通过界面选择、发送执行，验证自动写入文件、自动 `pwd` 命令、切回人工和等待中再开启自动、设置页同步、新聊天默认按需、原聊天模式恢复、关闭并重启后历史/模式保留。使用真实文件系统保存故障验证错误显示和选项恢复。新聊天切换未丢失已输入草稿。
+- 1360×900、900×620 真实窗口截图检查通过；控件、提示和发送入口可见。截图与运行脚本暂存于 `output/playwright/approval-mode/`，可重建，不提交。
+- `npm run package` 生成本机 `desktop/release/mac-arm64/XhlCLI.app`；已从打包应用实际启动并验证历史恢复和审批切换，包内 JAR 与通过全量验证的 JAR SHA-256 一致。未签名、不发布、不推送。真实收费 Provider 和其他平台不在本次验证范围。
+
+人工复验：退出旧版应用，打开新 `.app`；点击输入框的审批下拉选择“帮我审批”，发送文件写入任务，应直接执行并出现自动审批记录；切回“按需审批”后再次请求写入，应显示允许/拒绝卡片。新聊天保持默认按需审批。
+
+
 ## 桌面压缩包增量验收（2026-11-06）
 
 本节补充新的分发包事实；前文关于依赖系统 Java 与历史 `.app` 的结论仅适用于当时的包。
@@ -116,3 +131,65 @@ Java 全量回归 620 项、Node 桥接 2 项通过，前端构建和本机 `.ap
 - 压缩包目录清单检查未包含 `.xhlcli`、`.env`、`.git`、日志与下载缓存；验收使用固定测试 Key，没有读取开发者真实密钥。
 - 证据：`/tmp/xhlcli-distribution-java.log`、`/tmp/xhlcli-runtime-red.log`、`/tmp/xhlcli-distribution-build.log`、`/tmp/xhlcli-distribution-first-run.json`、`/tmp/xhlcli-distribution-settings.json`、`/tmp/xhlcli-distribution-smoke.log`。重现入口为 desktop README、`scripts/runtime-lock.json` 和现有本地模型夹具。
 - 限制：设置页实际打开已验证，新增分发包的保存/连接闭环通过协议验证；未把本轮证据扩展为完整 GUI 全流程重测。真实收费 Provider、另一台 Mac、旧版 macOS 和带下载隔离标记的 Gatekeeper 首次打开未实机验收。未进行 Developer ID 签名、公证、自动更新或 Release 发布。
+
+
+## 常用斜杠指令与升级续聊增量验收（2026-11-06）
+
+本节对应 AC-D-CMD-01～05；沿用审批模式增量，不覆盖其历史结果。使用隔离 home/project、本地可控 HTTP 模型和 MCP 服务，没有调用真实收费模型。
+
+- 新增 `DesktopCommandsTest` 7 项：无模型本地指令与保存、模型切换持久化、真实技能加载、Plan 规划/审批/执行/续问、Team 规划/执行/审查、HTTP MCP 初始化/资源读取/启停/重启、拒绝计划不执行。实现前目录查询因未知 `commands.list` 失败，实现后通过。
+- 新增前端命令测试 2 项，先因缺少模块失败，后验证主/子命令筛选及模型需求分流；Node 共 7 项通过。最终 `./mvnw verify` 在当时工作区通过 650 项；包含同期其他任务的已有修改，不将它们计为本任务交付。日志 `/tmp/xhlcli-slash-package-verify.log`。
+- 真实 Electron UI 发送九类指令，验证上下键、Tab、Enter、Escape、鼠标补全；MCP 资源读取、stop/status/start 状态保持；技能执行；记忆保存/搜索；模型选择；未知命令报错；Plan 拒绝与允许、Team 执行。测试脚本先修正新聊天按钮名称、下拉框定位及 MCP 状态枚举的断言，再继续未完成部分；未将脚本失败算作产品通过证据。
+- 1360×900 与 900×620 窗口截图检查：菜单可滚动，候选、输入框和发送按钮未裁切。脚本与截图存于忽略目录 `output/playwright/slash-commands/`；UI 日志 `/tmp/xhlcli-slash-gui.log` 和 `/tmp/xhlcli-slash-gui-rest.log`。
+- 使用保留的旧版 JAR，在新隔离用户目录写入含 maple 标记的聊天；退出后使用新版 JAR 读取同一状态文件，先成功调用新增命令目录，再续问并确认实际模型请求携带旧上下文。新版后端在 5 秒内正常退出。日志 `/tmp/xhlcli-upgrade-old.log`、`/tmp/xhlcli-upgrade-new.log`。
+- 跨版本验收发现 HTTP MCP 自有 OkHttp 客户端未关闭，造成退出等待约 60 秒。新增关闭取消请求测试先超时失败；修复后与共享客户端仍可使用的测试通过。MCP、桌面命令及审批受影响回归共 20 项通过，后续全量验证仍通过。
+
+- `npm run package --prefix desktop` 成功生成 `desktop/release/bundled/mac-arm64/XhlCLI.app`，内置 Java。真实打包应用恢复已有项目并执行 `/help`；脚本需等待项目加载完成再输入。包内 JAR 与验证产物 SHA-256 一致（`650ad09fc1999ee5a20b8b05b0b94bbb05ac49c33721059e3c725a4b427d98d0`），`codesign --verify --deep --strict` 通过。打包日志 `/tmp/xhlcli-slash-package.log`，启动日志 `/tmp/xhlcli-slash-package-smoke.log`。本次未重新生成 ZIP、未提交或推送。
+
+人工复验：打开项目后输入 `/`，用 Tab 选择命令并补参数；执行 `/plan 检查项目` 审阅计划，执行 `/mcp list` 查看配置服务。退出应用并替换新版后打开原聊天续问。聊天自动保存，`/save` 的用途是长期记忆。保留 `~/.xhlcli/` 和原项目目录；旧版数据兼容实测不代表未来未知数据格式变化的兼容承诺。
+
+
+## 技能管理增量验收（2026-11-06）
+
+- 用户范围：侧栏技能管理页，逐项按钮启用/停用。实现搜索、个人/项目/内置筛选、项目上下文、刷新、打开个人技能文件夹；损坏技能不能启用，保存失败显示错误并保持旧状态。
+- 开关按小写技能名称保存到 `~/.xhlcli/desktop/skills.json`，此设备桌面聊天通用；同名覆盖 PROJECT > USER > BUILTIN。采用独立注册表视图与原子保存，下一轮任务刷新，正在执行的任务不受页面操作干扰。已有聊天记录中的技能内容不会删除。
+- 停用技能不进入下一轮系统索引、不能通过 `load_skill` 加载、不会出现在斜杠候选中；重新启用恢复。CLI 原有未配置持久化文件的注册表行为保持。
+- TDD：持久化、桌面 API、斜杠菜单缓存回归均先失败后通过。技能与关联专项 25 项通过，覆盖真实模型请求的索引与工具调用、重启、项目覆盖、非法输入、损坏文件、保存失败及旧任务视图隔离。
+- 共享工作区同期有定时任务开发，早期全量验证曾分别受未完成接口、取消与流式脱敏失败影响。相关修复到达后冻结源码至 `/tmp/xhlcli-skills-verified-source`，最终 `./mvnw -q verify` **655 项，0 失败/错误/跳过**。日志 `/tmp/xhlcli-skills-frozen-verify-final.log`。Node 7 项与前端构建通过，不将同期其他功能计为本任务交付。
+- 真实 Electron GUI：点击停用、搜索、保存失败保留状态、关闭并重启恢复、重新启用通过。使用隔离 home 和测试技能，未读取开发者密钥。1360×900 与 900×700 两轮检查完成；最终截图 `/tmp/xhlcli-skills-desktop-final.png`、`/tmp/xhlcli-skills-narrow-final.png`。独立完成审查结论为 ship；设计检测返回空列表；设计文档核对确认沿用既有浅色系统，保留 DESIGN.md。
+- 冻结源码 `npm run distribute` 成功。独立产物 `desktop/release/skills/XhlCLI-0.1.0-mac-arm64.zip` 及 SHA-256 文件；解压应用在同目录的 `XhlCLI-0.1.0-mac-arm64/XhlCLI.app`。未覆盖其他会话的分发包。解压后的 `codesign --verify --deep --strict` 通过，包内 JAR 与通过验证的 JAR SHA-256 一致。
+- 分发包使用内置 Java，以空白隔离 home、无系统 Java 的 PATH 实测列出、停用、退出重启保留、重新启用；实际打开解压后的应用，侧栏技能页正常，点击 web-research 开关后文件写入 false。日志 `/tmp/xhlcli-skills-distribution.log`、`/tmp/xhlcli-skills-package-backend.log`，界面证据 `/tmp/xhlcli-skills-package-ui.json`、`/tmp/xhlcli-skills-package-disabled.json`。
+- 包仍为 Apple 芯片 Mac、ad-hoc 签名，未 Developer ID 公证；未在另一台 Mac 实测。本轮未提交或推送；共享文件中其他会话的改动保留。
+
+人工复验：打开新版应用 → 左侧“技能” → 找到技能并点击右侧开关 → 返回聊天发起下一轮任务。关闭应用再打开，开关应保持；添加技能时点击“打开技能文件夹”，放入含 SKILL.md 的子文件夹后刷新。
+
+
+## 交付产物清理（2026-11-06）
+
+按用户要求，日常只保留一份本机应用与一份分享 ZIP：`desktop/release/bundled/mac-arm64/XhlCLI.app` 和 `desktop/release/XhlCLI-0.1.0-mac-arm64.zip`（附校验文件）。最新应用取自已验证的定时任务集成包，已确认包含技能及定时任务入口，包内 JAR 与当前构建一致。历史 skills、schedules、mac-arm64 分散产物及临时应用副本已删除，前文相应路径仅是历史记录。
+
+本次完整执行修改后的分发脚本；ZIP 全条目 CRC、SHA-256、应用签名通过，ZIP 内 JAR、app.asar 与本机应用逐一哈希一致。临时打包目录已自动清除，后续成功分发会清理旧版本 ZIP。移除 14 个旧目录或中间文件，du 累计约 5.13 GiB，实际磁盘回收量受 APFS 共享块影响。保留源码、用户配置与历史、依赖及可复用下载缓存。
+
+
+## 输入框打磨与推理强度验收（2026-11-06）
+
+- 按用户四张 Codex 截图调整输入框：模型/权限使用圆角按钮和弹出面板；常驻权限小字移至审批选项；保留键盘焦点与真实两种审批模式。推理面板支持滑块、档位按钮、恢复默认与模型切换，未知模型明确提示暂未接入。
+- 新增 `DesktopReasoningTest` 两项先失败后通过；验证会话隔离、重启、非法强度、换模型重置、真实 HTTP 参数、工具续轮推理上下文、关闭思考和公共状态不泄露推理正文。追加 `ReasoningOptionsTest` 三项验证 OpenAI 请求、未知模型拒绝、默认参数、旧消息兼容及内部字段往返保存，共五项专项通过。
+- `./mvnw -q verify` 全量通过（日志 `/tmp/xhlcli-composer-verify.log`）；追加三项测试后专项五项通过，未修改生产 Java 代码。Node 七项、前端构建及 diff 检查通过；设计检测返回 `[]`。原测试日志中的预期异常不计为测试失败。
+- 使用 Playwright 操作真实 Electron 与 Java 后端，以隔离 home 和本地 HTTP 模型验证：切换模型保留草稿、未发送不创建空聊天、不支持强度提示、权限菜单保存关闭、实际请求含 max 参数、滑块键盘调节、Escape 关闭、键盘焦点可见、重启恢复。没有调用真实账号。
+- 1360×900、900×700 截图已查看。第一轮发现模型名称居中需修正，修正后第二轮确认；首轮自动化点击输入区被弹出菜单遮挡，改为点击头部空白区域，不把脚本错误记成产品通过。截图与脚本保存在 `output/playwright/composer/`；最终日志 `/tmp/xhlcli-composer-ui-final.log`。沿用既有 DESIGN.md，不重写全局设计系统。
+- 已通过 `npm run distribute` 更新同一份本机应用与分享 ZIP。实际成品另外验收模型、权限、真实请求、滑块鼠标点击、键盘调节与重启恢复；成品验收不重复截图。日志 `/tmp/xhlcli-composer-package-ui.log`。ZIP CRC、SHA-256、codesign 检查通过；包内 JAR 与验证构建一致，ZIP 内 JAR 与 app.asar 同本机应用一致。
+- 更新前确认本机没有运行中的聊天/后台任务、输入框为空，正常退出后替换应用。保留既定两个交付入口，清理测试 home 与打包中间资源。本轮未提交或推送；未以本地模型协议验收替代真实 Provider 的质量/用量验证。
+
+人工复验：点击输入框右下模型名称 → 调整推理强度或点击模型名进入已配置模型列表；关闭菜单后输入框只显示模型和当前档位。点击左下审批模式查看说明并切换。新设置从下一轮生效，重开应用应保持。
+
+
+## 复制回答修复（2026-11-06）
+
+用户反馈回答下方复制按钮显示“复制失败”。真实 Electron 隔离会话复现：原 `navigator.clipboard.writeText` 请求 `clipboard-sanitized-write`，被主进程既有的统一拒绝网页权限策略拦截。
+
+最小修复为回答按钮调用预加载 `copyText`，经现有 `desktop:native` 来源/主帧校验后，由主进程 `await clipboard.writeText(text)` 写入系统剪贴板。保留网页权限拒绝策略，不开放剪贴板读取接口。原生调用失败仍返回界面显示“复制失败”。
+
+新增 3 项 Node 回归先失败后通过：等待异步写入完成后返回成功、写入错误向上传播、拒绝非文本及伪造子帧且不写入。`cd desktop && npm test` 共 10 项通过，`npm run build` 通过。真实 Electron 点击按钮后，剪贴板与中文、多行、Markdown 回答完全一致，且不再触发网页权限请求；测试在隔离 home 内进行，未调用模型。
+
+本轮只修改桌面复制链路及相应验证记录，没有修改 Java；不重复运行后端全量测试。源码及前端构建已更新，未替换已安装应用或重新分发应用包。现有已打开旧包仍需更新应用并重启后生效。

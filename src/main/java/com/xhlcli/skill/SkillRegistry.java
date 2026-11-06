@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 public final class SkillRegistry {
     private final Path userSkillsDir;
     private final Path projectSkillsDir;
+    private Path preferencesFile;
     private final List<SkillDefinition> builtinSkills = new ArrayList<>();
     private final Map<String, SkillDefinition> skills = new ConcurrentHashMap<>();
     private final Map<String, Boolean> userToggles = new ConcurrentHashMap<>();
@@ -30,6 +31,11 @@ public final class SkillRegistry {
         if (builtinSkills != null) {
             this.builtinSkills.addAll(builtinSkills);
         }
+    }
+
+    public SkillRegistry(Path userSkillsDir, Path projectSkillsDir, List<SkillDefinition> builtinSkills, Path preferencesFile) {
+        this(userSkillsDir,projectSkillsDir,builtinSkills);
+        this.preferencesFile=preferencesFile;
     }
 
     /**
@@ -51,6 +57,10 @@ public final class SkillRegistry {
      * 执行全量三层扫描并刷新注册表（BUILTIN -> USER -> PROJECT）。
      */
     public synchronized void scanAndReload() {
+        if(preferencesFile!=null){
+            var saved=SkillPreferences.read(preferencesFile);
+            userToggles.clear();userToggles.putAll(saved);
+        }
         Map<String, SkillDefinition> scanned = new HashMap<>();
 
         // 1. 载入内置 Skills
@@ -124,6 +134,7 @@ public final class SkillRegistry {
         if (opt.isPresent()) {
             SkillDefinition def = opt.get();
             if (def.isHealthy()) {
+                if(preferencesFile!=null)SkillPreferences.write(preferencesFile,def.name(),true);
                 def.setEnabled(true);
                 userToggles.put(def.name().toLowerCase(Locale.ROOT), true);
                 return true;
@@ -141,6 +152,7 @@ public final class SkillRegistry {
         Optional<SkillDefinition> opt = find(name);
         if (opt.isPresent()) {
             SkillDefinition def = opt.get();
+            if(preferencesFile!=null)SkillPreferences.write(preferencesFile,def.name(),false);
             def.setEnabled(false);
             userToggles.put(def.name().toLowerCase(Locale.ROOT), false);
             return true;

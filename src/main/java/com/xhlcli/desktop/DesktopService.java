@@ -17,18 +17,26 @@ public final class DesktopService implements AutoCloseable {
     private final Path home;
     private final DesktopStore store;
     private final DesktopConfig config;
+    private final DesktopSchedules schedules;
     private final Consumer<ObjectNode> publish;
     private final ExecutorService workers=Executors.newCachedThreadPool();
     private final Map<String,ActiveTurn> active=new HashMap<>();
     private final Map<Path,String> busy=new HashMap<>();
+    private final Map<Path,DesktopWorkspace> workspaces=new ConcurrentHashMap<>();
     private volatile boolean closing;
     public DesktopService(Path home, Map<String,String> environment, Consumer<ObjectNode> publish) throws Exception {
         this.home=home;this.publish=publish;store=new DesktopStore(home);config=new DesktopConfig(home,environment);
+        try{schedules=new DesktopSchedules(home,store,config);}catch(Exception failure){store.close();workers.shutdownNow();throw failure;}
     }
     public synchronized JsonNode handle(String method, ObjectNode p) throws Exception {
         if(closing)throw new IllegalStateException("应用正在退出");
+        if(method.startsWith("schedules."))return schedules.handle(method,p);
         return switch(method) {
             case "state" -> publicState();
+            case "skills.list" -> DesktopSkills.list(home,p.hasNonNull("projectId")||p.hasNonNull("sessionId")?workspace(p):null);
+            case "skills.set" -> DesktopSkills.set(home,p.hasNonNull("projectId")||p.hasNonNull("sessionId")?workspace(p):null,p);
+            case "commands.list" -> DesktopJson.MAPPER.valueToTree(DesktopCommands.catalog(
+                    p.hasNonNull("sessionId")||p.hasNonNull("projectId")?resources(workspace(p)):null));
             case "project.add" -> addProject(p.path("path").asText());
             case "session.create" -> createSession(p);
             case "session.update" -> updateSession(p);
@@ -69,21 +77,47 @@ public final class DesktopService implements AutoCloseable {
         item.put("name",path.getFileName()==null?path.toString():path.getFileName().toString());store.save();return item.deepCopy();
     }
     private ObjectNode createSession(ObjectNode p) throws Exception {
+        String approvalMode=p.has("approvalMode")?validateApprovalMode(p.get("approvalMode")):"on-request";
         var project=store.project(p.path("projectId").asText());
         Path workspace=Path.of(project.path("path").asText());
         String model=p.path("model").asText("");
         if(model.isBlank())model=config.defaultModel(workspace);
+        String effort=ReasoningOptions.validate(model,p.path("reasoningEffort").asText("default"));
         var item=store.state.withArray("sessions").addObject();item.put("id",DesktopStore.id());item.put("projectId",project.path("id").asText());
         item.put("path",workspace.toString());item.put("title","新聊天");item.put("model",model);item.put("updatedAt",Instant.now().toString());
+        item.put("approvalMode",approvalMode);item.put("reasoningEffort",effort);
         item.put("pinned",false);item.put("archived",false);item.putArray("history");item.putArray("turns");store.save();return item.deepCopy();
     }
     private ObjectNode updateSession(ObjectNode p) throws Exception {
-        var session=store.session(p.path("sessionId").asText());
+        var stored=store.session(p.path("sessionId").asText());
+        var session=stored.deepCopy();
+        if(p.has("approvalMode"))session.put("approvalMode",validateApprovalMode(p.get("approvalMode")));
         if(p.has("title")){String title=p.path("title").asText().strip();if(title.isEmpty()||title.length()>160)throw new IllegalArgumentException("标题需要 1～160 个字符");session.put("title",title);}
         if(p.has("model")){String model=p.path("model").asText();if(model.length()>240||!model.contains(":"))throw new IllegalArgumentException("模型格式无效");session.put("model",model);}
+        if(p.has("model"))session.put("reasoningEffort","default");
+        if(p.has("reasoningEffort"))session.put("reasoningEffort",ReasoningOptions.validate(session.path("model").asText(),p.path("reasoningEffort").asText("")));
         if(p.has("pinned"))session.put("pinned",p.path("pinned").asBoolean());
         if(p.has("archived")){if(active.containsKey(session.path("id").asText()))throw new IllegalStateException("请先停止当前任务再归档");session.put("archived",p.path("archived").asBoolean());}
-        store.save();var result=session.deepCopy();result.remove("history");return result;
+        // 只替换会话设置，保留执行线程持有的轮次和历史节点。
+        var fields=List.of("title","model","pinned","archived","approvalMode","reasoningEffort");
+        var previous=stored.deepCopy();
+        for(String field:fields)if(p.has(field)||(field.equals("reasoningEffort")&&p.has("model")))stored.set(field,session.get(field));
+        try {store.save();}catch(Exception failure){
+            for(String field:fields)if(p.has(field)||(field.equals("reasoningEffort")&&p.has("model"))){if(previous.has(field))stored.set(field,previous.get(field));else stored.remove(field);}
+            throw failure;
+        }
+        var current=active.get(session.path("id").asText());
+        if(p.has("approvalMode")&&"auto".equals(session.path("approvalMode").asText())&&current!=null
+                &&!current.token.isCancelled()&&current.approval!=null&&!current.approval.isDone()) {
+            emit(current,"approval.automatic",Map.of("id",current.approvalId,"request",current.approvalRequest));
+            current.approval.complete(ApprovalResult.approve());
+        }
+        var result=stored.deepCopy();result.remove("history");return result;
+    }
+    private String validateApprovalMode(JsonNode value) {
+        if(!value.isTextual()||!Set.of("on-request","auto").contains(value.asText()))
+            throw new IllegalArgumentException("审批模式无效，请选择按需审批或帮我审批");
+        return value.asText();
     }
     private Path workspace(ObjectNode p) throws Exception {
         if(p.hasNonNull("sessionId")&&!p.path("sessionId").asText().isBlank())return Path.of(store.session(p.path("sessionId").asText()).path("path").asText()).toRealPath();
@@ -99,6 +133,7 @@ public final class DesktopService implements AutoCloseable {
         String model=session.path("model").asText();
         String turnId=DesktopStore.id();
         var attachments=p.withArray("attachments");
+        if(input.startsWith("/")&&!attachments.isEmpty())throw new IllegalArgumentException("斜杠指令暂不接受附件，请移除附件或使用普通消息发送");
         StringBuilder prompt=new StringBuilder(input);
         var imageParts=new ArrayList<com.xhlcli.model.ContentPart>();
         if(attachments.size()>8)throw new IllegalArgumentException("单次最多添加 8 个附件");
@@ -122,6 +157,7 @@ public final class DesktopService implements AutoCloseable {
             }
         }
         var turn=session.withArray("turns").addObject();turn.put("id",turnId);turn.put("input",input);turn.put("model",model);
+        turn.put("reasoningEffort",session.path("reasoningEffort").asText("default"));
         turn.put("status","running");turn.put("startedAt",Instant.now().toString());turn.set("attachments",attachments.deepCopy());turn.putArray("events");
         if(session.path("title").asText().equals("新聊天"))session.put("title",input.replaceAll("\\s+"," ").substring(0,Math.min(input.replaceAll("\\s+"," ").length(),40)));
         session.put("updatedAt",Instant.now().toString());
@@ -136,19 +172,38 @@ public final class DesktopService implements AutoCloseable {
     private void run(ObjectNode session, ActiveTurn running, String model, ChatMessage input) {
         DesktopChanges changes=new DesktopChanges(running.workspace,home);
         try {
-            try {String before=changes.capture(running.turnId,false);synchronized(this){running.turn.put("before",before);store.save();}}
-            catch(Exception failure){emit(running,"notice",Map.of("message","快照不可用："+failure.getMessage()));}
+            var resources=resources(running.workspace);
+            resources.skills.scanAndReload();
+            var command=DesktopCommands.parse(input.content());
+            boolean useAgent=DesktopCommands.requiresAgent(command,resources);
+            if(useAgent) {
+                try {String before=changes.capture(running.turnId,false);synchronized(this){running.turn.put("before",before);store.save();}}
+                catch(Exception failure){emit(running,"notice",Map.of("message","快照不可用："+failure.getMessage()));}
+            }
             if(running.token.isCancelled())throw new CancellationException("用户取消");
-            try(var adapter=new DesktopAgent(running.workspace,home,model,config,new ApprovalBridge(running),(type,value)->emit(running,type,value))) {
-                List<ChatMessage> history;
-                synchronized(this){history=DesktopJson.MAPPER.convertValue(session.withArray("history"),new TypeReference<List<ChatMessage>>(){});}
+            List<ChatMessage> history;ObjectNode settings;
+            synchronized(this){history=DesktopJson.MAPPER.convertValue(session.withArray("history"),new TypeReference<List<ChatMessage>>(){});settings=session.deepCopy();}
+            RunResult result;List<ChatMessage> nextHistory;
+            if(!useAgent) {
+                String answer=DesktopCommands.local(command,resources,home,running.workspace,config,settings,history,running.token,target->{
+                    synchronized(this){try {
+                        updateSession(DesktopJson.MAPPER.createObjectNode().put("sessionId",running.sessionId).put("model",target));
+                        emit(running,"session.model",Map.of("model",target));
+                    }catch(Exception failure){throw new IllegalStateException(failure.getMessage(),failure);}}
+                });
+                result=new RunResult(running.turnId,RunStatus.COMPLETED,answer,"",0,TokenUsage.unknown());
+                nextHistory=new ArrayList<>(history);nextHistory.add(input);
+                if(!answer.isBlank())nextHistory.add(ChatMessage.assistant(answer.length()>16000?answer.substring(0,16000)+"\n[指令输出已节选]":answer));
+            }else try(var adapter=new DesktopAgent(running.workspace,home,model,config,new ApprovalBridge(running),(type,value)->emit(running,type,value),resources,running.turn.path("reasoningEffort").asText("default"))) {
                 adapter.agent.restoreHistory(history);
-                var result=adapter.agent.runMessage(input,event->emit(running,event.getClass().getSimpleName(),event),running.token);
-                synchronized(this) {
-                    session.set("history",config.redactNode(DesktopJson.MAPPER.valueToTree(adapter.agent.history()),running.workspace));
-                    running.turn.put("status",result.status().name().toLowerCase(Locale.ROOT));
-                    running.turn.put("answer",config.redact(result.finalAnswer(),running.workspace));running.turn.put("error",config.redact(result.reason(),running.workspace));
-                }
+                RunEventSink sink=event->emit(running,event.getClass().getSimpleName(),event);
+                result=command==null?adapter.agent.runMessage(input,sink,running.token):adapter.runCommand(command,sink,running.token);
+                nextHistory=adapter.agent.history();
+            }
+            synchronized(this) {
+                session.set("history",config.redactNode(DesktopJson.MAPPER.valueToTree(nextHistory),running.workspace));
+                running.turn.put("status",running.token.isCancelled()?"canceled":result.status().name().toLowerCase(Locale.ROOT));
+                running.turn.put("answer",config.redact(result.finalAnswer(),running.workspace));running.turn.put("error",config.redact(result.reason(),running.workspace));
             }
         } catch(Exception failure) {
             synchronized(this){running.turn.put("status",running.token.isCancelled()?"canceled":"failed");running.turn.put("error",config.redact(Objects.toString(failure.getMessage(),failure.getClass().getSimpleName()),running.workspace));}
@@ -165,6 +220,9 @@ public final class DesktopService implements AutoCloseable {
                 notification.put("turnId",running.turnId);notification.set("data",running.turn.deepCopy());publish.accept(notification);
             }
         }
+    }
+    private DesktopWorkspace resources(Path workspace) {
+        return workspaces.computeIfAbsent(workspace,path->new DesktopWorkspace(home,path,config));
     }
     private synchronized void emit(ActiveTurn running, String type, Object value) {
         try {
@@ -205,31 +263,40 @@ public final class DesktopService implements AutoCloseable {
     private final class ApprovalBridge implements HitlHandler {
         private final ActiveTurn current;
         ApprovalBridge(ActiveTurn current){this.current=current;}
-        @Override public ApprovalResult requestApproval(ApprovalRequest request) {
+        @Override public synchronized ApprovalResult requestApproval(ApprovalRequest request) {
             var future=new CompletableFuture<ApprovalResult>();String id=DesktopStore.id();
-            synchronized(DesktopService.this){if(current.token.isCancelled())return ApprovalResult.reject("任务已取消");current.approval=future;current.approvalId=id;current.turn.put("status","approval");}
-            emit(current,"approval.request",Map.of("id",id,"request",request));
+            synchronized(DesktopService.this){
+                if(current.token.isCancelled())return ApprovalResult.reject("任务已取消");
+                if("auto".equals(store.session(current.sessionId).path("approvalMode").asText())) {
+                    emit(current,"approval.automatic",Map.of("id",id,"request",request));
+                    return ApprovalResult.approve();
+                }
+                current.approval=future;current.approvalId=id;current.approvalRequest=request;current.turn.put("status","approval");
+                emit(current,"approval.request",Map.of("id",id,"request",request));
+            }
             try {
                 while(!current.token.isCancelled())try{return future.get(200,TimeUnit.MILLISECONDS);}catch(TimeoutException ignored){}
                 return ApprovalResult.reject("任务已取消");
             }catch(Exception failure){return ApprovalResult.reject("审批已中断");}
-            finally {synchronized(DesktopService.this){current.approval=null;current.turn.put("status",current.token.isCancelled()?"canceling":"running");}emit(current,"approval.resolved",Map.of("id",id));}
+            finally {synchronized(DesktopService.this){current.approval=null;current.approvalRequest=null;current.turn.put("status",current.token.isCancelled()?"canceling":"running");emit(current,"approval.resolved",Map.of("id",id));}}
         }
         @Override public boolean isEnabled(){return true;}
         @Override public void setEnabled(boolean enabled){if(!enabled)throw new IllegalArgumentException("桌面端保持审批开启");}
     }
     private static final class ActiveTurn {
         final String sessionId,turnId;final Path workspace;final ObjectNode turn;final CancellationToken token=new CancellationToken();
-        CompletableFuture<ApprovalResult> approval;String approvalId;long lastSave;
+        CompletableFuture<ApprovalResult> approval;ApprovalRequest approvalRequest;String approvalId;long lastSave;
         ActiveTurn(String sessionId,String turnId,Path workspace,ObjectNode turn){this.sessionId=sessionId;this.turnId=turnId;this.workspace=workspace;this.turn=turn;}
     }
     @Override public void close() throws Exception {
         synchronized(this){closing=true;for(var turn:active.values()){turn.token.cancel();if(turn.approval!=null)turn.approval.complete(ApprovalResult.reject("应用退出"));}}
+        schedules.close();
         workers.shutdown();
         if(!workers.awaitTermination(8,TimeUnit.SECONDS)) {
             workers.shutdownNow();
             if(!workers.awaitTermination(1,TimeUnit.SECONDS))throw new IllegalStateException("执行线程尚未退出，保留状态锁直至进程结束");
         }
+        for(var resources:workspaces.values())resources.close();
         synchronized(this){store.save();store.close();}
     }
 }

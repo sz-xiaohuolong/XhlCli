@@ -37,6 +37,11 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
     private final Sleeper sleeper;
     private final DiagnosticSink diagnostics;
     private final OpenAiSseParser parser;
+    private String reasoningEffort = "default";
+
+    final void configureReasoning(String effort) {
+        reasoningEffort = ReasoningOptions.validate(providerName()+":"+modelName(),effort);
+    }
 
     AbstractOpenAiCompatibleClient(
             ChatConfig config,
@@ -143,11 +148,14 @@ abstract class AbstractOpenAiCompatibleClient implements LlmClient {
         ObjectNode root = mapper.createObjectNode();
         root.put("model", config.model());
         root.put("stream", true);
+        ReasoningOptions.apply(root,providerName(),config.model(),reasoningEffort);
         ArrayNode messageNodes = root.putArray("messages");
         for (ChatMessage message : messages) {
             ObjectNode node = messageNodes.addObject();
             node.put("role", message.role().wireName());
             appendMessageContent(node, message);
+            if (providerName().equals("deepseek") && message.role() == ChatMessage.Role.ASSISTANT && (!message.reasoningContent().isEmpty() || (!message.toolCalls().isEmpty() && !ReasoningOptions.levels(providerName(),config.model()).isEmpty())))
+                node.put("reasoning_content", message.reasoningContent());
             if (!message.toolCalls().isEmpty()) {
                 ArrayNode toolCalls = node.putArray("tool_calls");
                 for (ToolCall call : message.toolCalls()) {

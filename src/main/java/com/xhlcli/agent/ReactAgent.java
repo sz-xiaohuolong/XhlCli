@@ -364,7 +364,7 @@ public final class ReactAgent implements AgentRunner {
                                 usage, LlmErrorType.EMPTY_RESPONSE, "Provider returned an empty response.",
                                 sequencer.hasTextDelta());
                     }
-                    workingHistory.add(ChatMessage.assistant(response.content()));
+                    workingHistory.add(response.assistantMessage());
                     String finalText = response.content();
                     int completionIterations = iterations;
                     TokenUsage completionUsage = usage;
@@ -387,7 +387,7 @@ public final class ReactAgent implements AgentRunner {
                     return finish(lifecycle, sequencer, runId, RunStatus.FAILED,
                             protocolFailure, "", iterations, usage);
                 }
-                workingHistory.add(ChatMessage.assistant(response.content(), response.toolCalls()));
+                workingHistory.add(response.assistantMessage());
                 lifecycle.transitionTo(RunStatus.CALLING_TOOL);
                 List<ToolResult> results = new ArrayList<>();
                 List<com.xhlcli.parallel.ParallelBatch> batches = com.xhlcli.parallel.ParallelBatchScheduler.schedule(

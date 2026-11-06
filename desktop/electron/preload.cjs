@@ -1,6 +1,8 @@
 const {contextBridge,ipcRenderer,webUtils}=require('electron');
 contextBridge.exposeInMainWorld('xhl',{
   request:(method,params)=>ipcRenderer.invoke('desktop:request',method,params),
+  copyText:text=>ipcRenderer.invoke('desktop:native','copyText',{text}),
+  openSkillsFolder:()=>ipcRenderer.invoke('desktop:native','openSkillsFolder'),
   chooseProject:()=>ipcRenderer.invoke('desktop:native','chooseProject'),
   chooseFiles:()=>ipcRenderer.invoke('desktop:native','chooseFiles'),
   openFile:(sessionId,path)=>ipcRenderer.invoke('desktop:native','openFile',{sessionId,path}),

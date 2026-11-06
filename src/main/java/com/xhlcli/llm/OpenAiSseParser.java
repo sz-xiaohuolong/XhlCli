@@ -31,6 +31,7 @@ final class OpenAiSseParser {
 
         BufferedSource source = responseBody.source();
         StringBuilder content = new StringBuilder();
+        StringBuilder reasoning = new StringBuilder();
         Map<Integer, ToolCallBuilder> toolCalls = new TreeMap<>();
         int inputTokens = 0;
         int outputTokens = 0;
@@ -73,6 +74,7 @@ final class OpenAiSseParser {
                     continue;
                 }
                 JsonNode delta = choices.get(0).path("delta");
+                reasoning.append(delta.path("reasoning_content").asText(""));
                 String text = delta.path("content").asText("");
                 if (!text.isEmpty()) {
                     content.append(text);
@@ -112,7 +114,7 @@ final class OpenAiSseParser {
         try {
             return new ChatResponse(content.toString(), toolCalls.values().stream()
                     .map(ToolCallBuilder::build)
-                    .toList(), usage);
+                    .toList(), usage, reasoning.toString());
         } catch (IllegalStateException failure) {
             throw invalid("The provider returned an incomplete tool call.", hasPartialResponse(content, toolCalls), failure);
         }

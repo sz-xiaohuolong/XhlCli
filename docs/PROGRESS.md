@@ -2,7 +2,9 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
+| 桌面每日定时任务 | task 复用、侧栏计划与结果完成；错过跳过、不补跑；Java 656 项、Node 7 项、真实 Electron/自动触发/内置 Java 成品验证通过 | 真实新闻质量与其他机器未验证；代码未提交或推送 | 打开独立 schedules 应用包人工验收，见[定时任务证据](engineering/desktop-schedules-verification.md) |
 | 桌面压缩包分发 | Apple 芯片 Mac ZIP 内置 Java；空配置启动及隔离模型/文件/历史验收通过；Java 628 项、Node 5 项通过 | 未公证；未在另一台 Mac 或旧版 macOS 实测 | ZIP 与中文说明已生成，见[分发验收](engineering/desktop-mvp-verification.md#桌面压缩包增量验收2026-11-06) |
+| 桌面审批模式修复 | “按需审批 / 帮我审批”已接通、持久化，真实 Electron 自动写入/命令、切换/重启及保存失败验收通过 | 使用本地测试模型；未新增真实 Provider 验收 | 本机打包完成；代码未提交，见[增量验收](engineering/desktop-mvp-verification.md#5-审批模式增量验收2026-11-06) |
 | 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 代码及测试修复已同步 origin/main，远程 CI 通过；按人工步骤验收真实 Provider |
 | 前次交付 | 记忆召回、后台 task、技能入口、Phase 19 的原有交付保留 | 各自验证范围沿用历史记录 | 下方前次任务记录及 PROJECT 索引 |
 | 后续 v1.1 | 可信任务生命周期仍为独立规划，未整体交付 | D01 等待设计核实 | 按原计划推进，与本次桌面交付分开 |
@@ -10,6 +12,16 @@
 ---
 
 ## 本次任务：桌面 MVP
+
+2026-11-06 复制回答修复：网页剪贴板权限拒绝已复现，改为受控原生剪贴板写入。桌面 10 项测试、构建及真实 Electron 复制一致性验证通过；未替换已安装应用，见[修复记录](engineering/desktop-mvp-verification.md#复制回答修复2026-11-06)。
+
+2026-11-06 输入框 polish 与推理强度：模型/权限自定义菜单、强度滑块与会话持久化已完成，常驻权限说明已移入菜单；Java 全量及新增五项专项、Node 七项、真实 Electron 与成品功能验收通过。已更新既定本机应用和分享 ZIP，仍只保留两类交付产物。详情见[增量验收](engineering/desktop-mvp-verification.md#输入框打磨与推理强度验收2026-11-06)。
+
+2026-11-06 交付产物归并：按用户要求仅保留 `desktop/release/bundled/mac-arm64/XhlCLI.app` 与 `desktop/release/XhlCLI-0.1.0-mac-arm64.zip`（附校验文件）。统一最新版包含技能管理、定时任务等已集成功能；旧技能/定时任务专用包及临时应用副本已删除。后续更新复用这两个入口，禁止按功能积累软件副本；历史验收文档中的旧产物路径不再有效。分发脚本自动清理临时目录及旧版 ZIP。
+
+2026-11-06 技能管理增量：侧栏技能页已支持搜索、来源筛选、项目选择、个人技能文件夹入口与逐项开关；全局持久化，下一轮任务生效。技能专项 25 项、冻结源码全量 Java 655 项与 Node 7 项通过；真实 GUI、保存失败及重启恢复通过。独立分发包位于 `desktop/release/skills/XhlCLI-0.1.0-mac-arm64.zip`，包内运行环境与技能接口验收通过；本轮未提交或推送，见[增量验收](engineering/desktop-mvp-verification.md#技能管理增量验收2026-11-06)。
+
+2026-11-06 常用斜杠指令增量：九类命令、子命令补全、技能快捷调用及真实 Plan/Team/MCP 路径已接通；旧版数据由新版续聊、正常退出验证通过。Java 650 项、Node 7 项、真实 Electron 核心流程及内置 Java 应用包启动通过，见[增量验收](engineering/desktop-mvp-verification.md#常用斜杠指令与升级续聊增量验收2026-11-06)。代码未提交或推送。
 
 2026-11-06 模型选择器修复：只展示当前项目有效配置的模型，自定义名称按保存值显示；未配置 Ollama 不再默认可选。空配置与历史失效选择保留输入并提示配置或重选。新增 4 项回归先复现失败后通过；`./mvnw -q verify` 624 项全绿，Node 2 项与前端构建、macOS 打包通过。已更新并重启本机应用，agent-desktop 实测用户下拉菜单仅含占位提示和 `deepseek-flash`。
 

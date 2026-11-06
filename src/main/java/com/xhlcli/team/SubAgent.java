@@ -184,7 +184,7 @@ public class SubAgent {
 
                 if (response.hasToolCalls() && role == TeamRole.WORKER && toolExecutor != null) {
                     finalOut.println();
-                    conversationHistory.add(ChatMessage.assistant(response.content(), response.toolCalls()));
+                    conversationHistory.add(response.assistantMessage());
 
                     for (ToolCall tc : response.toolCalls()) {
                         if (cancellationToken.isCancelled()) {
@@ -210,7 +210,7 @@ public class SubAgent {
 
                 // 没有工具调用，任务完成
                 finalOut.println();
-                conversationHistory.add(ChatMessage.assistant(response.content()));
+                conversationHistory.add(response.assistantMessage());
                 return TeamMessage.result(name, role, response.content());
 
             } catch (LlmException e) {

@@ -9,9 +9,11 @@ public record ChatMessage(
         String content,
         List<ToolCall> toolCalls,
         String toolCallId,
-        List<ContentPart> contentParts
+        List<ContentPart> contentParts,
+        String reasoningContent
 ) {
     public ChatMessage {
+        reasoningContent = reasoningContent == null ? "" : reasoningContent;
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(content, "content");
         toolCalls = List.copyOf(Objects.requireNonNull(toolCalls, "toolCalls"));
@@ -35,6 +37,10 @@ public record ChatMessage(
                 requireNonBlank(toolCallId, "Tool call ID");
             }
         }
+    }
+
+    public ChatMessage(Role role, String content, List<ToolCall> toolCalls, String toolCallId, List<ContentPart> contentParts) {
+        this(role, content, toolCalls, toolCallId, contentParts, "");
     }
 
     public ChatMessage(Role role, String content, List<ToolCall> toolCalls, String toolCallId) {

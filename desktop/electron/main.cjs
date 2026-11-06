@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,shell,Menu}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,shell,Menu,clipboard}=require('electron');
 const {spawn,execFile}=require('node:child_process');
 const {resolveJava}=require('./runtime.cjs');
 const fs=require('node:fs/promises');
@@ -7,7 +7,7 @@ const os=require('node:os');
 const {pathToFileURL}=require('node:url');
 const crypto=require('node:crypto');
 const {Backend}=require('./backend.cjs');
-const allowed=new Set(['state','project.add','session.create','session.update','turn.start','turn.cancel','approval.respond','changes','undo','config.get','config.save','config.test']);
+const allowed=new Set(['schedules.list','schedules.save','schedules.runs','schedules.toggle','schedules.run','schedules.cancel','schedules.delete','skills.list','skills.set','commands.list','state','project.add','session.create','session.update','turn.start','turn.cancel','approval.respond','changes','undo','config.get','config.save','config.test']);
 let window,backend,child,quitting=false;
 const index=path.join(__dirname,'../dist/index.html');
 const home=process.env.XHLCLI_DESKTOP_TEST_HOME||os.homedir();
@@ -44,6 +44,11 @@ ipcMain.handle('desktop:request',async(event,method,params={})=>{
 });
 ipcMain.handle('desktop:native',async(event,method,p={})=>{
   trusted(event);
+  if(method==='copyText'){
+    if(typeof p.text!=='string')throw new Error('复制内容必须是文本');
+    await clipboard.writeText(p.text);return true;
+  }
+  if(method==='openSkillsFolder'){const directory=path.join(home,'.xhlcli/skills');await fs.mkdir(directory,{recursive:true});const error=await shell.openPath(directory);if(error)throw new Error(error);return true;}
   if(method==='chooseProject'){const result=await dialog.showOpenDialog(window,{title:'选择代码项目',properties:['openDirectory','createDirectory']});return result.canceled?null:result.filePaths[0];}
   if(method==='chooseFiles'){const result=await dialog.showOpenDialog(window,{title:'添加文件或图片',properties:['openFile','multiSelections']});return result.canceled?[]:result.filePaths;}
   if(method==='openExternal'){const url=new URL(p.url);if(!['https:','http:'].includes(url.protocol))throw new Error('仅支持 HTTP/HTTPS 链接');return shell.openExternal(url.href);}

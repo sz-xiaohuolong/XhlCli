@@ -29,6 +29,8 @@ public final class StreamableHttpMcpTransport implements McpTransport {
     private final String url;
     private final Map<String, String> headers;
     private final OkHttpClient httpClient;
+    private final boolean ownsClient;
+    private boolean closed;
     private final ObjectMapper mapper;
 
     private final Deque<String> recentLogs = new ArrayDeque<>();
@@ -38,6 +40,7 @@ public final class StreamableHttpMcpTransport implements McpTransport {
     public StreamableHttpMcpTransport(String url, Map<String, String> headers, OkHttpClient httpClient, ObjectMapper mapper) {
         this.url = Objects.requireNonNull(url, "url");
         this.headers = headers != null ? Map.copyOf(headers) : Map.of();
+        this.ownsClient = httpClient == null;
         this.httpClient = httpClient != null ? httpClient : new OkHttpClient.Builder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .readTimeout(Duration.ofSeconds(60))
@@ -48,6 +51,7 @@ public final class StreamableHttpMcpTransport implements McpTransport {
 
     @Override
     public synchronized void start() throws IOException {
+        if (closed) throw new IOException("MCP 连接已关闭，请创建新连接");
         if (running.get()) {
             return;
         }
@@ -189,6 +193,14 @@ public final class StreamableHttpMcpTransport implements McpTransport {
 
     @Override
     public synchronized void close() throws IOException {
+        if (closed) return;
+        closed = true;
         running.set(false);
+        // 仅释放自己创建的客户端，避免影响借用同一客户端的其他服务。
+        if (ownsClient) {
+            httpClient.dispatcher().cancelAll();
+            httpClient.dispatcher().executorService().shutdown();
+            httpClient.connectionPool().evictAll();
+        }
     }
 }

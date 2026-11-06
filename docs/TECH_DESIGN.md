@@ -24,15 +24,33 @@
 
 ## 桌面 MVP 适配增量（2026-11-06）
 
+技能页面通过 `skills.list/skills.set` 读取独立注册表视图；可选的 `SkillPreferences` 按名称合并更新并原子写入 `~/.xhlcli/desktop/skills.json`，先保存再修改内存。任务注册表只在下一轮重新扫描时读取设置，页面操作不修改运行中任务的技能视图。原有不传设置文件的 CLI 注册表继续使用内存开关。
+
 桌面 UI 位于 `desktop/`：Electron 主进程启动 Java 子进程，React 仅通过有限预加载接口调用本机私有 JSONL stdio。未开放新的 HTTP 服务；主帧/来源校验、sandbox、contextIsolation 与导航限制在主进程执行。原 CLI 与 Runtime API 入口继续保留。
 
 `DesktopService` 管理真实目录互斥、会话、轮次与审批；`DesktopAgent` 装配现有 ReactAgent、Provider、工具、PathGuard/HITL、技能、MCP、记忆与上下文模块。`ReactAgent.restoreHistory` 验证工具对并保留当前系统规则；`runMessage` 接受图形界面已构造的用户消息，避免普通文本附件触发终端图片/剪贴板宏。CLI 原 `run(String,...)` 语义保持。
 
 状态采用 `~/.xhlcli/desktop/state.json` 原子替换与文件锁；启动时中断旧活动轮次。文本事件增量持久化，工具与状态事件即时保存。显示事件、最终回答及模型历史按文本节点脱敏，不对序列化后的协议字符串替换。模型配置仍由既有全局配置、项目 `.env`、进程环境变量逐级覆盖。
 
+会话级 `approvalMode` 提供 `on-request`（默认）和 `auto`。桌面审批桥在既有硬策略检查后读取当前模式；自动批准记录 `approval.automatic`，切换时先持久化再继续尚未完成的审批。已取消请求不复活；切回人工模式仅影响后续审批。设置更新只替换标量字段，保留执行线程持有的轮次节点；失败恢复原设置。旧状态缺失或未知模式回落到按需审批，CLI 与全局配置不受影响。
+
 `DesktopChanges` 用 Side-History 前后快照生成本轮 diff；撤销前检查全部文件、执行位、叶子和祖先链接，不重置用户 Git 索引。后续编辑冲突拒绝；若恢复途中发生 I/O 故障，报告已恢复数量并给出撤销前备份。命令工具补充已捕获子进程树的取消、超时和中断清理，确认退出后才返回。
 
 Apple 芯片 Mac 分发包内置 Temurin Java 21 JRE，主进程在打包模式下固定使用包内可执行文件；开发模式保留系统 Java 定位。构建脚本固定官方版本与 SHA-256，ZIP 包含许可和对应源码，仅使用 ad-hoc 签名，尚未公证。账户同步与交互终端仍未提供。实际验证范围见[桌面验收](engineering/desktop-mvp-verification.md)，产品边界与输入限制见[需求](prd/desktop-codex-ui.md)。
+
+桌面命令由 `DesktopCommands` 统一维护目录、解析与本地操作，`commands.list` 驱动输入补全。`DesktopService` 将本地命令与模型任务分流；本地命令无需模型或文件快照，结果进入轮次和后续上下文。`DesktopAgent.runCommand` 复用 Planner/PlanExecuteAgent、TeamOrchestrator 和 LoadSkillTool；Plan/Team 继承当前系统规则与最近对话，最终结果回写聊天历史。审批桥串行接收并行工具审批，避免覆盖待审批请求。
+
+`DesktopWorkspace` 按真实工作目录复用技能注册表与懒加载 MCP 管理器，使服务启停跨轮次保持；退出时释放资源。HTTP MCP transport 关闭时取消自身客户端的请求、关闭线程池和空闲连接，借用的客户端保持可用。模型与审批模式沿用状态文件，不引入新的聊天格式；升级续聊实测见桌面验收记录。
+
+### 桌面每日定时任务
+
+`DesktopSchedules` 校验已绑定项目与配置模型，`ScheduledTaskService` 只负责持久计划和到点入队，实际执行复用 `DurableTaskManager` 与只读 `BackgroundTaskRunner`。数据位于 `~/.xhlcli/desktop/schedules.db`，沿用 `runtime_tasks`，增加计划表和执行关联表；不接管 CLI 队列，也不写入聊天历史。计划推进与 task 插入同一事务提交，自动执行的计划/时间组合有唯一索引。
+
+`DailySchedule` 按固定 IANA 时区的日历时间计算下一次；夏令时缺失时间顺延，重复时间取较早偏移，每天一次。启动时跳过逾期计划；每秒检查一次，检查间隔超过 5 秒视为调度中断，跳过已错过的时间。正常轮询允许不足一分钟的延迟，超过该窗口或同一计划尚在执行均推进下次，不补跑。创建、编辑、从暂停恢复都从下一次未来时间开始，立即运行不改日程。
+
+每个工作区一个单 worker task 管理器，串行执行本项目定时任务；失联运行标失败、保留已保存部分，不自动重试；已入队未执行的任务恢复。读游标关闭后才调用另一连接写库，避免取消和恢复时的 SQLite 锁冲突。已有执行器持有运行任务时，目录失联不会伪装为终态，保留真实完成/取消入口。后台输出在进度和最终结果写库前通过桌面全配置脱敏，审批能力不取自聊天模式。
+
+Electron 私有 RPC 白名单新增 `schedules.list/save/runs/toggle/run/cancel/delete`。React 独立组件 `ScheduledTasks` 两秒刷新列表与结果，取消 effect 后忽略旧响应；计划与历史不加入聊天 state。详细验证见[定时任务验收](engineering/desktop-schedules-verification.md)。
 
 ## 2.1 本次实现增量：自动 Team 与失败重规划（Phase 19）
 
@@ -606,3 +624,12 @@ API Key 支持进程环境变量、项目 `.env` 与用户全局 `~/.xhlcli/conf
 |---|---|---|
 | v1.0 | 2026-08-25 | 确立 Java 21、模块边界、事件模型、安全管线与选择性迁移方案 |
 | v1.1 | 2026-08-27 | 记录已交付的 Phase 02 受控 ReAct 基线及其与后续目标架构的边界 |
+
+
+### 桌面推理强度（2026-11-06）
+
+`ReasoningOptions` 集中限定 Provider/model 的已确认档位；`config.get` 在每个模型增加 `reasoningEfforts`。会话与轮次快照保存 `reasoningEffort`，默认 `default`，旧数据迁移为默认。`session.update` 持久化失败恢复旧值，切换模型重置强度；任务开始时冻结强度，不随下一轮设置变化。
+
+客户端工厂将强度传给 OpenAI 兼容请求构造器：默认不发送额外参数，DeepSeek 关闭使用 `thinking.type=disabled`，其他已接入档位使用 enabled 与 reasoning_effort，OpenAI 使用 reasoning_effort。`ChatResponse` 与内部 `ChatMessage` 保留 `reasoningContent`，React、Plan 与 Team 的工具续轮均保留该字段，仅 DeepSeek 请求回传；桌面公共状态移除内部历史，推理正文不显示在 UI。旧聊天缺字段仍可读取，旧工具消息可发送空推理字段。
+
+能力依据：2026-11-06 核对 DeepSeek 官方 thinking_mode 文档（https://api-docs.deepseek.com/guides/thinking_mode）及 OpenAI 官方 reasoning 文档（https://developers.openai.com/api/docs/guides/reasoning）。实现采用明确模型名单；不把未知兼容服务或未来模型推定为支持。

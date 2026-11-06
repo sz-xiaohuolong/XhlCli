@@ -156,6 +156,13 @@ public final class LlmProviderRegistry {
         };
     }
 
+    public LlmClient createClient(ModelDescriptor descriptor, DiagnosticSink diagnostics, String effort) throws LlmException {
+        ReasoningOptions.validate(descriptor.id(),effort);
+        var client=createClient(descriptor,diagnostics);
+        if(client instanceof AbstractOpenAiCompatibleClient compatible)compatible.configureReasoning(effort);
+        return client;
+    }
+
     private DeepSeekClient createDeepSeekClient(ModelDescriptor descriptor, DiagnosticSink diagnostics) throws LlmException {
         String apiKey = getEnv("DEEPSEEK_API_KEY");
         if (apiKey.isBlank()) {

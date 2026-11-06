@@ -15,6 +15,98 @@ class DesktopServiceTest {
     ObjectNode params(String... values) {
         var p=DesktopJson.MAPPER.createObjectNode();for(int i=0;i<values.length;i+=2)p.put(values[i],values[i+1]);return p;
     }
+    @Test void approvalModeIsValidatedPersistedAndIsolated() throws Exception {
+        Path home=temp.resolve("home"),project=Files.createDirectory(temp.resolve("project"));
+        String id;
+        try(var service=new DesktopService(home,Map.of(),event->{})) {
+            String projectId=service.handle("project.add",params("path",project.toString())).path("id").asText();
+            var session=service.handle("session.create",params("projectId",projectId));id=session.path("id").asText();
+            assertEquals("on-request",session.path("approvalMode").asText());
+            service.handle("session.update",params("sessionId",id,"approvalMode","auto"));
+            assertThrows(IllegalArgumentException.class,()->service.handle("session.update",params("sessionId",id,"approvalMode","never")));
+            assertThrows(IllegalArgumentException.class,()->service.handle("session.update",params("sessionId",id).putNull("approvalMode")));
+            assertThrows(IllegalArgumentException.class,()->service.handle("session.create",params("projectId",projectId,"approvalMode","invalid")));
+            assertEquals("on-request",service.handle("session.create",params("projectId",projectId)).path("approvalMode").asText());
+        }
+        try(var service=new DesktopService(home,Map.of(),event->{})) {
+            var sessions=service.handle("state",params()).path("sessions");
+            assertEquals(2,sessions.size());assertEquals("auto",sessions.get(0).path("approvalMode").asText());
+        }
+        Path file=home.resolve(".xhlcli/desktop/state.json");
+        var legacy=(ObjectNode)DesktopJson.MAPPER.readTree(file.toFile());
+        ((ObjectNode)legacy.path("sessions").get(0)).remove("approvalMode");
+        ((ObjectNode)legacy.path("sessions").get(1)).put("approvalMode","unknown");
+        DesktopJson.MAPPER.writeValue(file.toFile(),legacy);
+        try(var service=new DesktopService(home,Map.of(),event->{})) {
+            for(var session:service.handle("state",params()).path("sessions"))assertEquals("on-request",session.path("approvalMode").asText());
+        }
+    }
+    @Test void automaticApprovalExecutesToolsButKeepsPathProtection() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();server.enqueue(tool("auto.txt","自动批准的内容"));server.enqueue(response("完成"));
+            server.enqueue(tool("../outside.txt","不允许越界"));server.enqueue(response("已拒绝"));
+            var events=new LinkedBlockingQueue<ObjectNode>();Path project=Files.createDirectory(temp.resolve("project"));
+            try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","fake","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
+                String projectId=service.handle("project.add",params("path",project.toString())).path("id").asText();
+                String id=service.handle("session.create",params("projectId",projectId,"approvalMode","auto")).path("id").asText();
+                service.handle("turn.start",params("sessionId",id,"input","自动写入"));
+                var turn=await(events,"turn.finished").path("data");
+                assertEquals("自动批准的内容",Files.readString(project.resolve("auto.txt")));
+                assertTrue(turn.path("events").toString().contains("approval.automatic"));
+                assertFalse(turn.path("events").toString().contains("approval.request"));
+                service.handle("turn.start",params("sessionId",id,"input","检查越界"));
+                var blocked=await(events,"turn.finished").path("data");
+                assertFalse(Files.exists(temp.resolve("outside.txt")));
+                assertTrue(blocked.path("events").toString().contains("[POLICY]"));
+                assertFalse(blocked.path("events").toString().contains("approval.automatic"));
+            }
+        }
+    }
+    @Test void switchingToAutomaticResolvesPendingApprovalAndSwitchingBackAsksAgain() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();server.enqueue(tool("first.txt","已批准"));server.enqueue(response("完成"));
+            server.enqueue(tool("second.txt","不应写入"));server.enqueue(response("已拒绝"));
+            var events=new LinkedBlockingQueue<ObjectNode>();Path project=Files.createDirectory(temp.resolve("project"));
+            try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","fake","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
+                String projectId=service.handle("project.add",params("path",project.toString())).path("id").asText();
+                String id=service.handle("session.create",params("projectId",projectId)).path("id").asText();
+                service.handle("turn.start",params("sessionId",id,"input","先等待审批"));
+                var approval=await(events,"approval.request");assertFalse(Files.exists(project.resolve("first.txt")));
+                Path stateFile=temp.resolve("home/.xhlcli/desktop/state.json"),backup=stateFile.resolveSibling("state.backup");
+                Files.move(stateFile,backup);Files.createDirectory(stateFile);
+                try {
+                    assertThrows(Exception.class,()->service.handle("session.update",params("sessionId",id,"approvalMode","auto")));
+                    assertEquals("on-request",service.handle("state",params()).path("sessions").get(0).path("approvalMode").asText());
+                    assertFalse(Files.exists(project.resolve("first.txt")));
+                }finally{Files.delete(stateFile);Files.move(backup,stateFile);}
+                service.handle("session.update",params("sessionId",id,"approvalMode","auto"));
+                assertEquals("completed",await(events,"turn.finished").path("data").path("status").asText());
+                assertEquals("completed",service.handle("state",params()).path("sessions").get(0).path("turns").get(0).path("status").asText());
+                assertEquals("已批准",Files.readString(project.resolve("first.txt")));
+                assertThrows(IllegalStateException.class,()->service.handle("approval.respond",params("sessionId",id,"approvalId",approval.path("data").path("id").asText()).put("allow",true)));
+                service.handle("session.update",params("sessionId",id,"approvalMode","on-request"));
+                service.handle("turn.start",params("sessionId",id,"input","重新人工审批"));
+                var next=await(events,"approval.request");
+                service.handle("approval.respond",params("sessionId",id,"approvalId",next.path("data").path("id").asText()).put("allow",false));
+                await(events,"turn.finished");assertFalse(Files.exists(project.resolve("second.txt")));
+            }
+        }
+    }
+    @Test void canceledApprovalCannotBeRevivedByAutomaticMode() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();server.enqueue(tool("canceled.txt","不应写入"));
+            var events=new LinkedBlockingQueue<ObjectNode>();Path project=Files.createDirectory(temp.resolve("project"));
+            try(var service=new DesktopService(temp.resolve("home"),Map.of("DEEPSEEK_API_KEY","fake","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
+                String projectId=service.handle("project.add",params("path",project.toString())).path("id").asText();
+                String id=service.handle("session.create",params("projectId",projectId)).path("id").asText();
+                service.handle("turn.start",params("sessionId",id,"input","取消审批"));
+                await(events,"approval.request");service.handle("turn.cancel",params("sessionId",id));
+                service.handle("session.update",params("sessionId",id,"approvalMode","auto"));
+                assertEquals("canceled",await(events,"turn.finished").path("data").path("status").asText());
+                assertFalse(Files.exists(project.resolve("canceled.txt")));
+            }
+        }
+    }
     @Test void persistsAndContinuesSessionAfterRestart() throws Exception {
         try(var server=new MockWebServer()) {
             server.start();

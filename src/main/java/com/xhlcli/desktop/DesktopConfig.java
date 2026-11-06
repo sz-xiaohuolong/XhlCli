@@ -40,13 +40,16 @@ final class DesktopConfig {
         return new ModelDescriptor(provider+":"+model,provider,model,model,base.capabilities(),base.configured(),List.of(model));
     }
     LlmClient client(Path workspace, String model) throws Exception {
+        return client(workspace,model,"default");
+    }
+    LlmClient client(Path workspace, String model, String effort) throws Exception {
         var registry = registry(workspace);
         var descriptor = registry.findModel(model).orElseGet(() -> {
             int split = model.indexOf(':');
             if (split<=0 || split==model.length()-1) throw new IllegalArgumentException("模型格式应为 provider:model");
             return descriptor(registry,model.substring(0,split),model.substring(split+1));
         });
-        return registry.createClient(descriptor, DiagnosticSink.NO_OP);
+        return registry.createClient(descriptor, DiagnosticSink.NO_OP,effort);
     }
     private boolean configured(String provider, Map<String,String> env, ObjectNode user) {
         if(provider.equals("ollama"))return !env.getOrDefault("OLLAMA_BASE_URL","").isBlank()
@@ -76,6 +79,7 @@ final class DesktopConfig {
         var models=configuredModels(workspace);
         result.put("defaultModel",models.stream().findFirst().map(ModelDescriptor::id).orElse(""));
         result.set("models",DesktopJson.MAPPER.valueToTree(models));
+        for(var item:result.withArray("models"))((ObjectNode)item).set("reasoningEfforts",DesktopJson.MAPPER.valueToTree(ReasoningOptions.levels(item.path("id").asText())));
         var providers=result.putArray("providers");
         var dotEnv=ChatConfigLoader.readDotEnv(workspace.resolve(".env"));
         for (String provider:List.of("deepseek","openai","anthropic","ollama")) {

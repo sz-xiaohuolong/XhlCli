@@ -86,4 +86,34 @@ class StreamableHttpMcpTransportTest {
 
         transport.close();
     }
+    @Test
+    void closeCancelsOwnedClientRequests() throws Exception {
+        server.enqueue(new MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE));
+        var transport = new StreamableHttpMcpTransport(server.url("/mcp").toString(), Map.of(), null, mapper);
+        transport.start();
+        var pending = transport.sendRequest(JsonRpcRequest.of(102, "ping", null), null);
+        assertNotNull(server.takeRequest(3, TimeUnit.SECONDS));
+        transport.close();
+        assertThrows(java.util.concurrent.ExecutionException.class, () -> pending.get(3, TimeUnit.SECONDS));
+        assertFalse(transport.isAlive());
+    }
+
+    @Test
+    void closePreservesBorrowedClient() throws Exception {
+        var client = new okhttp3.OkHttpClient();
+        try {
+            var transport = new StreamableHttpMcpTransport(server.url("/mcp").toString(), Map.of(), client, mapper);
+            transport.start();
+            transport.close();
+            server.enqueue(new MockResponse().setBody("共享客户端仍可使用"));
+            try (var response = client.newCall(new okhttp3.Request.Builder().url(server.url("/other")).build()).execute()) {
+                assertEquals("共享客户端仍可使用", response.body().string());
+            }
+            assertFalse(client.dispatcher().executorService().isShutdown());
+        } finally {
+            client.dispatcher().executorService().shutdown();
+            client.connectionPool().evictAll();
+        }
+    }
+
 }

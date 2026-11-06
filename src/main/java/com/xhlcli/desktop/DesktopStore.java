@@ -31,6 +31,9 @@ final class DesktopStore implements AutoCloseable {
                 state.put("version", 1); state.putArray("projects"); state.putArray("sessions");
             }
             for (var session : state.withArray("sessions")) {
+                if (!"auto".equals(session.path("approvalMode").asText()))
+                    ((ObjectNode) session).put("approvalMode", "on-request");
+                if (!session.has("reasoningEffort"))((ObjectNode)session).put("reasoningEffort","default");
                 for (var turn : session.withArray("turns")) {
                     String status = turn.path("status").asText();
                     if (status.equals("running") || status.equals("approval") || status.equals("canceling")) {

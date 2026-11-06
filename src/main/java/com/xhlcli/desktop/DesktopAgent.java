@@ -30,29 +30,34 @@ final class DesktopAgent implements AutoCloseable {
     final ReactAgent agent;
     final LlmClient client;
     private final ScheduledTimeoutScheduler scheduler = new ScheduledTimeoutScheduler();
-    private McpServerManager mcp;
+    private final DesktopWorkspace resources;
+    private final ToolRegistry registry;
+    private final ToolExecutor executor;
+    private final HitlHandler approvals;
+    private final MemoryManager memory;
+    private final Path workspace;
+    private final BiConsumer<String,Object> detail;
     DesktopAgent(Path workspace, Path home, String model, DesktopConfig config, HitlHandler approvals,
-                 BiConsumer<String,Object> detail) throws Exception {
-        client=config.client(workspace,model);
+                 BiConsumer<String,Object> detail,DesktopWorkspace resources,String reasoningEffort) throws Exception {
+        this.resources=resources;this.workspace=workspace;this.approvals=approvals;this.detail=detail;
+        client=config.client(workspace,model,reasoningEffort);
         try {
         var mapper=DesktopJson.MAPPER; var paths=new WorkspacePathResolver(workspace);
-        var skills=new SkillRegistry(home.resolve(".xhlcli/skills"),workspace.resolve(".xhlcli/skills"),BuiltinSkills.all());
+        var skills=resources.skills;
         skills.scanAndReload();
-        var registry=new ToolRegistry(List.of(new ListDirTool(paths),new ReadFileTool(paths),new WriteFileTool(paths),
+        registry=new ToolRegistry(List.of(new ListDirTool(paths),new ReadFileTool(paths),new WriteFileTool(paths),
                 new ApplyPatchTool(paths),new GitDiffTool(paths),new ExecuteCommandTool(paths),new GlobFilesTool(paths),
                 new GrepCodeTool(paths),new SearchCodeTool(paths),new EchoTool(),new CurrentTimeTool(Clock.systemUTC()),
                 new WebSearchTool(),new WebFetchTool(),new LoadSkillTool(skills)));
         var delegate=new DefaultToolExecutor(registry,new ToolSchemaValidator(mapper),new ToolResultBudget(ToolResultBudget.DEFAULT_MAX_CHARS,mapper),
                 mapper,System::nanoTime,new PathGuard(workspace),approvals,new AuditLog(home.resolve(".xhlcli/audit")));
-        ToolExecutor executor=(call,token)->{
+        executor=(call,token)->{
             detail.accept("tool.call",call);
             var result=delegate.execute(call,token);
             detail.accept("tool.result",result);
             return result;
         };
-        mcp=new McpServerManager(registry,workspace,mapper);
-        mcp.registerServers(new McpConfigLoader(mapper).load(home.resolve(".xhlcli/mcp.json"),workspace.resolve(".xhlcli/mcp.json"),config.environment(workspace)));
-        mcp.startAll(Duration.ofMillis(3000));
+        registry.updateDynamicTools(resources.mcp().getAllTools());
         var prompts=new LayeredPromptAssembler();
         prompts.registerBlock(PromptLayer.RUNTIME_CONTEXT,PromptSource.BUILTIN,"## 桌面运行环境",
                 "工作区："+workspace+"\n模型："+client.modelName()+"\n日期："+LocalDate.now()+"\n用户通过桌面界面工作；工具审批会在界面显示。默认用简体中文回答。");
@@ -69,11 +74,57 @@ final class DesktopAgent implements AutoCloseable {
         agent.setProjectDirectory(workspace);
         agent.setContextAssembler(new ContextAssembler(new TokenBudget(client.capabilities().maxContextWindow())));
         agent.setCompactor(new ConversationHistoryCompactor(client));
-        agent.setMemoryRecall(new MemoryManager(home.resolve(".xhlcli/memory"),workspace.resolve(".xhlcli/memory")),MemoryRecallSettings.fromEnvironment(config.environment(workspace)));
+        memory=new MemoryManager(home.resolve(".xhlcli/memory"),workspace.resolve(".xhlcli/memory"));
+        agent.setMemoryRecall(memory,MemoryRecallSettings.fromEnvironment(config.environment(workspace)));
         agent.setConcurrencyLimits(limits.agentSettings().maxConcurrency(),limits.agentSettings().toolTimeout());
         } catch(Exception failure) { close(); throw failure; }
     }
+    RunResult runCommand(DesktopCommands.Parsed command,RunEventSink events,CancellationToken token) throws Exception {
+        String name=command.name(),goal=command.arguments();
+        if(!name.equals("/plan")&&!name.equals("/team")) {
+            String skillName=name.substring(1),task=goal;
+            if(name.equals("/skill")) {
+                String[] parts=goal.split("\\s+",3);
+                if(parts.length<3)throw new IllegalArgumentException("用法：/skill run <名称> <任务描述>");
+                skillName=parts[1];task=parts[2];
+            }
+            var loaded=new LoadSkillTool(resources.skills).execute(DesktopJson.MAPPER.createObjectNode().put("name",skillName),token);
+            if(!"loaded".equals(loaded.data().path("status").asText()))throw new IllegalArgumentException("技能不可用："+skillName+"。请检查名称、启用状态和技能配置。");
+            detail.accept("notice",Map.of("message","已加载技能："+skillName));
+            return agent.runMessage(ChatMessage.user("请使用以下已加载技能完成任务。\n\n"+loaded.summary()+"\n\n用户任务：\n"+task),events,token);
+        }
+        RunResult result;
+        try(var output=new java.io.PrintStream(new java.io.OutputStream(){
+            private final java.io.ByteArrayOutputStream line=new java.io.ByteArrayOutputStream();
+            @Override public synchronized void write(int value){if(value=='\n'){flush();}else line.write(value);}
+            @Override public synchronized void flush(){if(line.size()>0){String text=line.toString(java.nio.charset.StandardCharsets.UTF_8);line.reset();detail.accept("command.progress",Map.of("text",text));}}
+        },true,java.nio.charset.StandardCharsets.UTF_8)) {
+            String context=com.xhlcli.team.TeamRouter.context(agent.history(),workspace);
+            if(name.equals("/plan")) {
+                var planner=new com.xhlcli.plan.Planner(client,output);
+                planner.setProjectMemorySupplier(()->context);
+                var plan=new PlanExecuteAgent(client,executor,registry.definitions(),planner,null,(objective,execution)->{
+                    var tasks=execution.getAllTasks().stream().map(task->Map.of("id",task.getId(),"description",task.getDescription(),"dependencies",task.getDependencies())).toList();
+                    detail.accept("plan.ready",Map.of("goal",objective,"tasks",tasks));
+                    String arguments=DesktopJson.MAPPER.valueToTree(Map.of("goal",objective,"tasks",tasks)).toString();
+                    var decision=approvals.requestApproval(new ApprovalRequest("plan.execute",arguments,"计划执行","确认后执行以下计划；各工具操作仍遵循当前审批模式。",null));
+                    return decision.isApproved()?PlanExecuteAgent.PlanReviewDecision.execute():PlanExecuteAgent.PlanReviewDecision.cancel();
+                },output);
+                // 桌面按顺序执行计划步骤，保持审批与工具记录可追溯。
+                plan.setMaxConcurrency(1);
+                result=plan.run(goal,events,token);
+            }else {
+                var team=new com.xhlcli.team.TeamOrchestrator(client,executor,registry.definitions(),memory,output);
+                team.setProjectDirectory(workspace);
+                result=team.runWithContext(goal,context,events,token);
+            }
+        }
+        var history=new ArrayList<>(agent.history());history.add(ChatMessage.user(name+" "+goal));
+        if(!result.finalAnswer().isBlank())history.add(ChatMessage.assistant(result.finalAnswer()));
+        agent.restoreHistory(history);
+        return result;
+    }
     @Override public void close() {
-        try {if(mcp!=null)mcp.close();}finally {try {scheduler.close();}finally {client.close();}}
+        try {scheduler.close();}finally {client.close();}
     }
 }

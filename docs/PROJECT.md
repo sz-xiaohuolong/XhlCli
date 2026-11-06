@@ -36,6 +36,7 @@
 | **路线图与交付状态** | [`docs/ROADMAP.md`](ROADMAP.md) | 历史阶段交付状态与当前 v1.1 规划边界 |
 | **技术预研与竞品分析** | [`docs/RESEARCH.md`](RESEARCH.md) | 竞品分析 (Claude Code, Cline 等) 与关键技术选型 |
 | **桌面 MVP 适配** | [需求](prd/desktop-codex-ui.md) · [设计](specs/2026-11-06-desktop-mvp.md) · [计划](plans/2026-11-06-desktop-mvp.md) · [验收](engineering/desktop-mvp-verification.md) | Electron/React 适配既有 Java 核心；当前交付与限制以验收记录为准 |
+| **桌面定时任务** | [需求](prd/desktop-codex-ui.md#定时任务增量2026-11-06) · [计划](plans/2026-11-06-desktop-schedules.md) · [验收](engineering/desktop-schedules-verification.md) | 每日计划、task 复用、桌面列表与结果 |
 | **桌面产品与视觉约定** | [PRODUCT.md](../PRODUCT.md) · [DESIGN.md](../DESIGN.md) · [桌面启动说明](../desktop/README.md) | impeccable 所需产品与界面上下文；实现运行入口 |
 | **桌面原始调研** | [研究记录](engineering/2026-11-06-codex-desktop-research.md) | 保留实施前的源码与官方资料事实 |
 | **2026-10-16 源码审查与竞品证据** | [专项报告](engineering/xhlcli-claude-qoder-review-2026-10-16.md) | 当前代码缺陷、Claude Code / Qoder 指定发行物分析、验证记录与候选路线；报告中的第一批已纳入 v1.1，其余仍为候选 |

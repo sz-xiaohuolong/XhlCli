@@ -442,7 +442,7 @@ public class PlanExecuteAgent implements AgentRunner {
                 }
 
                 taskOut.println("\n🔧 执行工具调用: " + response.toolCalls().size() + " 个");
-                messages.add(ChatMessage.assistant(response.content(), response.toolCalls()));
+                messages.add(response.assistantMessage());
 
                 for (ToolCall call : response.toolCalls()) {
                     if (cancellationToken != null && cancellationToken.isCancelled()) {
