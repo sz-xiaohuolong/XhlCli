@@ -85,10 +85,8 @@ public final class ExecuteCommandTool implements Tool {
             return new ToolOutput("无法启动命令: " + e.getMessage(), JsonNodeFactory.instance.objectNode(), "");
         }
 
-        if (cancellationToken != null) {
-            cancellationToken.onCancel(process::destroyForcibly);
-        }
-
+        var processes=new CommandProcesses(process);
+        try(var registration=cancellationToken==null?null:cancellationToken.onCancel(processes::stop)) {
         StringBuilder outputBuilder = new StringBuilder();
         Thread readerThread = new Thread(() -> {
             try (Reader reader = new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8)) {
@@ -111,8 +109,9 @@ public final class ExecuteCommandTool implements Tool {
         boolean finished = false;
         long endTime = startTime + timeoutSeconds * 1000L;
         while (System.currentTimeMillis() < endTime) {
+            processes.capture();
             if (cancellationToken != null && cancellationToken.isCancelled()) {
-                process.destroyForcibly();
+                processes.stop();
                 return new ToolOutput("命令已被取消", JsonNodeFactory.instance.objectNode(), "");
             }
             try {
@@ -121,19 +120,19 @@ public final class ExecuteCommandTool implements Tool {
                     break;
                 }
             } catch (InterruptedException e) {
-                process.destroyForcibly();
+                processes.stop();
                 Thread.currentThread().interrupt();
                 return new ToolOutput("命令执行被中断", JsonNodeFactory.instance.objectNode(), "");
             }
         }
 
         if (cancellationToken != null && cancellationToken.isCancelled()) {
-            process.destroyForcibly();
+            processes.stop();
             return new ToolOutput("命令已被取消", JsonNodeFactory.instance.objectNode(), "");
         }
 
         if (!finished) {
-            process.destroyForcibly();
+            processes.stop();
             return new ToolOutput("命令执行超时 (" + timeoutSeconds + "秒)", JsonNodeFactory.instance.objectNode(), "");
         }
 
@@ -157,5 +156,31 @@ public final class ExecuteCommandTool implements Tool {
         
         String summary = "命令执行完成 (exit code: " + exitCode + ")\n" + truncatedOutput;
         return new ToolOutput(summary, JsonNodeFactory.instance.objectNode(), "");
+        } finally {
+            if(process.isAlive()||(cancellationToken!=null&&cancellationToken.isCancelled()))processes.stop();
+        }
+    }
+
+    /** 在 Shell 退出前记录子进程，取消确认必须等待已捕获的进程树结束。 */
+    private static final class CommandProcesses {
+        private final Process process;
+        private final java.util.Set<ProcessHandle> children=new java.util.LinkedHashSet<>();
+        CommandProcesses(Process process){this.process=process;capture();}
+        synchronized void capture(){process.descendants().forEach(children::add);}
+        synchronized void stop() {
+            capture();
+            var handles=new java.util.ArrayList<>(children);
+            java.util.Collections.reverse(handles);
+            handles.add(process.toHandle());
+            handles.forEach(handle->{if(handle.isAlive())handle.destroyForcibly();});
+            boolean interrupted=Thread.interrupted();
+            long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+            try {
+                while(handles.stream().anyMatch(ProcessHandle::isAlive)&&System.nanoTime()<deadline) {
+                    try {Thread.sleep(10);}catch(InterruptedException ignored){interrupted=true;}
+                }
+                if(handles.stream().anyMatch(ProcessHandle::isAlive))throw new IllegalStateException("命令进程尚未完全停止");
+            } finally {if(interrupted)Thread.currentThread().interrupt();}
+        }
     }
 }

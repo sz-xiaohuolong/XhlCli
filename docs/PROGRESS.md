@@ -2,17 +2,25 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 长期记忆召回 | 主前台按需召回、兼容 JSONL、真实请求估算预算与 CLI 诊断完成；604 项测试及真实 JAR 验收通过 | 真实模型答案质量待人工验收；其他 Agent 模式未接入 | TASK-M01～05 完成；实现 730810d 已同步 origin/main，远程 CI 通过，见[验收](engineering/memory-recall-verification.md) |
-| 前次小修复 | `/<技能名> <任务描述>` 已支持确定性加载并执行；新增 6 项回归，接入远程更新前全量 559 项测试通过 | 仅离线验证；按用户要求，接入远程更新后不重跑测试 | 已授权以 `feat` 提交同步 `origin/main`；沿用已有测试结果，不重复测试 |
-| 前次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 无本次阻塞；真实模型质量未测 | TASK-19-01～05 完成，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
-| 本次实施 | task 后台独立只读执行、工作区隔离、取消确认和跨重启结果查询；575 项测试通过 | 真实 JAR 验收已通过；真实模型质量、跨主机执行未验证 | 见 [task 计划](plans/2026-11-06-task-background-lifecycle.md)与[交付证据](engineering/task-background-lifecycle-verification.md) |
-| 当前规划 | `v1.1` 第一批“可信任务生命周期”的需求、拟议设计、实施计划和验收矩阵已形成 | D01 安全文件操作仍待评审；本轮 task 采用无迁移本机文件锁方案，v1.1 整体未完成 | 按 [TASK-01](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)核实能力与迁移条件，闭合具体决定 |
-| 代码基线 | 已发布 `v1.0.1`；2026-10-16 `./mvnw test` 525 项通过；离线探针复现 7 项 P1 | R02～R04 的 task 子集已有修复证据；其他缺陷及完整 v1.1 AC 仍未验证 | 按 [13 项 AC](engineering/v1.1-trusted-task-lifecycle-verification.md)建立失败回归与验收证据 |
-| 前次整理 | 2026-10-17 文档按原目录归并，AGENTS 明确继续沿用原分类 | 未执行 v1.1 功能验收或发布 | 归并完整性、351 条链接与 diff 检查通过；当时尚未实施 |
+| 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 按既有授权提交推送 origin/main，核对远程 SHA 与 CI |
+| 前次交付 | 记忆召回、后台 task、技能入口、Phase 19 的原有交付保留 | 各自验证范围沿用历史记录 | 下方前次任务记录及 PROJECT 索引 |
+| 后续 v1.1 | 可信任务生命周期仍为独立规划，未整体交付 | D01 等待设计核实 | 按原计划推进，与本次桌面交付分开 |
 
 ---
 
-## 本次任务
+## 本次任务：桌面 MVP
+
+2026-11-06，Shipping / READY_TO_SHIP。用户已冻结 macOS 普通编程核心闭环并授权开发、桌面验证及推送；本次交付以[桌面需求](prd/desktop-codex-ui.md)为准。核心离线闭环 VERIFIED，完整 AC 的边缘故障、真实模型质量与其他平台为 PARTIAL；逐项证据和人工步骤见[验收记录](engineering/desktop-mvp-verification.md)。
+
+| 任务 | 当前状态 | 结果入口 |
+|---|---|---|
+| D1 | VERIFIED | Java 桌面适配、历史、审批、流式、模型配置及附件，见验收矩阵 |
+| D2 | VERIFIED | Side-History 差异与保守撤销，含用户编辑、索引及符号链接回归 |
+| D3 | VERIFIED | Electron/React 主界面、设置、桥接构建与最终 `.app` 启动 |
+| D4 | VERIFIED（表列范围） | GUI 核心流程、截图、启动说明及人工验收步骤已记录 |
+| D5 | IN_PROGRESS | 全量回归和独立复核完成；待提交、推送及远程核验 |
+
+## 前次任务记录
 
 长期记忆召回第一版：Reflecting / 本次代码交付完成，离线功能 VERIFIED，真实模型质量未验证。TASK-M01～05 完成；`./mvnw verify` 604 项通过，真实 JAR 验收 4 轮恰好 4 次本地模型请求。30 题样例命中 28/30，无关条目 570 → 2，平均记忆 Token 386 → 62；保留同义漏召回限制。实现提交 `730810de464733f30a4179ef1d99629a3a431ed7` 已同步 origin/main，远程 SHA 一致；GitHub CI `42198339753` 的 Verify 与 JAR 冒烟成功。不打 Tag、不发版本。设计、人工步骤和证据见[验收](engineering/memory-recall-verification.md)。
 
@@ -32,7 +40,7 @@ task：功能开发、独立审查与真实 JAR 离线验收完成；`./mvnw ver
 - **Current Task / Next Task（v1.1 独立规划）**: 文档归并与维护规则更新已完成；后续核对 `TASK-01`；独立 task 交付已覆盖部分 REQ-02～04，不替代完整 Release 计划
 - **Last Stable Commit**: `690a4e17578369c62eef04b5b426e994b8b1d153`
 - **Last Stable Tag**: `v1.0.0` (Commit: `2741d36`)
-- **Working Tree**: 本次工作为主前台长期记忆召回、测试与文档；保留已同步的后台任务及技能入口修改。完整 v1.1 仍未交付，Git 状态以本次同步结果核验。
+- **Working Tree**: 当前任务为桌面 MVP 适配；记忆召回、后台任务及技能入口的已提交成果保留。完整 v1.1 仍未交付，Git 状态以本次同步结果核验。
 - **Last Audited Date**: v1.1 研究基线为 2026-10-16；Phase 19 的实际验证另见本次验收。
 - **Document Map**: [`docs/PROJECT.md`](PROJECT.md)
 - **Architecture Baseline**: [`docs/TECH_DESIGN.md`](TECH_DESIGN.md)

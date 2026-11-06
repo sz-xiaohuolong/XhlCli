@@ -22,6 +22,18 @@
 6. 分期迁移时每个阶段独立编译、测试和演示，不提前引入后期模块。
 7. 在授权范围内复用成熟实现和测试，同时完成品牌、包名、Java 21 与产品差异适配。
 
+## 桌面 MVP 适配增量（2026-11-06）
+
+桌面 UI 位于 `desktop/`：Electron 主进程启动 Java 子进程，React 仅通过有限预加载接口调用本机私有 JSONL stdio。未开放新的 HTTP 服务；主帧/来源校验、sandbox、contextIsolation 与导航限制在主进程执行。原 CLI 与 Runtime API 入口继续保留。
+
+`DesktopService` 管理真实目录互斥、会话、轮次与审批；`DesktopAgent` 装配现有 ReactAgent、Provider、工具、PathGuard/HITL、技能、MCP、记忆与上下文模块。`ReactAgent.restoreHistory` 验证工具对并保留当前系统规则；`runMessage` 接受图形界面已构造的用户消息，避免普通文本附件触发终端图片/剪贴板宏。CLI 原 `run(String,...)` 语义保持。
+
+状态采用 `~/.xhlcli/desktop/state.json` 原子替换与文件锁；启动时中断旧活动轮次。文本事件增量持久化，工具与状态事件即时保存。显示事件、最终回答及模型历史按文本节点脱敏，不对序列化后的协议字符串替换。模型配置仍由既有全局配置、项目 `.env`、进程环境变量逐级覆盖。
+
+`DesktopChanges` 用 Side-History 前后快照生成本轮 diff；撤销前检查全部文件、执行位、叶子和祖先链接，不重置用户 Git 索引。后续编辑冲突拒绝；若恢复途中发生 I/O 故障，报告已恢复数量并给出撤销前备份。命令工具补充已捕获子进程树的取消、超时和中断清理，确认退出后才返回。
+
+首版仍依赖本机 Java 21，未内置 JRE、账户同步或交互终端。实际验证范围见[桌面验收](engineering/desktop-mvp-verification.md)，产品边界与输入限制见[需求](prd/desktop-codex-ui.md)。
+
 ## 2.1 本次实现增量：自动 Team 与失败重规划（Phase 19）
 
 `ChatLoop` 在普通输入执行前按 `TeamMode` 选择入口；`TeamRouter` 以系统约束和最近八条正文做一次无工具分类，15 秒超时或无效响应回退普通模式，用户取消不会启动执行器。`/team` 直接进入原有编排器；默认 manual，启动配置和会话切换分别维护。

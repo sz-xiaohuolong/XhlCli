@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,5 +86,22 @@ class ExecuteCommandToolTest {
         ToolOutput output = tool.execute(args, token);
 
         assertTrue(output.summary().contains("命令已被取消"));
+    }
+    @Test
+    void cancellationWaitsForDescendantsToStop() throws Exception {
+        ObjectNode args=JsonNodeFactory.instance.objectNode().put("command", "sh -c 'echo $$ > child.pid; sleep 30; echo survived > survived.txt' & wait");
+        var token=new CancellationToken();
+        try(var executor=Executors.newSingleThreadExecutor()) {
+            var future=executor.submit(()->tool.execute(args,token));
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5);
+            while(!Files.exists(tempDir.resolve("child.pid"))&&System.nanoTime()<deadline)Thread.sleep(10);
+            assertTrue(Files.exists(tempDir.resolve("child.pid")));
+            long pid=Long.parseLong(Files.readString(tempDir.resolve("child.pid")).strip());
+            try {
+                token.cancel();assertTrue(future.get(6,TimeUnit.SECONDS).summary().contains("取消"));
+                org.junit.jupiter.api.Assertions.assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false),"取消确认前必须结束子进程");
+                org.junit.jupiter.api.Assertions.assertFalse(Files.exists(tempDir.resolve("survived.txt")));
+            } finally {ProcessHandle.of(pid).ifPresent(handle->{handle.descendants().forEach(ProcessHandle::destroyForcibly);handle.destroyForcibly();});}
+        }
     }
 }

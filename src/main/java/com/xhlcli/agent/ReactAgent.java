@@ -206,6 +206,17 @@ public final class ReactAgent implements AgentRunner {
 
     @Override
     public synchronized RunResult run(String input, RunEventSink events, CancellationToken userCancellation) {
+        return runInternal(input,null,events,userCancellation);
+    }
+
+    /** 图形适配层传入已验证的用户消息；不重新解释正文中的终端图片或剪贴板宏。 */
+    public synchronized RunResult runMessage(ChatMessage message, RunEventSink events, CancellationToken userCancellation) {
+        Objects.requireNonNull(message,"message");
+        if(message.role()!=ChatMessage.Role.USER)throw new IllegalArgumentException("只接受用户消息");
+        return runInternal(message.content(),message,events,userCancellation);
+    }
+
+    private RunResult runInternal(String input, ChatMessage prepared, RunEventSink events, CancellationToken userCancellation) {
         Objects.requireNonNull(input, "input");
         Objects.requireNonNull(events, "events");
         Objects.requireNonNull(userCancellation, "userCancellation");
@@ -242,7 +253,7 @@ public final class ReactAgent implements AgentRunner {
                 return finish(lifecycle, sequencer, runId, RunStatus.FAILED, "MODEL_UNSUPPORTED_TOOLS", msg, iterations, usage);
             }
             pruneHistoricalImagePayloads(workingHistory);
-            workingHistory.add(com.xhlcli.image.ImageReferenceParser.userMessage(input, projectDirectory));
+            workingHistory.add(prepared!=null?prepared:com.xhlcli.image.ImageReferenceParser.userMessage(input, projectDirectory));
             MemoryRecallResult turnRecall = MemoryRecallResult.empty();
             if (recallMemory != null && contextAssembler != null) {
                 // 查询只补充用户消息，不能混入工具输出或助手推断。
@@ -489,6 +500,28 @@ public final class ReactAgent implements AgentRunner {
     @Override
     public synchronized List<ChatMessage> history() {
         return committedHistory;
+    }
+
+    /** 恢复已提交的会话，始终保留当前规则并拒绝不完整的工具调用历史。 */
+    public synchronized void restoreHistory(List<ChatMessage> saved) {
+        Objects.requireNonNull(saved, "saved");
+        List<ChatMessage> restored = new ArrayList<>();
+        restored.add(systemMessage);
+        java.util.Set<String> pending = new java.util.HashSet<>();
+        for (ChatMessage message : saved) {
+            if (message.role() == ChatMessage.Role.SYSTEM) continue;
+            if (message.role() == ChatMessage.Role.TOOL) {
+                if (!pending.remove(message.toolCallId())) throw new IllegalArgumentException("历史工具结果缺少对应调用");
+            } else {
+                if (!pending.isEmpty()) throw new IllegalArgumentException("历史包含未完成的工具调用");
+                for (var call : message.toolCalls()) {
+                    if (!pending.add(call.id())) throw new IllegalArgumentException("历史工具调用标识重复");
+                }
+            }
+            restored.add(message);
+        }
+        if (!pending.isEmpty()) throw new IllegalArgumentException("历史包含未完成的工具调用");
+        committedHistory = List.copyOf(restored);
     }
 
     private static void requestStop(

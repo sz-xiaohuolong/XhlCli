@@ -25,3 +25,9 @@ tmp/
 .worktrees/
 *.tmp
 *.swp
+
+# 桌面依赖与打包输出
+desktop/node_modules/
+desktop/dist/
+desktop/release/
+desktop/resources/

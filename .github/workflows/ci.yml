@@ -23,6 +23,18 @@ jobs:
           cache: maven
       - name: Verify
         run: ./mvnw --batch-mode verify
+      - name: 准备桌面端 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: 验证桌面桥接与界面构建
+        working-directory: desktop
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm run build
       - name: Smoke test executable JAR
         run: |
           JAR_FILE=$(ls target/xhlcli-*.jar | grep -v original | head -n 1)

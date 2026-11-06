@@ -24,6 +24,23 @@ XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目
 - 受控 ReAct 循环、9 个本地工具、安全围栏与人工审批 (HITL)；
 - Java 21 可执行 JAR、离线自动测试和 CI 配置（本次结果见下方验收文档）。
 
+## macOS 桌面 MVP
+
+`desktop/` 提供参考 Codex 布局的 XhlCLI 界面，直接调用现有 Java Agent、Provider、工具、审批、技能、记忆与 MCP。支持多项目会话、流式聊天、历史续聊、文件/图片、模型设置、diff 和经确认的本轮安全撤销。
+
+开发机需 Java 21 与 Node.js 22 或更新版本：
+
+```bash
+./mvnw verify
+cd desktop
+npm ci
+npm start
+```
+
+在桌面设置中填写所用 Provider 的模型、服务地址和 API Key，保存后测试连接，再打开项目发送任务。关闭窗口仅隐藏，退出使用应用菜单。首版保留普通编程流程，Plan/Team、插件管理、自动化、内置终端专门页面后续再做。
+
+[桌面运行、打包和协议说明](desktop/README.md) · [人工验收与实际证据](docs/engineering/desktop-mvp-verification.md)
+
 ## 后台只读任务
 
 启动终端后输入 `/task add 阅读 README.md 并说明启动流程`，立即得到任务 ID，可继续前台对话。用 `/task list` 刷新状态、`/task log <ID>` 查看当前输出或最终结果，`/task cancel <ID>` 发起取消。`cancel_requested` 表示等待停止，`canceled` 才表示本地执行已停止。
