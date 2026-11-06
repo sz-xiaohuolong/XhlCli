@@ -32,3 +32,5 @@
 | **Phase 19** | [自动 Team 与重规划计划](2026-11-06-phase-19-team-routing-and-replanning.md) | 代码同步，未发布版本 | [设计](../specs/2026-11-06-phase-19-team-routing-and-replanning-design.md) | 结果见 [验收](../engineering/team-routing-and-replanning-verification.md) |
 
 2026-11-06 独立任务：[task 后台任务可靠性实施计划](2026-11-06-task-background-lifecycle.md)，对应[验收与交付](../engineering/task-background-lifecycle-verification.md)。
+
+2026-11-06 独立任务：[主对话长期记忆召回实施计划](2026-11-06-memory-recall.md)，对应[验收、评测与人工步骤](../engineering/memory-recall-verification.md)。

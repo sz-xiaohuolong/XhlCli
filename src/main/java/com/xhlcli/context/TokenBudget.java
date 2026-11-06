@@ -2,6 +2,7 @@ package com.xhlcli.context;
 
 import com.xhlcli.model.ChatMessage;
 import com.xhlcli.model.ToolCall;
+import com.xhlcli.model.ToolDefinition;
 
 import java.util.List;
 
@@ -52,6 +53,16 @@ public class TokenBudget {
 
     public boolean isWithinBudget(List<ChatMessage> messages) {
         return estimateTokens(messages) <= getAvailableForConversation();
+    }
+
+    /** 实际消息已包含系统规则；不再用固定预留量代替实际系统/工具开销。 */
+    public int remainingInputTokens(List<ChatMessage> messages, List<ToolDefinition> tools) {
+        long remaining = (long) contextWindow - reservedForResponse - estimateTokens(messages);
+        for (ToolDefinition tool : tools) {
+            remaining -= (long) estimateTokens(tool.name()) + estimateTokens(tool.description())
+                    + estimateTokens(tool.parameters().toString()) + 16;
+        }
+        return (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, remaining));
     }
 
     public static final int ESTIMATED_IMAGE_TOKENS = 1000;

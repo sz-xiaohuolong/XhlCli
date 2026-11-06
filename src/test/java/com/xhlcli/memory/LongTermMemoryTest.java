@@ -4,11 +4,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class LongTermMemoryTest {
+
+    @Test
+    void readsOldAndExtendedRecordsWhileSkippingBrokenLines(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("long_term.jsonl");
+        Files.writeString(file, """
+                {"id":"old","content":"使用 Java 21","scope":"project","timestamp":"2026-01-01T00:00:00Z","source":"user"}
+                不是 JSON
+                null
+                {"id":"new","content":"使用 Redis","scope":"project","timestamp":"2026-01-01T00:00:00Z","source":"user","pinned":true,"expiresAt":"2099-01-01T00:00:00Z","supersededBy":null}
+                """);
+        var entries = new LongTermMemory(file).loadAll();
+        assertEquals(List.of("old", "new"), entries.stream().map(MemoryEntry::id).toList());
+    }
 
     @Test
     void testSaveAndLoad(@TempDir Path tempDir) {

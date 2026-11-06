@@ -382,6 +382,16 @@ base
 
 每层独立预算并记录来源。项目规则和长期记忆不能在 `/clear` 时误删；临时检索结果不能持久保存为长期记忆。
 
+### 11.1.1 主前台记忆召回（2026-11-06）
+
+`ChatBootstrap → ReactAgent.setMemoryRecall → MemoryManager.recall → MemoryRetriever` 每轮只执行一次。MemoryManager 绑定全局/当前项目文件，查询不能指定路径；保留 JSONL 全量读取，发送给模型时只取选中内容。MemoryEntry 兼容五字段旧记录，新增 pinned=false、expiresAt=null、supersededBy=null；显式过期/被替代记录排除，坏行跳过，任一文件读取失败则本轮无动态记忆。
+
+检索采用中英文词项、IDF 加权查询覆盖率、pinned 优先、内容去重、完整命中段落节选。中文片段归一权重防止重叠 ngram 淹没技术词；当前含技术标识符时普通候选至少命中一个。指代问题仅补最多两条近期用户消息。默认 5 条/1500 估算 Token/0.18 最低分，可由环境或项目 .env 调整。算法与配置契约见[设计](specs/2026-11-06-memory-recall.md)。
+
+ContextAssembler 将选中资料作为独立 USER 消息插到系统消息之后，包含来源、时间与参考边界，复制请求而不修改历史。每次请求使用同一工具定义快照计算预算并发送；实际系统、工具 schema、对话、图片和输出预留共同占用窗口。内循环仅缩减本轮快照；基础请求超限明确返回 CONTEXT_BUDGET，不为召回额外调用 LLM 摘要，不截断当前输入与规则。
+
+`/memory recall <问题>` 只读预览；`/context` 显示最近实际发送的结果，预算拒绝时保留上一已发送快照，`/clear` 清除该快照。Plan、Team、后台 Agent 保留原路径；后台使用 setMemorySupplier 的全量快照语义。新主路径不采用下述旧路径的自动压缩流程。测试、评测局限和人工步骤见[验收](engineering/memory-recall-verification.md)。
+
 ### 11.2 压缩门槛
 
 门槛按模型窗口动态计算，并至少预留最大输出、下一轮工具结果和安全缓冲。压缩结果使用结构化段落，保留目标、约束、变更、验证和剩余任务。

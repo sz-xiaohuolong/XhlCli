@@ -1,0 +1,387 @@
+{
+  "provenance": "人工编写的项目代表性场景，非真实用户日志；预期 ID 独立标注，供人工复核。",
+  "memories": [
+    {
+      "id": "redis-decision",
+      "content": "由于部署复杂度，最终没有采用 Redis。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "redis-proposal",
+      "content": "Redis 缓存方案曾做初步讨论，尚未落地。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "java",
+      "content": "项目使用 Java 21，不支持 Java 17 运行。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "build",
+      "content": "验收构建使用 ./mvnw verify，产物为 target/xhlcli-1.0.1.jar。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "jsonl",
+      "content": "长期记忆保留 JSONL，第一版允许读取全部记录，但只发送相关记忆。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "sqlite",
+      "content": "任务状态使用 SQLite 本机持久化，支持重启查询。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "mcp",
+      "content": "MCP 服务启动超时为 3 秒，失败时降级继续对话。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "snapshot",
+      "content": "Side-Git 快照隔离保存工作区变更，不污染用户 Git 历史。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "background",
+      "content": "后台任务仅允许只读工具，不允许 execute_command 和 write_file。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "scope",
+      "content": "记忆分 global 和 project 范围，只读取当前工作区与全局记录。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "skill",
+      "content": "通过 /git-feature-workflow 显式加载技能，内部 load_skill 读取正文。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "release",
+      "content": "只同步 origin/main，不打 Tag，不发布新版本。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "config",
+      "content": "用户 API Key 配置位于 ~/.xhlcli/config.json，环境变量优先。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "budget",
+      "content": "上下文预算同时计算系统提示词、工具定义、图片和当前用户消息，不能静默裁剪问题。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "error",
+      "content": "ERR-404 表示本地测试资源不存在，需要检查文件名。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "latency",
+      "content": "延迟优化记录：复用连接池，减少握手开销。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "path",
+      "content": "WorkspacePathResolver 禁止 ../ 路径逃逸，工具只能访问工作区。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "coffee",
+      "content": "用户喜欢喝咖啡，不喝含糖饮料。",
+      "scope": "global",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "tests",
+      "content": "JUnit 单元测试使用临时目录，MockWebServer 用于协议验证。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    },
+    {
+      "id": "cancel",
+      "content": "取消任务必须等待执行确认，不能立即把运行中任务标记为已取消。",
+      "scope": "project",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "source": "evaluation"
+    }
+  ],
+  "cases": [
+    {
+      "id": "Q01",
+      "question": "为什么当初没有采用 Redis？",
+      "expectedIds": [
+        "redis-decision",
+        "redis-proposal"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q02",
+      "question": "Redis 部署复杂度是什么？",
+      "expectedIds": [
+        "redis-decision"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q03",
+      "question": "Redis 缓存讨论进展",
+      "expectedIds": [
+        "redis-proposal"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q04",
+      "question": "Java 版本要求是什么？",
+      "expectedIds": [
+        "java"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q05",
+      "question": "Java 17 能运行吗？",
+      "expectedIds": [
+        "java"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q06",
+      "question": "如何执行 ./mvnw verify？",
+      "expectedIds": [
+        "build"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q07",
+      "question": "target/xhlcli-1.0.1.jar 在哪里？",
+      "expectedIds": [
+        "build"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q08",
+      "question": "长期记忆为什么保留 JSONL？",
+      "expectedIds": [
+        "jsonl"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q09",
+      "question": "SQLite 保存了什么？",
+      "expectedIds": [
+        "sqlite"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q10",
+      "question": "MCP 启动超时怎么办？",
+      "expectedIds": [
+        "mcp"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q11",
+      "question": "Side-Git 快照会污染 Git 历史吗？",
+      "expectedIds": [
+        "snapshot"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q12",
+      "question": "后台允许 execute_command 吗？",
+      "expectedIds": [
+        "background"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q13",
+      "question": "后台能调用 write_file 吗？",
+      "expectedIds": [
+        "background"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q14",
+      "question": "global 和 project 记忆分别来自哪里？",
+      "expectedIds": [
+        "scope"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q15",
+      "question": "如何使用 /git-feature-workflow？",
+      "expectedIds": [
+        "skill"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q16",
+      "question": "load_skill 做了什么？",
+      "expectedIds": [
+        "skill"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q17",
+      "question": "同步 origin/main 后需要打 Tag 吗？",
+      "expectedIds": [
+        "release"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q18",
+      "question": "~/.xhlcli/config.json 保存什么？",
+      "expectedIds": [
+        "config"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q19",
+      "question": "API Key 的环境变量优先吗？",
+      "expectedIds": [
+        "config"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q20",
+      "question": "上下文预算要算工具定义吗？",
+      "expectedIds": [
+        "budget"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q21",
+      "question": "ERR-404 如何排查？",
+      "expectedIds": [
+        "error"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q22",
+      "question": "WorkspacePathResolver 如何处理 ../？",
+      "expectedIds": [
+        "path"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q23",
+      "question": "用户喝咖啡有什么偏好？",
+      "expectedIds": [
+        "coffee"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q24",
+      "question": "JUnit 和 MockWebServer 用在哪里？",
+      "expectedIds": [
+        "tests"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q25",
+      "question": "取消任务要等执行确认吗？",
+      "expectedIds": [
+        "cancel"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q26",
+      "question": "刚才那个为什么没有采用？",
+      "expectedIds": [
+        "redis-decision",
+        "redis-proposal"
+      ],
+      "recentUserMessages": [
+        "为什么没有使用 Redis？"
+      ]
+    },
+    {
+      "id": "Q27",
+      "question": "如何部署 Kubernetes？",
+      "expectedIds": [],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q28",
+      "question": "如何配置 OAuth 回调？",
+      "expectedIds": [],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q29",
+      "question": "响应慢该怎么解决？",
+      "expectedIds": [
+        "latency"
+      ],
+      "recentUserMessages": []
+    },
+    {
+      "id": "Q30",
+      "question": "重启后怎样找回作业进度？",
+      "expectedIds": [
+        "sqlite"
+      ],
+      "recentUserMessages": []
+    }
+  ]
+}

@@ -140,6 +140,10 @@ java -jar target/xhlcli-1.0.1.jar --version
 | `/help` | 显示帮助信息 |
 | `/config` | 显示非敏感配置与来源 |
 | `/clear` | 清空当前进程内的会话历史 |
+| `/save [--global] <内容>` | 保存项目或全局长期记忆 |
+| `/memory recall <问题>` | 只读预览按需召回、分数、命中项与诊断，不调用模型 |
+| `/memory list` | 列出保存的长期记忆 |
+| `/context` | 查看上下文预算与主对话最近实际注入的记忆 |
 | `/plan [goal]` | 触发 DAG 拓扑分层规划与受控执行 |
 | `/team <goal>` | 手动启动 Team，由规划者、执行者、审查者分工完成任务 |
 | `/team-mode [auto\|manual]` | 查询或切换当前会话的自动团队选择，不写全局配置 |
@@ -155,6 +159,16 @@ java -jar target/xhlcli-1.0.1.jar --version
 | `/task [list\|add\|log\|cancel]` | 后台持久任务队列与执行状态管理 |
 | `/exit` | 安全退出 |
 | Ctrl+C | 取消正在生成的响应 |
+
+## 主对话长期记忆召回
+
+主前台 ReactAgent 每轮从全局及当前项目 JSONL 中检索一次，过滤过期和已替代记录，按文本相关性排序、去重后临时注入请求。同轮模型/工具循环复用，下一轮重新读取；资料不累积到对话历史，不增加模型调用。
+
+默认最多 5 条、1500 个估算 Token、最低相关性 0.18；固定记忆也占用条数与预算。可通过环境变量或项目 `.env` 配置 `XHLCLI_MEMORY_MAX_ENTRIES`、`XHLCLI_MEMORY_TOKEN_BUDGET`、`XHLCLI_MEMORY_MIN_SCORE`，环境变量优先，条数或预算设为 0 可禁用注入。本次未增加用户配置 JSON 或 CLI 配置项。
+
+最终预算包含实际系统提示词、工具定义、图片/对话与输出预留，空间不足先减少记忆；基础请求仍超限时明确停止，不静默删除当前问题或项目规则。读取失败以无动态记忆继续。记忆携带来源、时间与“历史参考资料”标识，不代表当前事实或执行授权。
+
+本版只覆盖主前台 ReactAgent；Plan、Team、后台 Agent 未接入。验收时用 `--team-mode manual` 保持主对话路径。文本基线可能漏掉同义表达，详见[30 题评测与人工验收](docs/engineering/memory-recall-verification.md)。离线终端验收：先执行 `./mvnw verify`，成功后执行 `python3 scripts/memory_recall_acceptance.py`。
 
 ## 自动选择 Team 与失败重规划
 

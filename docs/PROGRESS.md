@@ -2,7 +2,8 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 本次小修复 | `/<技能名> <任务描述>` 已支持确定性加载并执行；新增 6 项回归，接入远程更新前全量 559 项测试通过 | 仅离线验证；按用户要求，接入远程更新后不重跑测试 | 已授权以 `feat` 提交同步 `origin/main`；沿用已有测试结果，不重复测试 |
+| 长期记忆召回 | 主前台按需召回、兼容 JSONL、真实请求估算预算与 CLI 诊断完成；604 项测试及真实 JAR 验收通过 | 真实模型答案质量待人工验收；其他 Agent 模式未接入 | TASK-M01～04 完成；TASK-M05 准备提交并按授权同步 origin/main，见[验收](engineering/memory-recall-verification.md) |
+| 前次小修复 | `/<技能名> <任务描述>` 已支持确定性加载并执行；新增 6 项回归，接入远程更新前全量 559 项测试通过 | 仅离线验证；按用户要求，接入远程更新后不重跑测试 | 已授权以 `feat` 提交同步 `origin/main`；沿用已有测试结果，不重复测试 |
 | 前次实施 | Phase 19 自动 Team 与失败重规划已实现；553 项测试及真实 JAR 离线验收通过 | 无本次阻塞；真实模型质量未测 | TASK-19-01～05 完成，见 [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) |
 | 本次实施 | task 后台独立只读执行、工作区隔离、取消确认和跨重启结果查询；575 项测试通过 | 真实 JAR 验收已通过；真实模型质量、跨主机执行未验证 | 见 [task 计划](plans/2026-11-06-task-background-lifecycle.md)与[交付证据](engineering/task-background-lifecycle-verification.md) |
 | 当前规划 | `v1.1` 第一批“可信任务生命周期”的需求、拟议设计、实施计划和验收矩阵已形成 | D01 安全文件操作仍待评审；本轮 task 采用无迁移本机文件锁方案，v1.1 整体未完成 | 按 [TASK-01](plans/2026-10-16-v1.1-trusted-task-lifecycle.md)核实能力与迁移条件，闭合具体决定 |
@@ -12,6 +13,8 @@
 ---
 
 ## 本次任务
+
+长期记忆召回第一版：Shipping / READY_TO_SHIP，离线功能 VERIFIED，真实模型质量未验证。TASK-M01～04 完成；`./mvnw verify` 604 项通过，真实 JAR 验收 4 轮恰好 4 次本地模型请求。30 题样例命中 28/30，无关条目 570 → 2，平均记忆 Token 386 → 62；保留同义漏召回限制。TASK-M05 正按既有授权提交并同步 origin/main，不打 Tag、不发版本。设计、人工步骤和证据见[验收](engineering/memory-recall-verification.md)。
 
 2026-11-06 显式技能调用入口修复：仅在未知内置命令分支查询技能注册表，复用 `LoadSkillTool` 读取正文，再进入现有任务链路。已覆盖禁用/损坏拒绝、缺少任务提示、同名内置命令优先、大小写与多行输入、重复调用、项目覆盖与热重载。接入远程后台任务更新前，`./mvnw test -Dtest=SkillPromptCliTest,ChatLoopTest,ChatCommandParserTest,LoadSkillToolTest,SkillRegistryTest` 34 项通过；`./mvnw test` 559 项通过（0 失败、0 错误、0 跳过）。README、终端帮助及 TECH_DESIGN 已同步；未打包或发布。 用户授权以 `feat` 提交同步 `origin/main`，接入远程更新后不重复测试。
 
@@ -29,7 +32,7 @@ task：功能开发、独立审查与真实 JAR 离线验收完成；`./mvnw ver
 - **Current Task / Next Task（v1.1 独立规划）**: 文档归并与维护规则更新已完成；后续核对 `TASK-01`；独立 task 交付已覆盖部分 REQ-02～04，不替代完整 Release 计划
 - **Last Stable Commit**: `690a4e17578369c62eef04b5b426e994b8b1d153`
 - **Last Stable Tag**: `v1.0.0` (Commit: `2741d36`)
-- **Working Tree**: 本次仅包含 task 模块、最小搜索安全补充、测试、离线验收脚本和相关文档，保留已同步的 Phase 19；完整 v1.1 仍未交付。Git 状态以本次同步结果核验。
+- **Working Tree**: 本次工作为主前台长期记忆召回、测试与文档；保留已同步的后台任务及技能入口修改。完整 v1.1 仍未交付，Git 状态以本次同步结果核验。
 - **Last Audited Date**: v1.1 研究基线为 2026-10-16；Phase 19 的实际验证另见本次验收。
 - **Document Map**: [`docs/PROJECT.md`](PROJECT.md)
 - **Architecture Baseline**: [`docs/TECH_DESIGN.md`](TECH_DESIGN.md)

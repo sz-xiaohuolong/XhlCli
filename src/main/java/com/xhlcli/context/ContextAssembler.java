@@ -2,6 +2,8 @@ package com.xhlcli.context;
 
 import com.xhlcli.memory.MemoryEntry;
 import com.xhlcli.model.ChatMessage;
+import com.xhlcli.model.ToolDefinition;
+import com.xhlcli.memory.MemoryRecallResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,27 @@ public class ContextAssembler {
 
     public TokenBudget getBudget() {
         return budget;
+    }
+
+    public record RecalledContext(List<ChatMessage> messages, MemoryRecallResult recall) {
+        public RecalledContext { messages = List.copyOf(messages); }
+    }
+
+    /** 将参考资料放进请求副本，不写入调用方的对话历史，也不提高到系统角色。 */
+    public RecalledContext withRecall(List<ChatMessage> history, List<ToolDefinition> tools, MemoryRecallResult recall) {
+        int available = budget.remainingInputTokens(history, tools);
+        if (available < 0) throw new IllegalArgumentException("基础请求已超出上下文预算");
+        MemoryRecallResult fitted = recall.fitBudget(available);
+        List<ChatMessage> messages = new ArrayList<>(history);
+        if (!fitted.selected().isEmpty()) {
+            int index = 0;
+            while (index < messages.size() && messages.get(index).role() == ChatMessage.Role.SYSTEM) index++;
+            messages.add(index, ChatMessage.user(fitted.render()));
+        }
+        if (budget.remainingInputTokens(messages, tools) < 0) {
+            throw new IllegalStateException("记忆注入后的请求超过上下文预算");
+        }
+        return new RecalledContext(messages, fitted);
     }
 
     /**

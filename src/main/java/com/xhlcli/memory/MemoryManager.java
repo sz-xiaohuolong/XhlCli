@@ -39,6 +39,29 @@ public class MemoryManager {
                 .collect(Collectors.toList());
     }
 
+    /** 全局和当前项目由构造时绑定，查询不能扩大可见范围。 */
+    public MemoryRecallResult recall(MemoryQuery query) {
+        var global = globalMemory.read();
+        var project = projectMemory.read();
+        List<String> diagnostics = new ArrayList<>();
+        global.diagnostics().forEach(d -> diagnostics.add("global: " + d));
+        project.diagnostics().forEach(d -> diagnostics.add("project: " + d));
+        if (global.readFailed() || project.readFailed()) {
+            return MemoryRecallResult.of(List.of(), true, false, diagnostics);
+        }
+        List<MemoryEntry> candidates = new ArrayList<>();
+        for (var entry : global.entries()) {
+            if (entry.scope().equals("global")) candidates.add(entry);
+            else diagnostics.add("global: 记录范围不匹配，已跳过");
+        }
+        for (var entry : project.entries()) {
+            if (entry.scope().equals("project")) candidates.add(entry);
+            else diagnostics.add("project: 记录范围不匹配，已跳过");
+        }
+        var result = new MemoryRetriever().recall(candidates, query);
+        return MemoryRecallResult.of(result.selected(), false, result.budgetLimited(), diagnostics);
+    }
+
     public boolean delete(String id) {
         boolean deletedFromGlobal = globalMemory.delete(id);
         boolean deletedFromProject = projectMemory.delete(id);

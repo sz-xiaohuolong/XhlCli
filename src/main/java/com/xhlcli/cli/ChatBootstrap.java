@@ -212,7 +212,12 @@ public final class ChatBootstrap implements ChatRunner {
             com.xhlcli.memory.ConversationHistoryCompactor compactor = new com.xhlcli.memory.ConversationHistoryCompactor(client);
             agent.setContextAssembler(contextAssembler);
             agent.setCompactor(compactor);
-            agent.setMemorySupplier(memoryManager::loadAll);
+            try {
+                agent.setMemoryRecall(memoryManager, com.xhlcli.memory.MemoryRecallSettings.fromEnvironment(mergedEnv));
+            } catch (IllegalArgumentException failure) {
+                err.println("配置错误: " + failure.getMessage());
+                return 3;
+            }
             agent.setProjectDirectory(projectDirectory);
             agent.setConcurrencyLimits(config.agentSettings().maxConcurrency(), config.agentSettings().toolTimeout());
 

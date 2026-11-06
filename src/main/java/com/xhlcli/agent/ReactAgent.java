@@ -18,6 +18,9 @@ import com.xhlcli.model.ToolCall;
 import com.xhlcli.model.ToolDefinition;
 import com.xhlcli.model.ToolResult;
 import com.xhlcli.tool.ToolExecutor;
+import com.xhlcli.memory.MemoryManager;
+import com.xhlcli.memory.MemoryRecallResult;
+import com.xhlcli.memory.MemoryRecallSettings;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -52,6 +55,9 @@ public final class ReactAgent implements AgentRunner {
     private com.xhlcli.context.ContextAssembler contextAssembler;
     private com.xhlcli.memory.ConversationHistoryCompactor compactor;
     private java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier;
+    private MemoryManager recallMemory;
+    private MemoryRecallSettings recallSettings = MemoryRecallSettings.defaults();
+    private volatile MemoryRecallResult lastMemoryRecall;
     private java.nio.file.Path projectDirectory = java.nio.file.Path.of(".").toAbsolutePath().normalize();
 
     public void setProjectDirectory(java.nio.file.Path projectDirectory) {
@@ -77,6 +83,14 @@ public final class ReactAgent implements AgentRunner {
     public void setMemorySupplier(java.util.function.Supplier<java.util.List<com.xhlcli.memory.MemoryEntry>> memorySupplier) {
         this.memorySupplier = memorySupplier;
     }
+
+    public void setMemoryRecall(MemoryManager memory, MemoryRecallSettings settings) {
+        recallMemory = Objects.requireNonNull(memory);
+        recallSettings = Objects.requireNonNull(settings);
+    }
+
+    public MemoryRecallResult lastMemoryRecall() { return lastMemoryRecall; }
+    public MemoryRecallSettings memoryRecallSettings() { return recallSettings; }
 
     public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
         this.toolDefinitions = toolDefinitions != null ? List.copyOf(toolDefinitions) : List.of();
@@ -229,6 +243,20 @@ public final class ReactAgent implements AgentRunner {
             }
             pruneHistoricalImagePayloads(workingHistory);
             workingHistory.add(com.xhlcli.image.ImageReferenceParser.userMessage(input, projectDirectory));
+            MemoryRecallResult turnRecall = MemoryRecallResult.empty();
+            if (recallMemory != null && contextAssembler != null) {
+                // 查询只补充用户消息，不能混入工具输出或助手推断。
+                var recentUsers = committedHistory.stream().filter(m -> m.role() == ChatMessage.Role.USER)
+                        .map(ChatMessage::content).toList();
+                int available = contextAssembler.getBudget().remainingInputTokens(workingHistory, toolDefinitions);
+                var query = recallSettings.query(input, recentUsers)
+                        .withTokenBudget(Math.min(recallSettings.tokenBudget(), Math.max(0, available)));
+                try {
+                    turnRecall = recallMemory.recall(query);
+                } catch (RuntimeException failure) {
+                    turnRecall = MemoryRecallResult.of(List.of(), true, false, List.of("记忆召回失败，本轮不注入动态记忆"));
+                }
+            }
             RepetitionGuard repetitionGuard = new RepetitionGuard(mapper);
             Set<String> callIds = new HashSet<>();
             int emptyResponses = 0;
@@ -259,8 +287,20 @@ public final class ReactAgent implements AgentRunner {
                     lifecycle.requireActive();
                     sequencer.emit(new RunEvent.ModelRequestStarted(sequencer.metadata(modelIteration)));
                     sequencer.beginTextStream();
+                    // MCP 可异步更新工具；本次预算与发送必须使用同一份不可变快照。
+                    List<ToolDefinition> requestTools = toolDefinitions;
                     List<ChatMessage> toSend = List.copyOf(workingHistory);
-                    if (contextAssembler != null) {
+                    if (contextAssembler != null && recallMemory != null) {
+                        if (contextAssembler.getBudget().remainingInputTokens(workingHistory, requestTools) < 0) {
+                            sequencer.emitTextDelta(modelIteration, "当前问题、系统规则和工具已超过上下文估算预算，请缩小问题或清理历史后重试。\n");
+                            sequencer.finishTextStream(modelIteration, true);
+                            return finish(lifecycle, sequencer, runId, RunStatus.LIMIT_REACHED, "CONTEXT_BUDGET", "", iterations, usage);
+                        }
+                        var assembled = contextAssembler.withRecall(workingHistory, requestTools, turnRecall);
+                        turnRecall = assembled.recall();
+                        lastMemoryRecall = turnRecall;
+                        toSend = assembled.messages();
+                    } else if (contextAssembler != null) {
                         String baseSys = "";
                         List<ChatMessage> pure = new java.util.ArrayList<>();
                         for (ChatMessage m : workingHistory) {
@@ -276,7 +316,7 @@ public final class ReactAgent implements AgentRunner {
                         java.util.List<com.xhlcli.memory.MemoryEntry> activeMemories = memorySupplier != null ? memorySupplier.get() : null;
                         toSend = contextAssembler.assemble(baseSys.trim(), "", "", "", "", activeMemories, null, pure);
                     }
-                    response = client.stream(toSend, toolDefinitions, delta -> {
+                    response = client.stream(toSend, requestTools, delta -> {
                         if (!delta.isEmpty() && gate.stopReason() == StopReason.NONE) {
                             lifecycle.requireActive();
                             sequencer.emitTextDelta(modelIteration, delta);
@@ -435,6 +475,7 @@ public final class ReactAgent implements AgentRunner {
     @Override
     public synchronized void clearHistory() {
         committedHistory = List.of(systemMessage);
+        lastMemoryRecall = null;
     }
 
     /** 接收同一前台会话内 Team 的最终结果，供下一轮追问使用。 */

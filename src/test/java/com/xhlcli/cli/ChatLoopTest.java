@@ -37,6 +37,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChatLoopTest {
     @Test
+    void memoryRecallPreviewExplainsSelectionWithoutStartingAgent(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+        FakeAgent agent = new FakeAgent();
+        Harness h = new Harness(new ListInput(List.of("/memory recall Redis", "/exit")), agent);
+        var memory = new com.xhlcli.memory.MemoryManager(dir.resolve("global"), dir.resolve("project"));
+        memory.saveProject("Redis 因运维复杂被放弃", "user");
+        memory.saveProject("Java 21", "user");
+        h.loop.setMemoryManager(memory);
+        h.loop.run();
+        assertTrue(agent.inputs.isEmpty());
+        assertTrue(h.out().contains("Redis 因运维复杂被放弃"));
+        assertTrue(h.out().contains("命中"));
+        assertFalse(h.out().contains("Java 21"));
+    }
+
+    @Test
     void manualToggleStopsClassificationAndMalformedResponseFallsBackOnce() {
         FakeAgent agent = new FakeAgent();
         Harness h = new Harness(new ListInput(List.of("/team-mode auto", "第一个请求", "/team-mode manual", "第二个请求", "/exit")), agent);

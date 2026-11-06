@@ -10,11 +10,11 @@
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
-- **本次实施**：[Phase 19 自动 Team 与失败重规划](prd/phase-19-team-routing-and-replanning.md)；当前状态与验证见 [PROGRESS](PROGRESS.md)。
+- **本次实施**：[主对话长期记忆召回](prd/memory-recall.md)；当前状态与验证见 [PROGRESS](PROGRESS.md)。
 - **后续独立规划**: [`v1.1` 可信任务生命周期](prd/v1.1-trusted-task-lifecycle.md)（目标版本 `v1.1.0`；第一批范围已确定，设计与实施计划已形成提案，尚未完整实现；后台只读任务子集已单独交付）
 - **Published Baseline**: `v1.0.1`（全局 `~/.xhlcli/config.json` 支持 API Key 与多 Provider 凭据映射，2026-10-07）
   - 基线：Phase 18 现代化静态官网 (`website/`)、交互式终端模拟器、全量指令速查、Vercel 部署配置与跨平台 `install.sh`
-- **Quality Profile**: 沿用离线单元、集成、契约与终端验收；本次结果见 [Phase 19 验收](engineering/team-routing-and-replanning-verification.md)。2026-10-16 发现的 v1.1 缺陷仍按其独立验收矩阵追踪。
+- **Quality Profile**: 沿用离线单元、集成、契约与终端验收；本次结果见 [记忆召回验收](engineering/memory-recall-verification.md)。2026-10-16 发现的 v1.1 缺陷仍按其独立验收矩阵追踪。
 - **Product Summary**: 基于 Java 21 与本地优先原则构建的高性能轻量终端 Coding Agent，具备受控 ReAct、安全沙箱围栏、AST 代码库 RAG、DAG 规划执行、多 Agent 协同、Side-History 隔离快照恢复、后台持久任务/Runtime API 与图片多模态上下文预处理/视觉防御护栏。
 - **Primary Users**: 后端及全栈软件工程师，偏好在终端高效完成跨文件重构、代码探索与工程任务。
 
@@ -50,7 +50,9 @@
 
 使用 `vibe-workflow` 继续开发时沿用以上目录。项目规则见 [AGENTS](../AGENTS.md)，当前执行事实见 [PROGRESS](PROGRESS.md)；版本只通过下表关联正文，不复制材料到另一套目录。
 
-本次 Phase 19：[需求](prd/phase-19-team-routing-and-replanning.md) · [设计](specs/2026-11-06-phase-19-team-routing-and-replanning-design.md) · [实施计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) · [验收与使用说明](engineering/team-routing-and-replanning-verification.md)。
+长期记忆召回：[需求](prd/memory-recall.md) · [设计](specs/2026-11-06-memory-recall.md) · [计划](plans/2026-11-06-memory-recall.md) · [验收与评测](engineering/memory-recall-verification.md)。
+
+前次 Phase 19：[需求](prd/phase-19-team-routing-and-replanning.md) · [设计](specs/2026-11-06-phase-19-team-routing-and-replanning-design.md) · [实施计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) · [验收与使用说明](engineering/team-routing-and-replanning-verification.md)。
 
 后续独立规划 v1.1：[需求与验收条件](prd/v1.1-trusted-task-lifecycle.md) · [拟议设计](specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md) · [实施计划](plans/2026-10-16-v1.1-trusted-task-lifecycle.md) · [验收矩阵](engineering/v1.1-trusted-task-lifecycle-verification.md)。
 
@@ -81,6 +83,7 @@
 | **v1.0** Phase 18 官网与开源发布 | [需求](prd/phase-18-open-source-release.md) | [设计](specs/2026-10-07-phase-18-release-and-website-design.md) | [计划](plans/2026-10-07-phase-18-release-and-website.md) | [验收](engineering/release-and-website-evaluation.md) | v1.0.0 |
 | **v1.0.1** 全局配置 API Key | [需求](prd/v1.0.1-user-config-api-key.md) | [设计](specs/2026-10-07-v1.0.1-user-config-api-key-design.md) | [计划](plans/2026-10-07-v1.0.1-user-config-api-key.md) | [验收](engineering/historical-release-verification.md) | v1.0.1 |
 | **Phase 19** 自动 Team 与失败重规划 | [需求](prd/phase-19-team-routing-and-replanning.md) | [设计](specs/2026-11-06-phase-19-team-routing-and-replanning-design.md) | [计划](plans/2026-11-06-phase-19-team-routing-and-replanning.md) | [验收](engineering/team-routing-and-replanning-verification.md) | 代码同步，不打 Tag；pom 仍为 1.0.1 |
+| **记忆召回第一版** | [需求](prd/memory-recall.md) | [设计](specs/2026-11-06-memory-recall.md) | [计划](plans/2026-11-06-memory-recall.md) | [验收](engineering/memory-recall-verification.md) | 代码同步，不打 Tag；pom 仍为 1.0.1 |
 | **v1.1** 可信任务生命周期 | [需求](prd/v1.1-trusted-task-lifecycle.md) | [设计](specs/2026-10-16-v1.1-trusted-task-lifecycle-design.md) | [计划](plans/2026-10-16-v1.1-trusted-task-lifecycle.md) | [验收](engineering/v1.1-trusted-task-lifecycle-verification.md) | 未发布，目标 v1.1.0 |
 
 ---

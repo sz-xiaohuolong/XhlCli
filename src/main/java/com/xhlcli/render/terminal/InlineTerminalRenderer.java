@@ -100,6 +100,9 @@ public final class InlineTerminalRenderer implements TerminalRenderer {
         println("  \u001B[33m/help\u001B[0m                  显示本帮助菜单");
         println("  \u001B[33m/config\u001B[0m                查看非敏感配置详情");
         println("  \u001B[33m/clear\u001B[0m                 清空当前会话历史");
+        println("  /save [--global] <内容>   保存项目或全局长期记忆");
+        println("  /memory [list|search|recall|delete|clear] 管理记忆；recall <问题> 预览召回");
+        println("  /context                 查看预算和主对话最近实际注入的记忆");
         println("  \u001B[33m/history [list|clear]\u001B[0m  查看或清空本地输入历史");
         println("  \u001B[33m/model [list|use|status]\u001B[0m 管理与切换 AI 模型提供商");
         println("  \u001B[33m/mcp [list|status|...]\u001B[0m  MCP 服务器与外部工具管理");

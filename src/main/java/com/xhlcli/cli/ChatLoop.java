@@ -61,6 +61,11 @@ public final class ChatLoop {
         } else {
             renderer.printMessage("Context manager not initialized.");
         }
+        if (agent instanceof com.xhlcli.agent.ReactAgent react) {
+            var recalled = react.lastMemoryRecall();
+            if (recalled == null) renderer.printMessage("主对话尚无本轮记忆召回记录。");
+            else printRecall("主对话最近一轮实际注入", recalled);
+        }
     }
 
     private void compactHistory() {
@@ -103,11 +108,22 @@ public final class ChatLoop {
         if (memoryManager != null) {
             String[] parts = input.trim().split("\\s+");
             if (parts.length < 2) {
-                renderer.printMessage("用法: /memory <list|search <query>|delete <id>|clear>");
+                renderer.printMessage("用法: /memory <list|search <query>|recall <问题>|delete <id>|clear>");
                 return;
             }
             String subcmd = parts[1].toLowerCase(java.util.Locale.ROOT);
             switch (subcmd) {
+                case "recall" -> {
+                    String[] queryParts = input.trim().split("\\s+", 3);
+                    if (queryParts.length < 3 || queryParts[2].isBlank()) {
+                        renderer.printMessage("用法: /memory recall <问题>");
+                        return;
+                    }
+                    var settings = agent instanceof com.xhlcli.agent.ReactAgent react
+                            ? react.memoryRecallSettings() : com.xhlcli.memory.MemoryRecallSettings.defaults();
+                    printRecall("记忆召回预览（实际请求可能因剩余预算继续裁减）",
+                            memoryManager.recall(settings.query(queryParts[2], java.util.List.of())));
+                }
                 case "list" -> {
                     var list = memoryManager.loadAll();
                     if (list.isEmpty()) {
@@ -148,11 +164,25 @@ public final class ChatLoop {
                     memoryManager.clearAll();
                     renderer.printMessage("已清空所有长期记忆。");
                 }
-                default -> renderer.printMessage("未知子命令。用法: /memory <list|search <query>|delete <id>|clear>");
+                default -> renderer.printMessage("未知子命令。用法: /memory <list|search <query>|recall <问题>|delete <id>|clear>");
             }
         } else {
             renderer.printMessage("记忆管理器未初始化。");
         }
+    }
+
+    private void printRecall(String title, com.xhlcli.memory.MemoryRecallResult result) {
+        renderer.printMessage(title + "：" + result.selected().size() + " 条，估算 " + result.estimatedTokens() + " Token");
+        if (result.readFailed()) renderer.printMessage("记忆读取或召回失败，本轮不注入动态记忆。");
+        else if (result.selected().isEmpty()) renderer.printMessage("没有满足相关性、条数和预算条件的记忆。");
+        if (result.budgetLimited()) renderer.printMessage("记忆已因预算节选或减少。");
+        for (var match : result.selected()) {
+            renderer.printMessage(String.format(java.util.Locale.ROOT, "- [%s/%s] 分数 %.3f，命中 %s%s",
+                    match.entry().scope(), match.entry().id(), match.score(), match.matchedTerms(),
+                    match.entry().pinned() ? "（固定）" : ""));
+            renderer.printMessage((match.excerpted() ? "（节选）" : "") + match.excerpt());
+        }
+        result.diagnostics().forEach(renderer::printMessage);
     }
 
     private void handleHistory(String input) {

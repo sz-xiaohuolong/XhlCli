@@ -35,7 +35,7 @@ public final class TerminalCompleter implements Completer {
             Map.entry("/prompt", List.of("show", "export")),
             Map.entry("/browser", List.of("status", "connect", "disconnect", "tabs")),
             Map.entry("/history", List.of("list", "clear")),
-            Map.entry("/memory", List.of("list", "search", "delete", "clear")),
+            Map.entry("/memory", List.of("list", "search", "recall", "delete", "clear")),
             Map.entry("/index", List.of("status", "clean")),
             Map.entry("/snapshot", List.of("list", "status", "clean")),
             Map.entry("/restore", List.of("1", "2", "3")),

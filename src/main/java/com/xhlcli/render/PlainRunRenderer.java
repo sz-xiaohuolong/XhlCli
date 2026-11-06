@@ -75,6 +75,9 @@ public final class PlainRunRenderer implements TerminalRenderer {
         out.println("  /help     Show this help");
         out.println("  /config   Show non-secret configuration");
         out.println("  /clear    Clear conversation history");
+        out.println("  /save [--global] <内容>  保存项目或全局长期记忆");
+        out.println("  /memory [list|search|recall|delete|clear] 管理记忆；recall <问题> 预览召回");
+        out.println("  /context  查看上下文预算和主对话最近实际注入的记忆");
         out.println("  /history [list|clear]  View or clear input history");
         out.println("  /index [status|clean]  Build, check, or clean codebase index");
         out.println("  /search <query>        Semantic & hybrid code search");
