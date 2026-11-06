@@ -12,7 +12,7 @@ XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目
 
 - 支持 OpenAI, Anthropic Claude, DeepSeek, Ollama 等多模型 Provider 协议路由；
 - 图片多模态上下文预处理与视觉防御护栏（`@image:<path>`, `@clipboard`，Alpha Flatten 白底合成防穿透、2000x2000 等比缩放、5MB 阈值压缩、坐标换算元信息注入、非视觉模型防 400 纯文本降级）；
-- 后台持久任务队列与 Localhost 安全 Runtime API（SQLite 事务原子调度、孤儿租约自愈、127.0.0.1 严格绑定与 API Key 拦截、游标 SSE 事件流）；
+- 后台持久任务队列与 Localhost 安全 Runtime API（工作区隔离、独立只读执行、取消确认、失联任务保留结果且不重放、127.0.0.1 严格绑定与 API Key 拦截、游标 SSE 事件流）；
 - Side-History 隔离快照与版本回滚（JGit 纯 Java 隔离存储、宿主 Git 零污染、`revert_turn` 自愈工具与 `/snapshot` `/restore`）；
 - 终端产品化与交互治理（JLine 4 动态状态栏、WCWidth 精准对齐、Markdown 表格与代码框排版、Git Diff 语法着色、SafeHistory 历史治理与 Tab 智能补全）；
 - Skill 与 Prompt 分层治理（8 层确定性装配、安全规则不可变、按需动态加载）；
@@ -22,7 +22,17 @@ XhlCLI 是一个使用 Java 21 构建的自主编程终端 Coding Agent。项目
 - 有界并发执行调度与 DAG 规划执行（Bounded Parallelism、Kahn 分层批次）；
 - 嵌入式 SQLite AST 代码库检索与 RAG 语义索引；
 - 受控 ReAct 循环、9 个本地工具、安全围栏与人工审批 (HITL)；
-- Java 21 可执行 JAR、522 项离线自动测试和 CI 配置。
+- Java 21 可执行 JAR、离线自动测试和 CI 配置（本次结果见下方验收文档）。
+
+## 后台只读任务
+
+启动终端后输入 `/task add 阅读 README.md 并说明启动流程`，立即得到任务 ID，可继续前台对话。用 `/task list` 刷新状态、`/task log <ID>` 查看当前输出或最终结果，`/task cancel <ID>` 发起取消。`cancel_requested` 表示等待停止，`canceled` 才表示本地执行已停止。
+
+每项任务独立历史和工具环境，仅开放只读分析；不执行写文件、Shell、Git diff、浏览器或 MCP。默认每个 CLI 实例并发 2 项，可用 `XHLCLI_TASK_WORKERS` 设置 1～16。默认保存到 `~/.xhlcli/tasks/tasks.db`，可用 `XHLCLI_TASK_DIR` 指定独立目录。任务开始时读取当前模型配置，不复制前台聊天。
+
+重启后在原工作区查询可看到已保存结果；失联运行任务标记失败、保留部分结果，不自动重做。退出 CLI 后不承诺继续执行；同库不能混跑新旧版本，也不能在运行时删除锁文件。
+
+完整启动命令、人工步骤、消息流程、验证与限制见 [task 后台任务交付](docs/engineering/task-background-lifecycle-verification.md)。离线验收：构建后运行 `python3 scripts/task_acceptance_demo.py`。
 
 ## 环境要求
 

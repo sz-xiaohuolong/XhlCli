@@ -6,6 +6,16 @@ public final class TaskCommandFormatter {
     private TaskCommandFormatter() {}
 
     public static String handle(DurableTaskManager manager, String payload) {
+        try {
+            String output = handleCommand(manager, payload);
+            return manager != null && !manager.lastError().isBlank()
+                    ? output + "\n调度提示：" + manager.lastError() : output;
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return "❌ 后台任务操作失败：" + e.getMessage();
+        }
+    }
+
+    private static String handleCommand(DurableTaskManager manager, String payload) {
         if (manager == null) {
             return "后台任务管理器未初始化。";
         }
@@ -22,7 +32,7 @@ public final class TaskCommandFormatter {
                 return "❌ 任务内容不能为空。用法: /task add <任务内容>";
             }
             DurableTask task = manager.enqueue(prompt);
-            return "✅ 后台任务已提交: " + task.id() + "\n   查看状态: /task log " + task.id();
+            return "✅ 后台任务已提交: " + task.id() + "\n   只读分析独立执行，可继续对话。查看状态: /task log " + task.id();
         }
         if (normalized.equalsIgnoreCase("cancel") || normalized.regionMatches(true, 0, "cancel ", 0, 7)) {
             String id = normalized.length() > 6 ? normalized.substring(6).trim() : "";
@@ -30,7 +40,7 @@ public final class TaskCommandFormatter {
                 return "❌ 任务 ID 不能为空。用法: /task cancel <task_id>";
             }
             return manager.cancel(id)
-                    ? "⏹️ 已请求取消后台任务: " + id
+                    ? "⏹️ 已记录取消请求: " + id + "\n   以 /task log 的状态为准：cancel_requested 表示等待停止，canceled 表示执行已停止。"
                     : "❌ 未找到可取消的后台任务: " + id;
         }
         if (normalized.equalsIgnoreCase("log") || normalized.regionMatches(true, 0, "log ", 0, 4)) {
@@ -76,6 +86,9 @@ public final class TaskCommandFormatter {
         StringBuilder sb = new StringBuilder();
         sb.append("📋 后台任务 ").append(task.id()).append('\n');
         sb.append("状态: ").append(task.status().value()).append('\n');
+        if (task.status() == TaskStatus.CANCEL_REQUESTED) {
+            sb.append("取消已请求，正在等待模型、工具退出；尚未确认停止。\n");
+        }
         sb.append("工作区: ").append(task.workspace() != null ? task.workspace() : "默认").append('\n');
         sb.append("创建: ").append(task.createdAt()).append('\n');
         if (task.startedAt() != null) {
@@ -89,7 +102,7 @@ public final class TaskCommandFormatter {
             sb.append("\n错误信息:\n").append(task.error()).append('\n');
         }
         if (task.result() != null && !task.result().isBlank()) {
-            sb.append("\n执行结果:\n").append(task.result()).append('\n');
+            sb.append(task.terminal() ? "\n执行结果:\n" : "\n当前输出（尚未完成）:\n").append(task.result()).append('\n');
         }
         return sb.toString().trim();
     }

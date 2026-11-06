@@ -58,8 +58,8 @@ Team 最终结果经 `ReactAgent.recordExternalTurn()` 写入进程内对话，�
     - 在新一轮 ReAct 执行前，自动遍历并修剪历史消息中的大图 Payload（`withoutImageContent`），移除巨大 Base64 但保留 Image source 提示；
     - `TokenBudget` 支持图片单图 1000 tokens 估算，精准控制滑动上下文窗口。
 - **后台持久任务与 Localhost Runtime API 子系统 (Phase 17A)**：
-  - **领域模型与状态机 (`com.xhlcli.runtime.task`)**：`TaskStatus` 6 态完整流转与 `DurableTask` 序列化；
-  - **持久调度引擎 (`DurableTaskManager`)**：SQLite 事务原子认领调度、孤儿任务租约恢复自愈与协作式精准取消；
+  - **领域模型与状态机 (`com.xhlcli.runtime.task`)**：`TaskStatus` 增加 `cancel_requested`，保留旧审批态兼容；`DurableTask` 序列化；
+  - **持久调度引擎 (`DurableTaskManager`)**：工作区限定的 SQLite 条件认领、本机文件锁归属、失联失败保留结果与取消确认；
   - **本地安全 Runtime 服务 (`RuntimeApiServer`)**：严格绑定 `127.0.0.1` 环回接口，Bearer API Key 拦截未授权调用；
   - **游标事件流 (`RuntimeThreadStore`)**：单调递增游标读取与断点续传 SSE 推送；
   - **终端管理套件**：挂载 `/task` 命令族与 Tab 补全。
@@ -467,16 +467,22 @@ API Key 支持进程环境变量、项目 `.env` 与用户全局 `~/.xhlcli/conf
 | 长期记忆 | JSONL | 可选 SQLite | 可列出、删除和迁移 |
 | RAG 索引 | 不适用 | SQLite | 索引版本不兼容时重建 |
 | 审计 | JSONL | JSONL | 追加写、按天滚动 |
-| 后台任务 | 不适用 | SQLite (`tasks.db`) | 事务状态原子认领与崩溃自愈租约恢复 |
+| 后台任务 | 不适用 | SQLite (`tasks.db`) | 条件认领 + 本机文件锁；失联标失败且保留结果，不自动重放 |
 | 会话线程与事件 | 不适用 | SQLite (`runtime.db`) | 自增主键单调递增游标断点续传 |
 | 快照 | 不适用 | 独立 JGit 仓库 | 不影响用户 `.git` |
 
 ### 15.1 后台持久任务与 Localhost Runtime API (Phase 17A)
 
 - **持久调度引擎 (`DurableTaskManager`)**：
-  - 基于 SQLite 事务实现任务入队 (`enqueue`)、原子认领 (`claimNext`)、协作式精准取消 (`cancel`)；
-  - 启动时自动触发租约恢复 (`recoverRunningTasks`)，将孤儿 `running` 状态自愈回滚为 `ENQUEUED`，杜绝死锁与挂起；
-  - 默认有界后台守护线程池 Worker 并发执行，隔离长耗时计算与主终端循环。
+  - 以工作区真实路径限定提交、查询、取消及领取。先获得任务文件锁，再条件更新 `enqueued → running`；模型执行不持有数据库互斥锁。
+  - 活跃执行一直持有本机文件锁；另一实例不会重排健康任务。失联运行转为 `failed`，保留部分结果并说明结果不确定，不自动重放。沿用原表结构，无新增字段或迁移。
+  - 运行取消先写 `cancel_requested`，控制线程传播取消令牌；确认模型和工具方法退出后写 `canceled`。关闭时数据库错误也不阻断其他本地任务取消。
+  - 每实例默认两个工作线程，可配置 1～16；退出 CLI 请求停止当前执行，不是常驻后台服务。
+- **独立只读执行 (`BackgroundTaskRunner` / `TaskToolExecutor`)**：
+  - 每项任务使用新的 ReactAgent、历史、工具注册、预算、取消控制、规则/记忆快照。模型配置在实际开始时取得，不继承前台聊天或审批。
+  - 限制本地读取和网页检索，不提供写入、Shell、Git diff、浏览器及 MCP；文本搜索使用纯 Java 引擎。工具执行器等待实际退出，不能将 Future 超时视为资源已经释放。
+  - 不启用后台自动摘要；每轮模型入口检查消息及工具估算预算，超限失败。进度脱敏限长保存，终态保留真实状态与完整最终答案。
+  - 详细契约、人工验收、恢复边界见 [task 交付证据](engineering/task-background-lifecycle-verification.md)。
 - **本地回环 Runtime 服务 (`RuntimeApiServer`)**：
   - 基于 JDK 内置原生 `HttpServer` 构建，零第三方 Web 框架依赖；
   - 严格限绑 `127.0.0.1`，杜绝公网暴露风险；

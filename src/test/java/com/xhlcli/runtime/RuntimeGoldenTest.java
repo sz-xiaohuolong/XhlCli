@@ -125,15 +125,16 @@ class RuntimeGoldenTest {
         assertNotNull(canceledTask);
         assertEquals(TaskStatus.CANCELED, canceledTask.status());
 
-        // 3. 租约恢复与崩溃自愈验证
+        // 3. 失联任务不自动重放，历史结果保留
         // 直接在 SQLite 底层模拟一个异常停机遗留的 "running" 孤儿任务
         try (var conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + taskDbPath);
-             var ps = conn.prepareStatement("INSERT INTO runtime_tasks (id, status, prompt, created_at, started_at) VALUES (?, ?, ?, ?, ?)")) {
+             var ps = conn.prepareStatement("INSERT INTO runtime_tasks (id, status, prompt, created_at, started_at, workspace) VALUES (?, ?, ?, ?, ?, ?)")) {
             ps.setString(1, "task_crashed_orphan_001");
             ps.setString(2, "running");
             ps.setString(3, "Crashed mid-flight operation");
             ps.setString(4, java.time.Instant.now().toString());
             ps.setString(5, java.time.Instant.now().toString());
+            ps.setString(6, Path.of(".").toRealPath().toString());
             ps.executeUpdate();
         }
 
@@ -143,8 +144,9 @@ class RuntimeGoldenTest {
         DurableTaskManager recoveredManager = new DurableTaskManager(taskDbPath, prompt -> "Recovered: " + prompt, 1);
         try {
             DurableTask orphan = recoveredManager.find("task_crashed_orphan_001").orElseThrow();
-            // 验证崩溃租约已自动恢复为 ENQUEUED 重新排队执行，杜绝永久悬挂阻塞在 running
-            assertEquals(TaskStatus.ENQUEUED, orphan.status());
+            // 明确显示执行结果不确定，不能把重做当成断点恢复。
+            assertEquals(TaskStatus.FAILED, orphan.status());
+            assertTrue(orphan.error().contains("不确定"));
         } finally {
             recoveredManager.close();
         }

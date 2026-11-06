@@ -53,6 +53,7 @@ public final class JavaCodeSearchEngine implements CodeSearchEngine {
             Files.walkFileTree(searchRoot, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (Thread.currentThread().isInterrupted()) return FileVisitResult.TERMINATE;
                     String name = dir.getFileName() == null ? "" : dir.getFileName().toString();
                     if (!dir.equals(request.projectRoot()) && excludedDirs.contains(name)) {
                         return FileVisitResult.SKIP_SUBTREE;
@@ -62,7 +63,8 @@ public final class JavaCodeSearchEngine implements CodeSearchEngine {
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (matches.size() >= request.maxResults() || !Files.isRegularFile(file)) {
+                    if (Thread.currentThread().isInterrupted()) return FileVisitResult.TERMINATE;
+                    if (matches.size() >= request.maxResults() || Files.isSymbolicLink(file) || !Files.isRegularFile(file)) {
                         return FileVisitResult.CONTINUE;
                     }
                     Path relative = request.projectRoot().relativize(file);
@@ -101,6 +103,7 @@ public final class JavaCodeSearchEngine implements CodeSearchEngine {
             List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
             String fileKey = relative.toString();
             for (int i = 0; i < lines.size() && matches.size() < request.maxResults(); i++) {
+                if (Thread.currentThread().isInterrupted()) return;
                 int currentFileMatches = perFileMatches.getOrDefault(fileKey, 0);
                 if (currentFileMatches >= request.headLimit()) {
                     if (contentPattern.matcher(lines.get(i)).find()) {

@@ -5,11 +5,13 @@
 
 ---
 
+本次后台任务交付：[实施计划](plans/2026-11-06-task-background-lifecycle.md) · [用户能力、人工验收与业务流程](engineering/task-background-lifecycle-verification.md)。
+
 ## 1. 当前项目定位 (Current Positioning)
 
 - **Project Name**: XhlCLI (小火龙终端 Coding Agent)
 - **本次实施**：[Phase 19 自动 Team 与失败重规划](prd/phase-19-team-routing-and-replanning.md)；当前状态与验证见 [PROGRESS](PROGRESS.md)。
-- **后续独立规划**: [`v1.1` 可信任务生命周期](prd/v1.1-trusted-task-lifecycle.md)（目标版本 `v1.1.0`；第一批范围已确定，设计与实施计划已形成提案，尚未实现）
+- **后续独立规划**: [`v1.1` 可信任务生命周期](prd/v1.1-trusted-task-lifecycle.md)（目标版本 `v1.1.0`；第一批范围已确定，设计与实施计划已形成提案，尚未完整实现；后台只读任务子集已单独交付）
 - **Published Baseline**: `v1.0.1`（全局 `~/.xhlcli/config.json` 支持 API Key 与多 Provider 凭据映射，2026-10-07）
   - 基线：Phase 18 现代化静态官网 (`website/`)、交互式终端模拟器、全量指令速查、Vercel 部署配置与跨平台 `install.sh`
 - **Quality Profile**: 沿用离线单元、集成、契约与终端验收；本次结果见 [Phase 19 验收](engineering/team-routing-and-replanning-verification.md)。2026-10-16 发现的 v1.1 缺陷仍按其独立验收矩阵追踪。

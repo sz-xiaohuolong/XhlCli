@@ -5,6 +5,7 @@ import java.util.Locale;
 public enum TaskStatus {
     ENQUEUED("enqueued"),
     RUNNING("running"),
+    CANCEL_REQUESTED("cancel_requested"),
     WAITING_FOR_APPROVAL("waiting_for_approval"),
     COMPLETED("completed"),
     FAILED("failed"),

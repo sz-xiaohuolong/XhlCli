@@ -270,14 +270,18 @@ public final class ChatBootstrap implements ChatRunner {
                 Path taskDb = taskDbDir.resolve("tasks.db");
                 com.xhlcli.runtime.task.DurableTaskManager durableTaskManager = null;
                 try {
-                    durableTaskManager = new com.xhlcli.runtime.task.DurableTaskManager(taskDb, prompt -> {
-                        com.xhlcli.model.RunResult result = agent.run(prompt, event -> {}, new com.xhlcli.llm.CancellationToken());
-                        return result.finalAnswer();
-                    });
+                    var backgroundRunner = new com.xhlcli.runtime.task.BackgroundTaskRunner(
+                            agent::getClient, userHome,
+                            new RunLimits(config.agentSettings().maxIterations(), config.agentSettings().timeout()),
+                            config.agentSettings().maxConcurrency(), config.agentSettings().toolTimeout(), config.apiKey());
+                    durableTaskManager = com.xhlcli.runtime.task.DurableTaskManager.open(taskDb, projectDirectory, backgroundRunner);
+                    durableTaskManager.setCompletionListener(task -> renderer.printMessage(
+                            "后台任务 " + task.id() + "：" + task.status().value() + "；查看结果：/task log " + task.id()));
                     durableTaskManager.start();
                     loop.setDurableTaskManager(durableTaskManager);
                 } catch (Exception e) {
                     diagnostics.debug("durable_task_init_failed", Map.of("error", e.getMessage() != null ? e.getMessage() : "unknown"));
+                    renderer.printErrorMessage("后台任务不可用：" + SecretRedactor.redact(e.getMessage(), config.apiKey()));
                 }
 
                 com.xhlcli.agent.PlanExecuteAgent.PlanReviewHandler reviewHandler = (goal, plan) -> {

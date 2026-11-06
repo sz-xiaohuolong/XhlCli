@@ -115,7 +115,7 @@ class DurableTaskManagerTest {
     }
 
     @Test
-    void recoversOrphanRunningTasksOnStartup() throws Exception {
+    void marksOrphanRunningTasksUncertainWithoutReplaying() throws Exception {
         Path db = tempDir.resolve("recover.db");
         // 1. Manually insert a RUNNING task to simulate crash
         try (DurableTaskManager setupManager = new DurableTaskManager(db, p -> "ok", 1)) {
@@ -127,29 +127,14 @@ class DurableTaskManagerTest {
             ps.executeUpdate();
         }
 
-        // 2. Start a new manager on the same db - it should recover RUNNING tasks back to ENQUEUED
+        // 重开后保留失联证据，不重新执行有可能已经产生副作用的任务。
         try (DurableTaskManager newManager = new DurableTaskManager(db, p -> "recovered result", 1)) {
             List<DurableTask> list = newManager.list(10);
             assertEquals(1, list.size());
-            assertEquals(TaskStatus.ENQUEUED, list.get(0).status(), "Orphan running task must be recovered to ENQUEUED");
-
-            // Now start the manager and verify it executes
-            CountDownLatch latch = new CountDownLatch(1);
-            // Replace runner behavior by waiting for completion
+            assertEquals(TaskStatus.FAILED, list.get(0).status());
+            assertTrue(list.get(0).error().contains("不确定"));
             newManager.start();
-
-            DurableTask completed = null;
-            for (int i = 0; i < 30; i++) {
-                completed = newManager.find(list.get(0).id()).orElse(null);
-                if (completed != null && completed.terminal()) {
-                    break;
-                }
-                Thread.sleep(50);
-            }
-
-            assertNotNull(completed);
-            assertEquals(TaskStatus.COMPLETED, completed.status());
-            assertEquals("recovered result", completed.result());
+            assertEquals(TaskStatus.FAILED, newManager.find(list.get(0).id()).orElseThrow().status());
         }
     }
 
