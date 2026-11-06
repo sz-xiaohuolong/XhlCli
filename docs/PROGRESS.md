@@ -2,7 +2,7 @@
 
 | 范围 | 当前事实 | 阻塞/未验证 | 下一步 |
 |---|---|---|---|
-| 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 按既有授权提交推送 origin/main，核对远程 SHA 与 CI |
+| 桌面 MVP | 核心适配、独立审查和 GUI 验收完成；620 项 Java、2 项 Node、前端构建及本机打包通过 | 真实 Provider、其他硬件和部分故障分支未覆盖，见[验收边界](engineering/desktop-mvp-verification.md) | 代码及测试修复已同步 origin/main，远程 CI 通过；按人工步骤验收真实 Provider |
 | 前次交付 | 记忆召回、后台 task、技能入口、Phase 19 的原有交付保留 | 各自验证范围沿用历史记录 | 下方前次任务记录及 PROJECT 索引 |
 | 后续 v1.1 | 可信任务生命周期仍为独立规划，未整体交付 | D01 等待设计核实 | 按原计划推进，与本次桌面交付分开 |
 
@@ -10,7 +10,7 @@
 
 ## 本次任务：桌面 MVP
 
-2026-11-06，Shipping / READY_TO_SHIP。用户已冻结 macOS 普通编程核心闭环并授权开发、桌面验证及推送；本次交付以[桌面需求](prd/desktop-codex-ui.md)为准。核心离线闭环 VERIFIED，完整 AC 的边缘故障、真实模型质量与其他平台为 PARTIAL；逐项证据和人工步骤见[验收记录](engineering/desktop-mvp-verification.md)。
+2026-11-06，Reflecting / 本次代码交付完成。用户已冻结 macOS 普通编程核心闭环并授权开发、桌面验证及推送；本次交付以[桌面需求](prd/desktop-codex-ui.md)为准。核心离线闭环 VERIFIED，完整 AC 的边缘故障、真实模型质量与其他平台为 PARTIAL；逐项证据和人工步骤见[验收记录](engineering/desktop-mvp-verification.md)。
 
 | 任务 | 当前状态 | 结果入口 |
 |---|---|---|
@@ -18,7 +18,7 @@
 | D2 | VERIFIED | Side-History 差异与保守撤销，含用户编辑、索引及符号链接回归 |
 | D3 | VERIFIED | Electron/React 主界面、设置、桥接构建与最终 `.app` 启动 |
 | D4 | VERIFIED（表列范围） | GUI 核心流程、截图、启动说明及人工验收步骤已记录 |
-| D5 | IN_PROGRESS | 全量回归和独立复核完成；待提交、推送及远程核验 |
+| D5 | VERIFIED | 实现 f0daa4b、测试修复 ad74911 已推送；远程 SHA 一致，CI 42207480060 成功 |
 
 ## 前次任务记录
 
