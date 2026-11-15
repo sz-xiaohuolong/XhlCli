@@ -1,6 +1,6 @@
 # Headroom 工具正文压缩：使用与验收
 
-2026-11-15，本次源码实现、独立审查、全量 Java 测试、真实 Headroom 与 CLI JAR 联调已通过。能力默认关闭，覆盖 CLI 和桌面普通前台单 Agent。真实模型回答质量、实际账单收益及本次桌面 GUI 操作尚未验证；已安装应用和分发包未更新。
+2026-11-15，源码实现、独立审查、全量 Java 测试、真实 Headroom 与 CLI JAR 联调已通过。能力的产品默认值仍为关闭；用户随后授权本机配置与真实 API 对照，当前项目已开启，Headroom 已由 macOS 后台托管。真实 DeepSeek 三组对照及实际 Token 结果见[第 8 节](#8-本机自动配置与真实-deepseek-api-对照2026-11-15)。多任务回答质量、实际账单金额及本次桌面 GUI 操作尚未验证；已安装应用和分发包未更新。
 
 需求：[REQ-H01～H05 / AC-H01～H11](../prd/headroom-context-optimization.md)；设计：[实现方案](../specs/2026-11-15-headroom-context-optimization.md)；任务：[H01～H06](../plans/2026-11-15-headroom-context-optimization.md)；当前交付状态与 Git 同步见 [PROGRESS](../PROGRESS.md)。
 
@@ -38,7 +38,7 @@ Plan、Team、后台任务和 Runtime API 不在本次接入范围。无损压�
 
 真实服务样本为 40 行长路径搜索结果：原正文 3099 → 1539 字符；加实际命令执行前缀后 3122 → 1562 字符。Java Agent 样本消息 Token 估算 1346 → 723，40 条证据均保留，无 CCR 标记。CCR 是通过额外工具回取被移除原文的机制，本次不使用。重复 INFO 日志和另一份格式化 JSON 样本没有变化，因此不能推广固定压缩比例。
 
-这些是指定样本的字符与本地 Token 估算，不是服务商账单。单次耗时受启动预热、机器和内容影响，不作为性能保证。模型在测试中由本地服务或函数模拟，没有请求真实 Provider。
+本节初次验收是指定样本的字符与本地 Token 估算，不是服务商账单。单次耗时受启动预热、机器和内容影响，不作为性能保证。本节模型由本地服务或函数模拟，没有请求真实 Provider；后续真实 API 验证单独记录于第 8 节。
 
 ### 审查中修复的问题
 
@@ -75,7 +75,7 @@ HEADROOM_OFFLINE=1 HEADROOM_BEACON=off DO_NOT_TRACK=1 \
 uv tool install --python 3.13 'headroom-ai[proxy]==0.44.0'
 ```
 
-保持一个独立终端运行服务。以下使用默认 8787；本次实际验收使用 18787：
+本机现已按第 8 节配置后台服务，无需额外启动。以下命令供其他环境或撤销后台托管后手动运行，终端需保持开启。使用默认 8787；初次验收使用 18787：
 
 ```bash
 HEADROOM_OFFLINE=1 HEADROOM_BEACON=off HEADROOM_DISABLE_KOMPRESS=1 DO_NOT_TRACK=1 \
@@ -86,7 +86,7 @@ HEADROOM_OFFLINE=1 HEADROOM_BEACON=off HEADROOM_DISABLE_KOMPRESS=1 DO_NOT_TRACK=
 
 `HEADROOM_OFFLINE` 禁止服务主动访问外部网络；其他参数关闭本次不需要的缓存、统计和状态保存。Java 每次请求仍显式设置 `mode=lossless`、`protect_recent=0`、`compress_user_messages=false`，不依赖全局服务默认值。启动日志或健康页中的其他通用代理字段不代表本次启用它们。
 
-另一个终端执行 `curl -fsS http://127.0.0.1:8787/health`，预期 `ready=true`、`version=0.44.0`。本次 18787 验收服务已关闭，保留共享安装；用户验收时需重新启动。
+另一个终端执行 `curl -fsS http://127.0.0.1:8787/health`，预期 `ready=true`、`version=0.44.0`。初次 18787 验收服务已关闭；当前 8787 由后台服务提供，保留共享安装。
 
 ## 5. CLI 人工验收
 
@@ -137,7 +137,7 @@ java -jar /Users/daiyifei/Documents/code/agent-cli/xhlcli/target/xhlcli-1.0.1.ja
 
 ## 6. 桌面人工验收（待用户执行）
 
-重新启动第 4 节的服务，保留刚才样本路径。在仓库根目录执行：
+确认第 4 或第 8 节的服务健康，保留刚才样本路径。在仓库根目录执行：
 
 ```bash
 ./mvnw package -DskipTests
@@ -168,3 +168,57 @@ npm start
 上述路径位于 `src/main/java/com/xhlcli/`。选择独立压缩接口，是因为把 Provider 地址改成全量代理无法解决 Java 在发请求前就因预算拒绝的问题，也会让流式、推理、凭据和回取机制耦合。本次保留原 Provider 请求，只给它一份已校验的消息副本。
 
 没有数据库迁移或压缩历史恢复操作。关闭开关即可恢复原路径；结束人工验收后在服务终端按 `Ctrl+C`，临时样本目录可按打印路径自行删除，共享 Headroom 安装保留供后续复用。
+
+## 8. 本机自动配置与真实 DeepSeek API 对照（2026-11-15）
+
+用户授权后，已将当前 xhlcli 项目 `.env` 的三项 Headroom 配置设为 `true`、`http://127.0.0.1:8787`、`3000`；其他配置保持，原文件备份在 `/Users/daiyifei/.xhlcli/backups/headroom/20261115T115419Z/project.env`。真实 CLI 已读取当前配置，`/context` 显示已开启，退出码为 0。
+
+Headroom 交给 macOS 的 LaunchAgent 托管：`/Users/daiyifei/Library/LaunchAgents/com.xhlcli.headroom.plist`，名称 `com.xhlcli.headroom`，只监听 `127.0.0.1:8787`。配置为登录时启动、异常退出自动重启；当前运行状态和 `/health` 均已核实，未重启电脑验证登录过程。工作目录为 `/Users/daiyifei/.local/share/xhlcli/headroom`，日志位于 `/Users/daiyifei/Library/Logs/XhlCLI/headroom.stdout.log` 和 `headroom.stderr.log`。沿用无损、无缓存、无状态、离线、关闭遥测及订阅统计的参数，不再需要保留一个服务终端。
+
+### 测试怎样保证可比
+
+沿用现有 DeepSeek 凭据，官方 HTTPS `/models` 确认 `deepseek-flash` 可用。对照执行真实 `ExecuteCommandTool` 的 `cat fixture.txt`，取得 40 条合成搜索结果；三组均使用真实 `ReactAgent`、现有 `DeepSeekClient` 和 SSE 流式解析，开启组额外经过真实本机 Headroom 与 Java 压缩器。
+
+为排除模型自主选工具和不同历史造成的干扰，三组恢复相同的工具调用历史，工具已实际执行，测试只让模型读取观察并返回全部编号、数量和总和。相同工具定义、系统和用户消息、模型及参数，逐字段核对后唯一差异是工具观察的 `summary`。空正文组也保留工具消息和所有控制字段，用于测出不包含工具正文时的请求用量。
+
+测试固定非思考模式、温度 0、最多输出 256 Token，并要求返回 usage。测试拦截器只统一这些请求参数及采集响应，真实请求仍由现有客户端发送；没有使用模型替身。每组恰好一次真实 API 请求，总计三次；凭据未进入请求正文、结果文件或版本控制。
+
+### API 实际返回的结果
+
+| 指标 | 关闭压缩 | 开启压缩 | 空工具正文对照 |
+|---|---:|---:|---:|
+| 工具正文字符 | 3122 | 1562 | 0 |
+| API `prompt_tokens` | 1321 | 814 | 190 |
+| API `completion_tokens` | 91 | 91 | 13 |
+| API 缓存命中 Token | 0 | 0 | 0 |
+| 模型识别的编号 | 完整 0～39 | 完整 0～39 | 空数组 |
+| 模型数量 / 总和 | 40 / 780 | 40 / 780 | 0 / 0 |
+
+请求输入实际减少 **507 Token（38.38%）**。用空正文组 190 Token 作对照，工具正文带来的输入增量为 `1321−190=1131` → `814−190=624`，减少 **44.83%**。这是三组 API 总输入之差推导的正文增量，不是服务商提供的单条工具 Token 字段。
+
+两组均保留全部 40 条证据，模型返回全部正确编号；Agent 原始历史不变，三组运行均为 `COMPLETED`。本地估算 1427 → 804，与服务商实际 1321 → 814 不同，结论采用服务商 `usage`。缓存命中均为 0，本次减少来自工具正文变化。三组累计使用 2520 个输入及输出 Token；未核对账户扣款或计算金额。
+
+原始用量、响应 ID、答案、优化报告及三组不含凭据的请求正文保存在 [JSON 实测记录](headroom-real-api-2026-11-15.json)。本次只证明这个 40 行搜索结果样本在该模型上确实减少输入 Token，并保持这项核对任务正确；不推导所有工具、文本、模型的固定压缩比例或普遍回答质量。
+
+### 以后如何一条命令重测
+
+本机服务运行、项目开关开启、Java 21 和当前 JAR 可用时，在仓库根目录执行：
+
+```bash
+python3 scripts/headroom_real_api_test.py
+```
+
+脚本会使用现有配置发起三次真实付费 API 请求，打印用量并保存无凭据报告。不修改真实历史或用户凭据；样本与记忆目录单独创建。`--project <目录>` 可指定项目，`--output <目录>` 可指定结果位置。只检查 Java 探针编译且不请求模型时运行 `python3 scripts/headroom_real_api_test.py --compile-only`。探针源码见 `scripts/headroom/HeadroomRealApiProbe.java`；本次先实际执行同一份源码，保存进仓库后核对相同，并验证运行入口编译通过，没有为验证入口重复消耗模型额度。
+
+### 关闭及恢复
+
+只关当前项目功能，将 `.env` 的 `XHLCLI_HEADROOM_ENABLED` 改为 `false`；CLI 重启、桌面下一轮生效。原 `.env` 备份含模型凭据，只用于本机恢复，不提交。
+
+同时停止后台服务并取消下次登录启动：
+
+```bash
+launchctl bootout gui/501 /Users/daiyifei/Library/LaunchAgents/com.xhlcli.headroom.plist
+mv /Users/daiyifei/Library/LaunchAgents/com.xhlcli.headroom.plist /Users/daiyifei/.local/share/xhlcli/headroom/com.xhlcli.headroom.plist.disabled
+```
+
+恢复托管时将该文件移回原处，再执行 `launchctl bootstrap gui/501 /Users/daiyifei/Library/LaunchAgents/com.xhlcli.headroom.plist`。这些是本机用户 501 的命令。当前按用户本次开启要求保留服务运行；没有重新安装、打包或替换旧桌面应用。

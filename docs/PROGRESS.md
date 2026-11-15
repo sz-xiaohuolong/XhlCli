@@ -2,6 +2,10 @@
 
 ## 当前任务：Headroom 工具正文压缩（2026-11-15）
 
+2026-11-15 追加配置与真实 API 验证完成：当前项目 `.env` 已开启，原配置已备份；Headroom 0.44.0 由 macOS LaunchAgent 托管在 `127.0.0.1:8787`，当前健康，配置登录启动与异常重启。真实 `deepseek-flash` 三组对照输入 Token 为 1321 / 814 / 190（关闭 / 开启 / 空正文），减少 507 Token；扣除空正文对照后的工具正文增量减少 44.83%，两组均正确核对全部 40 条证据。真实 CLI 已显示开启。原始用量、请求、可重跑脚本及关闭方式见[追加验收](engineering/headroom-context-optimization-verification.md#8-本机自动配置与真实-deepseek-api-对照2026-11-15)。本次未改生产代码、未重装或替换桌面应用；未核对实际扣款金额。
+
+初次实现交付记录：
+
 范围为默认关闭的前台单 Agent 本机无损压缩，终端与桌面共用；原始历史、规则和调用控制字段保留。需求：[REQ-H01～H05](prd/headroom-context-optimization.md)；方案：[设计](specs/2026-11-15-headroom-context-optimization.md)；任务：[实施计划](plans/2026-11-15-headroom-context-optimization.md)；结果与人工步骤：[验收记录](engineering/headroom-context-optimization-verification.md)。TASK-H01～H06 完成：全量 Java 731 项、桌面 Node 19 项、JAR 打包、真实 Headroom 0.44.0 与 Java Agent / CLI 联调通过；独立审查发现的自动重发、JSON 边界及高精度 data 问题均已复核关闭。实现提交 `ff1df2b6c3f62e897abcbd03d89addc2b78a1cf4` 已推送 `origin/main`，远程 SHA 核对一致；本次验收服务已关闭，共享安装保留。真实模型质量、账单收益及本次桌面 GUI 操作未验证；桌面保存重启已由 Java 服务测试覆盖。原稳定基线 `c263c33`，工作区已有用户修改保留；本次不发布版本或替换已安装应用。
 
 ## 本次修复：计划确认与 Markdown（2026-11-06）

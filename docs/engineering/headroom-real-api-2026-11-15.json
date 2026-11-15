@@ -1,0 +1,403 @@
+{
+  "timestamp_utc": "2026-11-15T11:57:42.388911Z",
+  "model": "deepseek-flash",
+  "provider": "https://api.deepseek.com",
+  "real_api_requests": 3,
+  "only_tool_summary_differs": true,
+  "cases": {
+    "disabled": {
+      "agent_status": "COMPLETED",
+      "response_id": "e1711e30-34e1-476e-81ac-c4ccdcb1d2ae",
+      "provider_usage": {
+        "prompt_tokens": 1321,
+        "completion_tokens": 91,
+        "total_tokens": 1412,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1321
+      },
+      "model_answer": {
+        "ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39
+        ],
+        "count": 40,
+        "sum": 780
+      },
+      "optimization": {
+        "status": "DISABLED",
+        "tokensBefore": 1427,
+        "tokensAfter": 1427,
+        "changedMessages": 0,
+        "elapsedMillis": 0,
+        "reason": "DISABLED"
+      },
+      "tool_summary_chars": 3122,
+      "original_history_preserved": true
+    },
+    "enabled": {
+      "agent_status": "COMPLETED",
+      "response_id": "0b205c81-e8bc-4d16-8c1a-00f8e09fabb5",
+      "provider_usage": {
+        "prompt_tokens": 814,
+        "completion_tokens": 91,
+        "total_tokens": 905,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 814
+      },
+      "model_answer": {
+        "ids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39
+        ],
+        "count": 40,
+        "sum": 780
+      },
+      "optimization": {
+        "status": "COMPRESSED",
+        "tokensBefore": 1427,
+        "tokensAfter": 804,
+        "changedMessages": 1,
+        "elapsedMillis": 2013,
+        "reason": "APPLIED"
+      },
+      "tool_summary_chars": 1562,
+      "original_history_preserved": true
+    },
+    "empty_control": {
+      "agent_status": "COMPLETED",
+      "response_id": "85e484c3-68c3-4ff1-a6a5-88f0b3696aef",
+      "provider_usage": {
+        "prompt_tokens": 190,
+        "completion_tokens": 13,
+        "total_tokens": 203,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 190
+      },
+      "model_answer": {
+        "ids": [],
+        "count": 0,
+        "sum": 0
+      },
+      "optimization": {
+        "status": "DISABLED",
+        "tokensBefore": 162,
+        "tokensAfter": 162,
+        "changedMessages": 0,
+        "elapsedMillis": 0,
+        "reason": "DISABLED"
+      },
+      "tool_summary_chars": 0,
+      "original_history_preserved": true
+    }
+  },
+  "savings": {
+    "provider_input_tokens_saved": 507,
+    "total_input_reduction_percent": 38.38001514004542,
+    "tool_summary_marginal_tokens_before": 1131,
+    "tool_summary_marginal_tokens_after": 624,
+    "tool_summary_reduction_percent": 44.827586206896555
+  },
+  "code_commit": "2018779bd4ddb1ad0d076ad182a83b993e9dab62",
+  "headroom_version": "0.44.0",
+  "measurement_notes": "provider_usage 为真实 SSE 返回；工具正文增量由本组 prompt_tokens 减去 empty_control 的 prompt_tokens 计算，不是服务商单独提供的工具计数。",
+  "request_bodies": {
+    "disabled": {
+      "model": "deepseek-flash",
+      "stream": true,
+      "thinking": {
+        "type": "disabled"
+      },
+      "messages": [
+        {
+          "role": "system",
+          "content": "你是工具证据验收助手，只根据工具观察回答，只输出 JSON，不输出 Markdown，不猜测未出现的条目。"
+        },
+        {
+          "role": "user",
+          "content": "我已经执行了读取样本的命令，请核对结果。"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "reasoning_content": "",
+          "tool_calls": [
+            {
+              "id": "real-api-call",
+              "type": "function",
+              "function": {
+                "name": "execute_command",
+                "arguments": "{\"command\":\"cat fixture.txt\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"status\":\"success\",\"summary\":\"命令执行完成 (exit code: 0)\\nsrc/very/long/package/path/Example.java:0: return HEADROOM_KEEP_EVIDENCE_0;\\nsrc/very/long/package/path/Example.java:1: return HEADROOM_KEEP_EVIDENCE_1;\\nsrc/very/long/package/path/Example.java:2: return HEADROOM_KEEP_EVIDENCE_2;\\nsrc/very/long/package/path/Example.java:3: return HEADROOM_KEEP_EVIDENCE_3;\\nsrc/very/long/package/path/Example.java:4: return HEADROOM_KEEP_EVIDENCE_4;\\nsrc/very/long/package/path/Example.java:5: return HEADROOM_KEEP_EVIDENCE_5;\\nsrc/very/long/package/path/Example.java:6: return HEADROOM_KEEP_EVIDENCE_6;\\nsrc/very/long/package/path/Example.java:7: return HEADROOM_KEEP_EVIDENCE_7;\\nsrc/very/long/package/path/Example.java:8: return HEADROOM_KEEP_EVIDENCE_8;\\nsrc/very/long/package/path/Example.java:9: return HEADROOM_KEEP_EVIDENCE_9;\\nsrc/very/long/package/path/Example.java:10: return HEADROOM_KEEP_EVIDENCE_10;\\nsrc/very/long/package/path/Example.java:11: return HEADROOM_KEEP_EVIDENCE_11;\\nsrc/very/long/package/path/Example.java:12: return HEADROOM_KEEP_EVIDENCE_12;\\nsrc/very/long/package/path/Example.java:13: return HEADROOM_KEEP_EVIDENCE_13;\\nsrc/very/long/package/path/Example.java:14: return HEADROOM_KEEP_EVIDENCE_14;\\nsrc/very/long/package/path/Example.java:15: return HEADROOM_KEEP_EVIDENCE_15;\\nsrc/very/long/package/path/Example.java:16: return HEADROOM_KEEP_EVIDENCE_16;\\nsrc/very/long/package/path/Example.java:17: return HEADROOM_KEEP_EVIDENCE_17;\\nsrc/very/long/package/path/Example.java:18: return HEADROOM_KEEP_EVIDENCE_18;\\nsrc/very/long/package/path/Example.java:19: return HEADROOM_KEEP_EVIDENCE_19;\\nsrc/very/long/package/path/Example.java:20: return HEADROOM_KEEP_EVIDENCE_20;\\nsrc/very/long/package/path/Example.java:21: return HEADROOM_KEEP_EVIDENCE_21;\\nsrc/very/long/package/path/Example.java:22: return HEADROOM_KEEP_EVIDENCE_22;\\nsrc/very/long/package/path/Example.java:23: return HEADROOM_KEEP_EVIDENCE_23;\\nsrc/very/long/package/path/Example.java:24: return HEADROOM_KEEP_EVIDENCE_24;\\nsrc/very/long/package/path/Example.java:25: return HEADROOM_KEEP_EVIDENCE_25;\\nsrc/very/long/package/path/Example.java:26: return HEADROOM_KEEP_EVIDENCE_26;\\nsrc/very/long/package/path/Example.java:27: return HEADROOM_KEEP_EVIDENCE_27;\\nsrc/very/long/package/path/Example.java:28: return HEADROOM_KEEP_EVIDENCE_28;\\nsrc/very/long/package/path/Example.java:29: return HEADROOM_KEEP_EVIDENCE_29;\\nsrc/very/long/package/path/Example.java:30: return HEADROOM_KEEP_EVIDENCE_30;\\nsrc/very/long/package/path/Example.java:31: return HEADROOM_KEEP_EVIDENCE_31;\\nsrc/very/long/package/path/Example.java:32: return HEADROOM_KEEP_EVIDENCE_32;\\nsrc/very/long/package/path/Example.java:33: return HEADROOM_KEEP_EVIDENCE_33;\\nsrc/very/long/package/path/Example.java:34: return HEADROOM_KEEP_EVIDENCE_34;\\nsrc/very/long/package/path/Example.java:35: return HEADROOM_KEEP_EVIDENCE_35;\\nsrc/very/long/package/path/Example.java:36: return HEADROOM_KEEP_EVIDENCE_36;\\nsrc/very/long/package/path/Example.java:37: return HEADROOM_KEEP_EVIDENCE_37;\\nsrc/very/long/package/path/Example.java:38: return HEADROOM_KEEP_EVIDENCE_38;\\nsrc/very/long/package/path/Example.java:39: return HEADROOM_KEEP_EVIDENCE_39;\\n\",\"data\":{},\"elapsed_ms\":0,\"truncated\":false,\"original_chars\":0,\"continue_hint\":\"\"}",
+          "tool_call_id": "real-api-call"
+        },
+        {
+          "role": "user",
+          "content": "根据刚才工具观察的 summary，提取全部 HEADROOM_KEEP_EVIDENCE_n 中不同的整数 n。只返回 JSON：ids 为升序整数数组，count 为数量，sum 为总和。没有条目时返回空数组、0、0。不要调用工具。"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "execute_command",
+            "description": "在项目目录执行 Shell 命令（默认 60 秒超时，输出截断 8000 字符）",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "timeout_seconds": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "max_tokens": 256,
+      "temperature": 0,
+      "tool_choice": "none",
+      "stream_options": {
+        "include_usage": true
+      }
+    },
+    "enabled": {
+      "model": "deepseek-flash",
+      "stream": true,
+      "thinking": {
+        "type": "disabled"
+      },
+      "messages": [
+        {
+          "role": "system",
+          "content": "你是工具证据验收助手，只根据工具观察回答，只输出 JSON，不输出 Markdown，不猜测未出现的条目。"
+        },
+        {
+          "role": "user",
+          "content": "我已经执行了读取样本的命令，请核对结果。"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "reasoning_content": "",
+          "tool_calls": [
+            {
+              "id": "real-api-call",
+              "type": "function",
+              "function": {
+                "name": "execute_command",
+                "arguments": "{\"command\":\"cat fixture.txt\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"status\":\"success\",\"summary\":\"命令执行完成 (exit code: 0)\\nsrc/very/long/package/path/Example.java\\n0: return HEADROOM_KEEP_EVIDENCE_0;\\n1: return HEADROOM_KEEP_EVIDENCE_1;\\n2: return HEADROOM_KEEP_EVIDENCE_2;\\n3: return HEADROOM_KEEP_EVIDENCE_3;\\n4: return HEADROOM_KEEP_EVIDENCE_4;\\n5: return HEADROOM_KEEP_EVIDENCE_5;\\n6: return HEADROOM_KEEP_EVIDENCE_6;\\n7: return HEADROOM_KEEP_EVIDENCE_7;\\n8: return HEADROOM_KEEP_EVIDENCE_8;\\n9: return HEADROOM_KEEP_EVIDENCE_9;\\n10: return HEADROOM_KEEP_EVIDENCE_10;\\n11: return HEADROOM_KEEP_EVIDENCE_11;\\n12: return HEADROOM_KEEP_EVIDENCE_12;\\n13: return HEADROOM_KEEP_EVIDENCE_13;\\n14: return HEADROOM_KEEP_EVIDENCE_14;\\n15: return HEADROOM_KEEP_EVIDENCE_15;\\n16: return HEADROOM_KEEP_EVIDENCE_16;\\n17: return HEADROOM_KEEP_EVIDENCE_17;\\n18: return HEADROOM_KEEP_EVIDENCE_18;\\n19: return HEADROOM_KEEP_EVIDENCE_19;\\n20: return HEADROOM_KEEP_EVIDENCE_20;\\n21: return HEADROOM_KEEP_EVIDENCE_21;\\n22: return HEADROOM_KEEP_EVIDENCE_22;\\n23: return HEADROOM_KEEP_EVIDENCE_23;\\n24: return HEADROOM_KEEP_EVIDENCE_24;\\n25: return HEADROOM_KEEP_EVIDENCE_25;\\n26: return HEADROOM_KEEP_EVIDENCE_26;\\n27: return HEADROOM_KEEP_EVIDENCE_27;\\n28: return HEADROOM_KEEP_EVIDENCE_28;\\n29: return HEADROOM_KEEP_EVIDENCE_29;\\n30: return HEADROOM_KEEP_EVIDENCE_30;\\n31: return HEADROOM_KEEP_EVIDENCE_31;\\n32: return HEADROOM_KEEP_EVIDENCE_32;\\n33: return HEADROOM_KEEP_EVIDENCE_33;\\n34: return HEADROOM_KEEP_EVIDENCE_34;\\n35: return HEADROOM_KEEP_EVIDENCE_35;\\n36: return HEADROOM_KEEP_EVIDENCE_36;\\n37: return HEADROOM_KEEP_EVIDENCE_37;\\n38: return HEADROOM_KEEP_EVIDENCE_38;\\n39: return HEADROOM_KEEP_EVIDENCE_39;\\n\",\"data\":{},\"elapsed_ms\":0,\"truncated\":false,\"original_chars\":0,\"continue_hint\":\"\"}",
+          "tool_call_id": "real-api-call"
+        },
+        {
+          "role": "user",
+          "content": "根据刚才工具观察的 summary，提取全部 HEADROOM_KEEP_EVIDENCE_n 中不同的整数 n。只返回 JSON：ids 为升序整数数组，count 为数量，sum 为总和。没有条目时返回空数组、0、0。不要调用工具。"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "execute_command",
+            "description": "在项目目录执行 Shell 命令（默认 60 秒超时，输出截断 8000 字符）",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "timeout_seconds": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "max_tokens": 256,
+      "temperature": 0,
+      "tool_choice": "none",
+      "stream_options": {
+        "include_usage": true
+      }
+    },
+    "empty_control": {
+      "model": "deepseek-flash",
+      "stream": true,
+      "thinking": {
+        "type": "disabled"
+      },
+      "messages": [
+        {
+          "role": "system",
+          "content": "你是工具证据验收助手，只根据工具观察回答，只输出 JSON，不输出 Markdown，不猜测未出现的条目。"
+        },
+        {
+          "role": "user",
+          "content": "我已经执行了读取样本的命令，请核对结果。"
+        },
+        {
+          "role": "assistant",
+          "content": null,
+          "reasoning_content": "",
+          "tool_calls": [
+            {
+              "id": "real-api-call",
+              "type": "function",
+              "function": {
+                "name": "execute_command",
+                "arguments": "{\"command\":\"cat fixture.txt\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "{\"status\":\"success\",\"summary\":\"\",\"data\":{},\"elapsed_ms\":0,\"truncated\":false,\"original_chars\":0,\"continue_hint\":\"\"}",
+          "tool_call_id": "real-api-call"
+        },
+        {
+          "role": "user",
+          "content": "根据刚才工具观察的 summary，提取全部 HEADROOM_KEEP_EVIDENCE_n 中不同的整数 n。只返回 JSON：ids 为升序整数数组，count 为数量，sum 为总和。没有条目时返回空数组、0、0。不要调用工具。"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "execute_command",
+            "description": "在项目目录执行 Shell 命令（默认 60 秒超时，输出截断 8000 字符）",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "timeout_seconds": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "max_tokens": 256,
+      "temperature": 0,
+      "tool_choice": "none",
+      "stream_options": {
+        "include_usage": true
+      }
+    }
+  }
+}
