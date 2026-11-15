@@ -1,5 +1,9 @@
 # XhlCLI 项目全局进度 (Progress)
 
+## 当前任务：Headroom 工具正文压缩（2026-11-15）
+
+范围为默认关闭的前台单 Agent 本机无损压缩，终端与桌面共用；原始历史、规则和调用控制字段保留。需求：[REQ-H01～H05](prd/headroom-context-optimization.md)；方案：[设计](specs/2026-11-15-headroom-context-optimization.md)；任务：[实施计划](plans/2026-11-15-headroom-context-optimization.md)；结果与人工步骤：[验收记录](engineering/headroom-context-optimization-verification.md)。TASK-H01～H05 完成：全量 Java 731 项、桌面 Node 19 项、JAR 打包、真实 Headroom 0.44.0 与 Java Agent / CLI 联调通过；独立审查发现的自动重发、JSON 边界及高精度 data 问题均已复核关闭。TASK-H06 文档与使用说明完成，待提交推送当前分支并核对引用。真实模型质量、账单收益及本次桌面 GUI 操作未验证；桌面保存重启已由 Java 服务测试覆盖。稳定基线 `c263c33`，保留工作区已有用户修改；本次不发布版本或替换已安装应用。
+
 ## 本次修复：计划确认与 Markdown（2026-11-06）
 
 桌面 `/plan` 已改为独立人工确认：自动工具审批不能放行计划，支持修改、取消、过期/重复请求拒绝及持久化；修复工具摘要污染正文、任务编号破坏 Markdown 块结构、达到调用上限误报完成和取消后迟到事件回退状态。相关 Java 31 项、Node 19 项、前端与 Java 构建通过；agent-desktop 完成开发态计划修改/确认与截图，成品通过 Playwright 补查重启、待确认刷新和取消不写入。本机应用和分享 ZIP 已更新，代码与证据随本次提交同步，远程结果以 Git 引用核验为准；`.gitignore` 的既有修改未纳入本次工作。使用隔离模拟模型，未使用真实 Key。人工步骤、Codex 静态证据及边界见[修复验收](engineering/desktop-mvp-verification.md#计划确认与-markdown-修复2026-11-06)。

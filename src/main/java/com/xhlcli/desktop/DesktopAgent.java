@@ -76,7 +76,9 @@ final class DesktopAgent implements AutoCloseable {
         agent.setContextAssembler(new ContextAssembler(new TokenBudget(client.capabilities().maxContextWindow())));
         agent.setCompactor(new ConversationHistoryCompactor(client));
         memory=new MemoryManager(home.resolve(".xhlcli/memory"),workspace.resolve(".xhlcli/memory"));
-        agent.setMemoryRecall(memory,MemoryRecallSettings.fromEnvironment(config.environment(workspace)));
+        var environment=config.environment(workspace);
+        agent.setMemoryRecall(memory,MemoryRecallSettings.fromEnvironment(environment));
+        agent.setContextOptimizer(ContextOptimizer.fromEnvironment(environment,mapper));
         agent.setConcurrencyLimits(limits.agentSettings().maxConcurrency(),limits.agentSettings().toolTimeout());
         } catch(Exception failure) { close(); throw failure; }
     }

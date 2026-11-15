@@ -2,6 +2,8 @@ package com.xhlcli.desktop;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.xhlcli.context.TokenBudget;
+import com.xhlcli.context.ContextOptimizationReport;
+import com.xhlcli.context.HeadroomSettings;
 import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.memory.*;
 import com.xhlcli.model.ChatMessage;
@@ -92,7 +94,16 @@ final class DesktopCommands {
                 var lines=new ArrayList<String>();for(var model:models)lines.add("- `"+model.path("id").asText()+"`");
                 yield lines.isEmpty()?"尚未配置模型，请进入设置。":String.join("\n",lines);
             }
-            case "/context" -> "当前聊天上下文：\n\n- 历史消息："+history.size()+" 条\n- 估算 Token："+TokenBudget.estimateTokens(history)+"\n- 当前模型：`"+session.path("model").asText()+"`\n- 工作目录：`"+workspace+"`\n\n会话自动保存在用户目录，更新应用后可继续对话。";
+            case "/context" -> {
+                ContextOptimizationReport report=null;
+                if(session.path("contextOptimization").isObject()) {
+                    try {report=DesktopJson.MAPPER.treeToValue(session.path("contextOptimization"),ContextOptimizationReport.class);}
+                    catch(com.fasterxml.jackson.core.JsonProcessingException ignored) { /* 旧版或未知报告不影响聊天。 */ }
+                }
+                boolean enabled=HeadroomSettings.fromEnvironment(config.environment(workspace)).enabled();
+                yield "当前聊天上下文：\n\n- 历史消息："+history.size()+" 条\n- 估算 Token："+TokenBudget.estimateTokens(history)+"\n- 当前模型：`"+session.path("model").asText()+"`\n- 工作目录：`"+workspace+"`\n\n"
+                        +ContextOptimizationReport.describe(enabled,report)+"\n\n会话自动保存在用户目录，更新应用后可继续对话。";
+            }
             default -> {
                 if(resources.skills.find(command.name().substring(1)).isPresent())yield "用法："+command.name()+" <任务描述>";
                 throw new IllegalArgumentException("未知或尚未接入桌面的指令："+command.name()+"。输入 /help 查看可用命令。");

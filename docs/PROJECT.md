@@ -22,6 +22,8 @@
 
 ## 2. 事实源映射矩阵 (Document Map)
 
+Headroom 工具正文压缩：[需求](prd/headroom-context-optimization.md) · [方案](specs/2026-11-15-headroom-context-optimization.md) · [实施计划](plans/2026-11-15-headroom-context-optimization.md) · [验收与使用说明](engineering/headroom-context-optimization-verification.md)。实际交付状态见 PROGRESS。
+
 按职责区分持续演进事实源、当前 Release 制品和已发布阶段封存制品：
 
 ### 2.1 持续演进事实源 (Living Documents)

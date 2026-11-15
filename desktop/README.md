@@ -63,12 +63,14 @@ npm run distribute
 | `/memory` | `list/search/recall/delete/clear`；`clear` 清空全局与当前项目长期记忆，保留聊天 |
 | `/save [--global] <内容>` | 保存项目或全局长期记忆；聊天本身自动保存，无需执行此命令 |
 | `/model` | `list/status/use`；如 `/model use deepseek:deepseek-chat`，仅可选已配置模型 |
-| `/context` | 查看历史消息数量、估算 Token、模型和工作目录 |
+| `/context` | 查看历史消息数量、估算 Token、模型、工作目录及最近 Headroom 优化尝试 |
 | `/help` | 查看上述指令帮助 |
 
 本地管理指令不依赖模型配置；Plan、Team 和技能执行需要模型。未知或尚未接入的命令直接报错。斜杠指令暂不接受附件，发送失败时保留草稿与附件。
 
 MCP 启停在本次应用运行期间对同一项目生效；重开应用按 MCP 配置初始化。技能开关沿用桌面技能设置。模型和审批模式按聊天保存。
+
+普通聊天可通过项目 `.env` 开启本机 Headroom 工具正文压缩，默认关闭，无需在设置页配置。`/context` 的优化报告在退出重开后保留；报告只含状态与估算，原始工具历史不改写。独立服务启动和人工步骤见 [Headroom 使用与验收](../docs/engineering/headroom-context-optimization-verification.md)；本次未更新已安装应用和分发包，请按开发启动步骤使用当前源码。
 
 会话、显示记录与模型上下文保存在 `~/.xhlcli/desktop/state.json`，图片位于同一用户数据目录；它们不在 `.app` 内。保留 `~/.xhlcli/` 和原项目路径，替换应用后可从侧栏打开原聊天继续。本次已验证旧版写入、新版读取并携带旧上下文续聊；这不代表未来任意数据格式变更均无需迁移。退出时未完成的任务会标记中断，不自动重跑。终端 CLI 的输入历史与桌面完整聊天存储并非同一个恢复入口。
 

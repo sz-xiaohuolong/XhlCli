@@ -37,6 +37,45 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChatLoopTest {
     @Test
+    void contextShowsHeadroomAttemptAndClearRemovesIt(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        try (var server = new okhttp3.mockwebserver.MockWebServer();
+             var scheduler = new com.xhlcli.agent.ScheduledTimeoutScheduler()) {
+            server.start();
+            server.setDispatcher(new okhttp3.mockwebserver.Dispatcher() {
+                @Override public okhttp3.mockwebserver.MockResponse dispatch(okhttp3.mockwebserver.RecordedRequest request) {
+                    try {
+                        var body = mapper.readTree(request.getBody().readUtf8());
+                        ((com.fasterxml.jackson.databind.node.ObjectNode) body.path("messages").get(1)).put("content", "保留证据的压缩正文");
+                        return new okhttp3.mockwebserver.MockResponse().setBody(mapper.createObjectNode().set("messages", body.path("messages")).toString());
+                    } catch (Exception failure) { return new okhttp3.mockwebserver.MockResponse().setResponseCode(500); }
+                }
+            });
+            var react = new com.xhlcli.agent.ReactAgent(ChatMessage.system("规则"),
+                    (m, t, l, c) -> new com.xhlcli.model.ChatResponse("完成", TokenUsage.unknown()),
+                    (call, token) -> { throw new AssertionError("无需新工具"); }, List.of(),
+                    new com.xhlcli.agent.RunLimits(4, Duration.ofSeconds(10)), scheduler, mapper,
+                    java.time.Clock.systemUTC(), () -> "context");
+            react.setContextAssembler(new com.xhlcli.context.ContextAssembler(new com.xhlcli.context.TokenBudget(16000)));
+            react.setMemoryRecall(new com.xhlcli.memory.MemoryManager(dir.resolve("global"), dir.resolve("project")),
+                    com.xhlcli.memory.MemoryRecallSettings.defaults());
+            react.setContextOptimizer(new com.xhlcli.context.HeadroomContextOptimizer(
+                    new com.xhlcli.context.HeadroomSettings(true, URI.create(server.url("/").toString()), Duration.ofSeconds(3)), mapper));
+            react.restoreHistory(List.of(ChatMessage.system("规则"), ChatMessage.user("前文"),
+                    new ChatMessage(ChatMessage.Role.ASSISTANT, "", List.of(new com.xhlcli.model.ToolCall("old", "execute_command", "{}")), null),
+                    ChatMessage.tool("old", "重复的构建日志".repeat(120))));
+            Harness h = new Harness(new ListInput(List.of("/context", "继续", "/context", "/clear", "/context", "/exit")), react);
+            assertEquals(0, h.loop.run());
+            assertTrue(h.out().contains("Headroom：已开启"), h.out());
+            assertTrue(h.out().contains("已压缩"), h.out());
+            assertTrue(h.out().contains("消息 Token 估算"), h.out());
+            assertTrue(h.out().contains("不代表账单"), h.out());
+            assertTrue(h.out().lastIndexOf("尚无优化记录") > h.out().indexOf("已压缩"), h.out());
+            assertEquals(1, server.getRequestCount());
+        }
+    }
+
+    @Test
     void memoryRecallPreviewExplainsSelectionWithoutStartingAgent(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
         FakeAgent agent = new FakeAgent();
         Harness h = new Harness(new ListInput(List.of("/memory recall Redis", "/exit")), agent);

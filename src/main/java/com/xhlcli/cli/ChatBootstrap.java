@@ -214,6 +214,7 @@ public final class ChatBootstrap implements ChatRunner {
             agent.setCompactor(compactor);
             try {
                 agent.setMemoryRecall(memoryManager, com.xhlcli.memory.MemoryRecallSettings.fromEnvironment(mergedEnv));
+                agent.setContextOptimizer(com.xhlcli.context.ContextOptimizer.fromEnvironment(mergedEnv, mapper));
             } catch (IllegalArgumentException failure) {
                 err.println("配置错误: " + failure.getMessage());
                 return 3;

@@ -430,6 +430,18 @@ ContextAssembler 将选中资料作为独立 USER 消息插到系统消息之后
 
 `/memory recall <问题>` 只读预览；`/context` 显示最近实际发送的结果，预算拒绝时保留上一已发送快照，`/clear` 清除该快照。Plan、Team、后台 Agent 保留原路径；后台使用 setMemorySupplier 的全量快照语义。新主路径不采用下述旧路径的自动压缩流程。测试、评测局限和人工步骤见[验收](engineering/memory-recall-verification.md)。
 
+### 11.1.2 前台工具正文的可选 Headroom 压缩（2026-11-15）
+
+CLI `ChatBootstrap` 和桌面 `DesktopAgent` 使用同一个 `ContextOptimizer.fromEnvironment` 装配优化器。`XHLCLI_HEADROOM_ENABLED=false` 为默认值，关闭实现不联网。开启时 `HeadroomSettings` 只接受回环 HTTP/HTTPS 根地址，默认 `http://127.0.0.1:8787`、整次调用 3000 ms；禁用代理、重定向和自动重发，请求与响应各限 4 MiB。配置和保护规则见[方案第 4 节](specs/2026-11-15-headroom-context-optimization.md#4-配置数据与接口)。
+
+`ReactAgent` 在每次主前台模型请求的预算检查前，先从工作历史生成请求副本并交给 `HeadroomContextOptimizer`。只有已知工具调用对应、至少 256 字符的正文可参与；结构化观察只替换 `summary`，`data` 和控制字段的值保持不变。局部 JSON 读取器完整解析输入及响应，以 `BigDecimal` 保留小数精度；未知 JSON、看似 JSON 却整体非法或存在尾随内容的观察跳过。源码读取、写入、补丁、diff、技能、恢复及回取工具被排除，包括同名 MCP 后缀。服务只收到正文、工具名、合成调用 ID 和空参数，不收到原系统规则、用户/assistant 正文、推理、图片、真实调用参数或 Provider Key。
+
+单次 `POST /v1/compress` 强制 `mode=lossless`、`protect_recent=0`，不建立 CCR 原文回取依赖。响应必须保留数量、顺序、角色、调用关联及其他元数据；回取标记或非法结构导致整次回退。只有正文更短且本地 Token 估算减少时才采用。压缩副本随后进入记忆组装和包含工具定义的最终预算检查，再由原 Provider 客户端请求模型；原始历史不变。失败回退后仍超预算则停止，取消或整体超时中止 HTTP 并阻止随后启动模型调用。
+
+`ContextOptimizationReport` 保存最近一次尝试的状态、固定原因、消息估算前后值、变更条数及耗时。CLI `/context` 读取 Agent，`/clear` 同时清空记录；桌面 `DesktopService` 保存到聊天 `contextOptimization` 元数据，`DesktopCommands` 兼容旧聊天缺记录和未知报告。报告不含正文，估算发生在记忆组装前且不含工具定义，不代表账单或已发送的模型请求。
+
+此能力只装配到 CLI、桌面普通前台路径，Plan、Team、后台和 Runtime API 保持原有装配。真实 Headroom 与模拟模型的联调、测试范围及使用步骤见[验收记录](engineering/headroom-context-optimization-verification.md)。
+
 ### 11.2 压缩门槛
 
 门槛按模型窗口动态计算，并至少预留最大输出、下一轮工具结果和安全缓冲。压缩结果使用结构化段落，保留目标、约束、变更、验证和剩余任务。

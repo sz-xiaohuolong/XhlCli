@@ -187,6 +187,7 @@ public final class DesktopService implements AutoCloseable {
             List<ChatMessage> history;ObjectNode settings;
             synchronized(this){history=DesktopJson.MAPPER.convertValue(session.withArray("history"),new TypeReference<List<ChatMessage>>(){});settings=session.deepCopy();}
             RunResult result;List<ChatMessage> nextHistory;
+            com.xhlcli.context.ContextOptimizationReport optimization=null;
             if(!useAgent) {
                 String answer=DesktopCommands.local(command,resources,home,running.workspace,config,settings,history,running.token,target->{
                     synchronized(this){try {
@@ -203,9 +204,11 @@ public final class DesktopService implements AutoCloseable {
                 RunEventSink sink=event->emit(running,event.getClass().getSimpleName(),event);
                 result=command==null?adapter.agent.runMessage(input,sink,running.token):adapter.runCommand(command,sink,running.token);
                 nextHistory=adapter.agent.history();
+                optimization=adapter.agent.lastContextOptimization();
             }
             synchronized(this) {
                 session.set("history",config.redactNode(DesktopJson.MAPPER.valueToTree(nextHistory),running.workspace));
+                if(optimization!=null)session.set("contextOptimization",DesktopJson.MAPPER.valueToTree(optimization));
                 running.turn.put("status",running.token.isCancelled()?"canceled":result.status().name().toLowerCase(Locale.ROOT));
                 running.turn.put("answer",config.redact(result.finalAnswer(),running.workspace));running.turn.put("error",config.redact(result.reason(),running.workspace));
             }

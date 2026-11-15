@@ -62,6 +62,8 @@ public final class ChatLoop {
             renderer.printMessage("Context manager not initialized.");
         }
         if (agent instanceof com.xhlcli.agent.ReactAgent react) {
+            renderer.printMessage(com.xhlcli.context.ContextOptimizationReport.describe(
+                    react.contextOptimizationEnabled(), react.lastContextOptimization()));
             var recalled = react.lastMemoryRecall();
             if (recalled == null) renderer.printMessage("主对话尚无本轮记忆召回记录。");
             else printRecall("主对话最近一轮实际注入", recalled);

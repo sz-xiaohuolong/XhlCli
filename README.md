@@ -79,6 +79,7 @@ CLI 也可从项目 `.env` 读取 `DEEPSEEK_API_KEY`，或在 `~/.xhlcli/config.
 | 规划复杂任务 | `/plan <目标>` 先生成计划再确认执行；`/team <目标>` 由规划、执行和审查角色协作 |
 | 复用技能与外部工具 | 管理技能，通过 `/<技能名> <目标>` 显式调用；通过 MCP（连接外部工具与资源的协议）扩展项目能力 |
 | 保存长期信息 | `/save` 保存项目或全局记忆，`/memory` 查看、搜索或预览召回；具体注入范围见 [记忆验收说明](docs/engineering/memory-recall-verification.md) |
+| 缩减工具输出的上下文用量 | 可选本机 Headroom 无损压缩，默认关闭；普通前台 Agent 发送模型前处理工具正文，`/context` 查看最近尝试 |
 | 使用文件和图片 | 桌面支持选择、拖入文件和粘贴 PNG；发送图片前检查模型是否支持视觉输入 |
 | 并行处理只读分析 | CLI `/task` 后台独立分析，前台可继续对话；按工作区隔离，结果持久保存，支持取消与重启查询 |
 
@@ -105,6 +106,12 @@ CLI 也可从项目 `.env` 读取 `DEEPSEEK_API_KEY`，或在 `~/.xhlcli/config.
 
 配置、同库多实例限制和人工验收见 [后台任务使用与实现说明](docs/engineering/task-background-lifecycle-verification.md)。
 
+### 可选 Headroom 压缩
+
+需要减少重复发送的工具正文时，可独立启动 Headroom，在项目 `.env` 设置 `XHLCLI_HEADROOM_ENABLED=true`。CLI 与桌面普通聊天共用此能力，`/context` 显示状态、消息 Token 估算变化与回退原因。原始聊天历史保留，服务不可用时使用原文并重新检查预算。
+
+固定版本的安装、启动、离线联调、人工验收和关闭步骤见 [Headroom 使用与验收](docs/engineering/headroom-context-optimization-verification.md)。第一版只使用本机无损模式；Plan、Team 和后台任务沿用原路径。压缩量随正文格式变化，估算不代表实际费用。
+
 ## 使用文档
 
 按要完成的事情选择入口：
@@ -112,6 +119,7 @@ CLI 也可从项目 `.env` 读取 `DEEPSEEK_API_KEY`，或在 `~/.xhlcli/config.
 - **使用桌面端、构建分发包或排查启动问题**：[桌面说明](desktop/README.md)；[人工验收步骤](docs/engineering/desktop-mvp-verification.md)。
 - **开启 CLI 自动 Team 或理解失败重规划**：[Team 使用与验收](docs/engineering/team-routing-and-replanning-verification.md)。
 - **验证记忆召回、后台任务行为**：[记忆说明](docs/engineering/memory-recall-verification.md)；[task 说明](docs/engineering/task-background-lifecycle-verification.md)。
+- **开启或验收本机工具正文压缩**：[Headroom 使用与验收](docs/engineering/headroom-context-optimization-verification.md)。
 - **参与开发、理解模块和查找规划**：[项目与文档地图](docs/PROJECT.md)；[技术设计](docs/TECH_DESIGN.md)；[当前进度](docs/PROGRESS.md)；[Agent 工作约定](AGENTS.md)。
 - **报告安全问题**：[安全策略](SECURITY.md)。普通问题请提交 [Issue](https://github.com/sz-xiaohuolong/XhlCli/issues)，附上复现步骤、系统版本和脱敏日志。
 

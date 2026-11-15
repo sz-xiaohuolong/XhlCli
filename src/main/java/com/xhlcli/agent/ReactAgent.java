@@ -92,6 +92,15 @@ public final class ReactAgent implements AgentRunner {
     public MemoryRecallResult lastMemoryRecall() { return lastMemoryRecall; }
     public MemoryRecallSettings memoryRecallSettings() { return recallSettings; }
 
+    private com.xhlcli.context.ContextOptimizer contextOptimizer = com.xhlcli.context.ContextOptimizer.disabled();
+    private volatile com.xhlcli.context.ContextOptimizationReport lastContextOptimization;
+
+    public void setContextOptimizer(com.xhlcli.context.ContextOptimizer optimizer) {
+        contextOptimizer = Objects.requireNonNull(optimizer);
+    }
+    public com.xhlcli.context.ContextOptimizationReport lastContextOptimization() { return lastContextOptimization; }
+    public boolean contextOptimizationEnabled() { return contextOptimizer.enabled(); }
+
     public void setToolDefinitions(List<ToolDefinition> toolDefinitions) {
         this.toolDefinitions = toolDefinitions != null ? List.copyOf(toolDefinitions) : List.of();
     }
@@ -302,12 +311,18 @@ public final class ReactAgent implements AgentRunner {
                     List<ToolDefinition> requestTools = toolDefinitions;
                     List<ChatMessage> toSend = List.copyOf(workingHistory);
                     if (contextAssembler != null && recallMemory != null) {
-                        if (contextAssembler.getBudget().remainingInputTokens(workingHistory, requestTools) < 0) {
+                        // 先优化请求副本，避免原历史超限时尚未调用压缩服务就被拒绝。
+                        var optimized = contextOptimizer.optimize(toSend, client.modelName(), operationCancellation);
+                        lastContextOptimization = optimized.report();
+                        toSend = optimized.messages();
+                        RunResult stoppedDuringOptimization = finishIfStopped(lifecycle, sequencer, runId, gate, iterations, usage);
+                        if (stoppedDuringOptimization != null) return stoppedDuringOptimization;
+                        if (contextAssembler.getBudget().remainingInputTokens(toSend, requestTools) < 0) {
                             sequencer.emitTextDelta(modelIteration, "当前问题、系统规则和工具已超过上下文估算预算，请缩小问题或清理历史后重试。\n");
                             sequencer.finishTextStream(modelIteration, true);
                             return finish(lifecycle, sequencer, runId, RunStatus.LIMIT_REACHED, "CONTEXT_BUDGET", "", iterations, usage);
                         }
-                        var assembled = contextAssembler.withRecall(workingHistory, requestTools, turnRecall);
+                        var assembled = contextAssembler.withRecall(toSend, requestTools, turnRecall);
                         turnRecall = assembled.recall();
                         lastMemoryRecall = turnRecall;
                         toSend = assembled.messages();
@@ -487,6 +502,7 @@ public final class ReactAgent implements AgentRunner {
     public synchronized void clearHistory() {
         committedHistory = List.of(systemMessage);
         lastMemoryRecall = null;
+        lastContextOptimization = null;
     }
 
     /** 接收同一前台会话内 Team 的最终结果，供下一轮追问使用。 */
