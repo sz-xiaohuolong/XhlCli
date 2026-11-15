@@ -2,7 +2,7 @@
 
 ## 当前任务：Headroom 工具正文压缩（2026-11-15）
 
-范围为默认关闭的前台单 Agent 本机无损压缩，终端与桌面共用；原始历史、规则和调用控制字段保留。需求：[REQ-H01～H05](prd/headroom-context-optimization.md)；方案：[设计](specs/2026-11-15-headroom-context-optimization.md)；任务：[实施计划](plans/2026-11-15-headroom-context-optimization.md)；结果与人工步骤：[验收记录](engineering/headroom-context-optimization-verification.md)。TASK-H01～H05 完成：全量 Java 731 项、桌面 Node 19 项、JAR 打包、真实 Headroom 0.44.0 与 Java Agent / CLI 联调通过；独立审查发现的自动重发、JSON 边界及高精度 data 问题均已复核关闭。TASK-H06 文档与使用说明完成，待提交推送当前分支并核对引用。真实模型质量、账单收益及本次桌面 GUI 操作未验证；桌面保存重启已由 Java 服务测试覆盖。稳定基线 `c263c33`，保留工作区已有用户修改；本次不发布版本或替换已安装应用。
+范围为默认关闭的前台单 Agent 本机无损压缩，终端与桌面共用；原始历史、规则和调用控制字段保留。需求：[REQ-H01～H05](prd/headroom-context-optimization.md)；方案：[设计](specs/2026-11-15-headroom-context-optimization.md)；任务：[实施计划](plans/2026-11-15-headroom-context-optimization.md)；结果与人工步骤：[验收记录](engineering/headroom-context-optimization-verification.md)。TASK-H01～H06 完成：全量 Java 731 项、桌面 Node 19 项、JAR 打包、真实 Headroom 0.44.0 与 Java Agent / CLI 联调通过；独立审查发现的自动重发、JSON 边界及高精度 data 问题均已复核关闭。实现提交 `ff1df2b6c3f62e897abcbd03d89addc2b78a1cf4` 已推送 `origin/main`，远程 SHA 核对一致；本次验收服务已关闭，共享安装保留。真实模型质量、账单收益及本次桌面 GUI 操作未验证；桌面保存重启已由 Java 服务测试覆盖。原稳定基线 `c263c33`，工作区已有用户修改保留；本次不发布版本或替换已安装应用。
 
 ## 本次修复：计划确认与 Markdown（2026-11-06）
 

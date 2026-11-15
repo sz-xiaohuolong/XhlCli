@@ -86,7 +86,7 @@ HEADROOM_OFFLINE=1 HEADROOM_BEACON=off HEADROOM_DISABLE_KOMPRESS=1 DO_NOT_TRACK=
 
 `HEADROOM_OFFLINE` 禁止服务主动访问外部网络；其他参数关闭本次不需要的缓存、统计和状态保存。Java 每次请求仍显式设置 `mode=lossless`、`protect_recent=0`、`compress_user_messages=false`，不依赖全局服务默认值。启动日志或健康页中的其他通用代理字段不代表本次启用它们。
 
-另一个终端执行 `curl -fsS http://127.0.0.1:8787/health`，预期 `ready=true`、`version=0.44.0`。本次完成后会关闭验收服务，保留共享安装；用户验收时需重新启动。
+另一个终端执行 `curl -fsS http://127.0.0.1:8787/health`，预期 `ready=true`、`version=0.44.0`。本次 18787 验收服务已关闭，保留共享安装；用户验收时需重新启动。
 
 ## 5. CLI 人工验收
 
