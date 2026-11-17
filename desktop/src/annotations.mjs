@@ -63,9 +63,15 @@ export function loadDraft(key, storage = defaultStorage()) {
 export function clearDraft(key, storage = defaultStorage()) {
   if (!key || !storage) return false;
   try {
+    const existing = storage.getItem(DRAFT_PREFIX + key);
+    const currentIndex = readDraftIndex(storage);
+    const hasEntry = currentIndex.includes(key);
+    if (existing == null && !hasEntry) return true;
     storage.removeItem(DRAFT_PREFIX + key);
-    const index = readDraftIndex(storage).filter(item => item !== key);
-    storage.setItem(DRAFT_INDEX_KEY, JSON.stringify(index));
+    if (hasEntry) {
+      const index = currentIndex.filter(item => item !== key);
+      storage.setItem(DRAFT_INDEX_KEY, JSON.stringify(index));
+    }
     return true;
   } catch {
     return false;
@@ -231,6 +237,7 @@ export function buildDiffSelectionAnchor(filePath, parsedLines, startIdx, endIdx
     startLine,
     endLine,
     anchorRowIndex: selected.at(-1).index,
+    anchorLineType: selected.at(-1).type,
     selectedRowRange: [selected[0].index, selected.at(-1).index],
     snippet: buildSnippet(selected)
   };
@@ -250,8 +257,17 @@ export function resolveDiffCommentRowIndex(comment, parsedLines) {
   if (Number.isInteger(comment.anchorRowIndex)) {
     const direct = parsedLines[comment.anchorRowIndex];
     if (direct?.commentable) {
-      const targetVal = comment.side === 'old' ? direct.oldLine : direct.newLine;
-      if (targetVal === comment.endLine) return direct.index;
+      if (comment.side === 'old' && direct.oldLine === comment.endLine) return direct.index;
+      if (comment.side !== 'old' && direct.newLine === comment.endLine) return direct.index;
+      if (comment.side === 'mixed' && direct.type === 'del') {
+        for (let i = direct.index - 1; i >= 0; i--) {
+          const prev = parsedLines[i];
+          if (prev?.commentable && prev.newLine != null) {
+            if (prev.newLine === comment.endLine) return direct.index;
+            break;
+          }
+        }
+      }
     }
   }
   const found = parsedLines.find(line => {

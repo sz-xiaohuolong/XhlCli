@@ -77,6 +77,29 @@ test('PlanReview 恢复 localStorage 批注草稿并渲染高亮、红线与含�
     assert.match(html,/展开精审/);
     assert.match(html,/批注步骤 1/);
     assert.match(html,/补充缓存边界/);
+    assert.match(html,/class="plan-step-body markdown"[^>]*data-plan-target="step"/);
+
+    // 验证跨已有 <mark> 不误桥接、跨块列表高亮与 <br> 换行匹配
+    saveDraft(planDraftKey('sess-2','plan-2'),{
+      annotations:[
+        {id:'b1',type:'COMMENT',targetKind:'step',stepIndex:1,taskId:'task_1',originalText:'Beta',text:'注释1'},
+        {id:'b2',type:'COMMENT',targetKind:'step',stepIndex:1,taskId:'task_1',originalText:'Alpha Gamma',text:'不应跨mark误匹配'},
+        {id:'b3',type:'COMMENT',targetKind:'step',stepIndex:2,taskId:'task_2',originalText:'第一行 第二行',text:'换行匹配'}
+      ],
+      globalFeedback:''
+    });
+    const edgeTurn={
+      ...turn,
+      events:[{type:'plan.ready',data:{id:'plan-2',goal:'测试',summary:'',tasks:[
+        {id:'task_1',description:'Alpha Beta Gamma',type:'ANALYSIS',dependencies:[]},
+        {id:'task_2',description:'第一行  \n第二行',type:'ANALYSIS',dependencies:[]}
+      ]}}]
+    };
+    const edgeHtml=renderToStaticMarkup(React.createElement(Turn,{turn:edgeTurn,session:{id:'sess-2'},onPlan:async()=>{},onApproval:()=>{},notify:()=>{}}));
+    assert.match(edgeHtml,/<mark[^>]*data-annotation-id="b1"[^>]*>Beta<\/mark>/);
+    assert.doesNotMatch(edgeHtml,/data-annotation-id="b2"/);
+    assert.match(edgeHtml,/<mark[^>]*data-annotation-id="b3"[^>]*>第一行<\/mark>/);
+    assert.match(edgeHtml,/<mark[^>]*data-annotation-id="b3"[^>]*>第二行<\/mark>/);
   }finally{
     delete global.localStorage;
   }

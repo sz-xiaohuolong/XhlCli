@@ -3,7 +3,7 @@
 .plan-heading h2{margin:0;font-size:17px;font-weight:600;line-height:1.5}
 .plan-expand-btn{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;min-block-size:28px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:#48545d;background:#fff}
 .plan-expand-btn:hover{background:#f3f5f6}
-.plan-selection-tip{font-size:11px;color:#657078;margin:0 0 14px;line-height:1.5}
+.plan-selection-tip{font-size:11px;color:#657078;margin:0 0 14px;line-height:1.5;user-select:none}
 .plan-goal{font-weight:550}
 .plan-summary{color:#56616a}
 .plan-steps{padding-left:22px;margin:20px 0}
@@ -13,10 +13,10 @@
 .plan-steps .markdown>:last-child{margin-bottom:0}
 .plan-step-row{display:flex;align-items:flex-start;gap:10px}
 .plan-step-body{flex:1;min-inline-size:0}
-.plan-step-annotate-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;min-block-size:26px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:11px;color:#5c6871;background:#fff;opacity:.75;transition:opacity .14s,background .14s}
+.plan-step-annotate-btn{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;min-block-size:26px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:11px;color:#5c6871;background:#fff;opacity:.75;transition:opacity .14s,background .14s;user-select:none}
 .plan-steps>li:hover .plan-step-annotate-btn,.plan-step-annotate-btn:focus-visible{opacity:1}
 .plan-step-annotate-btn:hover{background:#f3f5f6;color:#252729}
-.plan-dependency{font-size:11px;line-height:1.65;color:#5c6871;margin:5px 0 0}
+.plan-dependency{font-size:11px;line-height:1.65;color:#5c6871;margin:5px 0 0;user-select:none}
 .plan-boundary{font-size:12px;line-height:1.8;color:#56616a;border-top:1px solid var(--line);padding-top:16px;margin:20px 0 14px}
 .plan-feedback{display:block;font-size:12px;color:#48545d;margin-bottom:6px}
 .plan-feedback-input{box-sizing:border-box;resize:vertical;min-height:68px;max-height:220px;width:100%;padding:10px 12px;border:1px solid #cbd1d5;border-radius:8px;font:inherit;line-height:1.75}

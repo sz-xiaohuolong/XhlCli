@@ -1,10 +1,10 @@
 .diff-panel{width:clamp(380px,37%,540px);flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;background:#fbfcfc;min-inline-size:0}
-.diff-panel.diff-panel-wide{width:clamp(520px,62%,calc(100% - 240px))}
+.diff-panel.diff-panel-wide{width:clamp(440px,60%,max(440px,calc(100% - 360px)))}
 .diff-panel.diff-panel-full{position:absolute;inset:0;width:100%;z-index:25;border-left:0}
-.diff-header{min-height:47px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 14px;border-bottom:1px solid var(--line);background:#fff;flex-shrink:0}
-.diff-header-title{display:flex;gap:8px;align-items:center;font-size:12px;min-inline-size:0}
+.diff-panel>.diff-header{height:auto;min-height:47px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 14px;border-bottom:1px solid var(--line);background:#fff;flex-shrink:0}
+.diff-panel>.diff-header>.diff-header-title{display:flex;gap:8px;align-items:center;font-size:12px;min-inline-size:0}
 .diff-badge{font-size:10px;padding:2px 7px;border-radius:999px;background:#edf3fa;color:var(--blue);white-space:nowrap}
-.diff-header-actions{display:flex;align-items:center;gap:8px}
+.diff-panel>.diff-header>.diff-header-actions{display:flex;align-items:center;gap:8px}
 .diff-width-group{display:inline-flex;padding:2px;border-radius:8px;background:#f3f4f5;border:1px solid var(--line);gap:2px}
 .diff-width-group button{min-block-size:24px;padding:3px 8px;border-radius:6px;font-size:11px;color:#5c646a}
 .diff-width-group button.active{background:#fff;color:#252729;box-shadow:0 1px 3px #121b2412}

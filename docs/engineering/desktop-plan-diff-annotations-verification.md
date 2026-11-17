@@ -35,16 +35,16 @@
 |---|---|---|
 | **Java 专项单测与集成测试** | `./mvnw test -Dtest=PlanExecuteAgentTest,DesktopPlanReviewTest,DesktopServiceTest` | **26 项全部通过**（0 失败）：覆盖 `execute(notes)` 不重规划、备注注入全部步骤上下文、失败自动重规划透传备注、32000 字符上限与溢出报错、`NullNode` 安全处理、脱敏落盘 |
 | **Java 全量回归与打包** | `./mvnw -q test && ./mvnw -q package -DskipTests` | **736 项中 735 项运行全部通过**（0 失败、0 错误；仅既有 `HeadroomLiveTest` 因未传外部环境变量跳过 1 项），成功打包 `target/xhlcli-1.0.1.jar` |
-| **桌面端 Node 单测** | `cd desktop && npm test` | **27 项全部通过**（0 失败）：`annotations.test.cjs` 5 项（多 hunk/增删/二进制/截断/无换行 Diff 行号、锚点拼装、Plan 格式化、LRU 100 草稿与损坏/超限降级）、`conversation.test.cjs` 9 项（含 Plan HAST `<mark>`/`<del>` 渲染、历史含备注标签、旧事件兼容、`DiffReviewPanel` 忙碌/撤销禁用状态）及原有 13 项桥接/事件/命令/剪贴板/运行时测试 |
+| **桌面端 Node 单测** | `cd desktop && npm test` | **28 项全部通过**（0 失败）：`annotations.test.cjs` 6 项（多 hunk/增删/二进制/截断/无换行 Diff 行号、锚点拼装、`mixed` 以删除行结尾锚定不漂移、Plan 格式化、LRU 100 草稿与损坏/超限降级）、`conversation.test.cjs` 9 项（含 Plan HAST `<mark>`/`<del>` 渲染、跨 `<mark>` 防误桥接与 `<br>` 匹配、历史含备注标签、旧事件兼容、`DiffReviewPanel` 忙碌/撤销禁用状态）及原有 13 项桥接/事件/命令/剪贴板/运行时测试 |
 | **桌面端前端构建** | `cd desktop && npm run build` | 成功打包 `desktop/dist/app.js`、`app.css`、`index.html` |
-| **Impeccable UI 机械检查** | `impeccable detect --json desktop/src/plan-review.jsx ... desktop/src/app.jsx` | 返回 `[]`（0 项规则告警） |
-| **真实 Electron + Java 后端端到端 GUI 验证** | `node ../output/pda-e2e/e2e.mjs`（隔离目录 + 本地模拟 SSE 模型 + CDP 驱动与视觉截图检查） | 全流程通过：DOM 划词添加 `DELETION` 与 `COMMENT`、步骤快捷批注、`<dialog>` 双栏精审 modal 开启与关闭、切换会话后草稿恢复、`同意执行（含备注）` 仅请求 1 次规划且任务 prompt 包含全部 3 条批注、真实工具写入 `demo.js`、Diff `Shift` 多行评论、`加宽`/`全屏` 与 `900x620` 窄窗口按钮无溢出、关闭重开草稿保留、汇总填入并聚焦输入框、直接发送发起新一轮修复。视觉复核修复了 `.diff-file-count` 宽度被 `flex:1` 拉伸的问题并再次确认通过 |
+| **Impeccable UI 机械检查** | `impeccable detect --json desktop/src/plan-review.jsx ... desktop/src/app.jsx` | 首轮构建后扫描返回 `[]`（0 项规则告警；后续 CSS/JSX 交互修复未再重跑 CLI，由下文 CDP 布局边界实测覆盖） |
+| **真实 Electron + Java 后端端到端 GUI 验证** | 隔离目录 + 本地模拟 SSE 模型 + Electron CDP 真实鼠标/键盘驱动 | 全流程通过：DOM 划词与跨步骤按钮拖选防“批注”文案泄漏、跨块（`<strong>`+`<li>`）HAST `<mark>` 渲染、弹窗外点击关闭选区浮条、`<dialog>` 内嵌套编辑框按 `Esc` 分层退出（首次只关内嵌表单、二次再关弹层）、切换会话后草稿恢复、`同意执行（含备注）` 仅请求 1 次规划且任务 prompt 包含批注、真实鼠标在 `.diff-gutter` 按住跨 4 行拖拽（拖动期间不插框不跳行、释放后选中整段且以删除行结尾时锚定不漂移）、`.diff-header` 样式优先级与 `1160px` 加宽态输入框不挤压、`全屏` 态「汇总填入输入框」自动收起遮罩并聚焦且重开面板保留草稿、「直接发送给 Agent」发起新一轮并清草稿收面板 |
 
 ### 2.1 未验证范围（诚实记录）
 
 - **真实付费大模型 Provider 响应质量**：端到端测试使用的是本地 HTTP 模拟 SSE 服务，未在真实 DeepSeek / OpenAI / Anthropic 线上接口实际运行完整端到端对话以评估模型对结构化批注的遵循度。
 - **macOS 安装包重新打包**：`npm run package` / `npm run distribute` 未在本轮重新执行（当前代码修改生效于开发态 `npm start` 及后续重新打包）。
-- **物理触控板长按拖选行号槽与屏幕阅读器语音播报**：多行连选在 E2E 中重点验证了 `点击 + Shift 连选`；行号槽 Pointer 拖拽和 VoiceOver 实机朗读尚未人工操作确认。
+- **VoiceOver 屏幕阅读器语音播报与物理触控板习惯手势**：已通过 CDP 真实指针事件验证 `.diff-gutter` 拖拽与键盘 `Esc` 层级关闭，但 VoiceOver 实机朗读及真实硬件触控板长按手势尚未人工实操确认。
 
 ---
 

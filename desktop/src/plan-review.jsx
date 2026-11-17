@@ -13,11 +13,20 @@ function collectLeaves(node,leaves,insideMarked=false,blockId={value:0}){
   if(!node)return;
   if(node.type==='root'||node.type==='element'){
     const isMarked=insideMarked||Boolean(node.properties?.['data-plan-annotation']);
+    if(isMarked){
+      blockId.value+=1;
+      leaves.push({barrier:true,blockGroup:blockId.value});
+      return;
+    }
+    if(node.type==='element'&&node.tagName==='br'){
+      blockId.value+=1;
+      return;
+    }
     const isBlock=node.type==='element'&&BLOCK_TAGS.has(node.tagName);
     if(isBlock)blockId.value+=1;
     const children=node.children||[];
     for(let i=0;i<children.length;i+=1){
-      collectLeaves(children[i],leaves,isMarked,blockId);
+      collectLeaves(children[i],leaves,false,blockId);
     }
     if(isBlock)blockId.value+=1;
     return;
@@ -42,7 +51,15 @@ function normalizeAndMapLeaves(leaves){
   let prevWasSpace=true;
   let lastBlock=null;
   for(let leafIdx=0;leafIdx<leaves.length;leafIdx+=1){
-    const {node,blockGroup}=leaves[leafIdx];
+    const leaf=leaves[leafIdx];
+    if(leaf.barrier){
+      norm+='\u0000';
+      map.push(null);
+      prevWasSpace=true;
+      lastBlock=leaf.blockGroup;
+      continue;
+    }
+    const {node,blockGroup}=leaf;
     const val=node.value;
     if(lastBlock!==null&&lastBlock!==blockGroup&&!prevWasSpace){
       norm+=' ';
@@ -177,18 +194,31 @@ function createAnnotationId(){
   return 'ann_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
 }
 
+function loadPlanDraftState(active,key){
+  if(!active||!key)return {key:'',annotations:[],globalFeedback:''};
+  const saved=loadDraft(key);
+  return {
+    key,
+    annotations:Array.isArray(saved?.annotations)?saved.annotations:[],
+    globalFeedback:typeof saved?.globalFeedback==='string'?saved.globalFeedback:''
+  };
+}
+
 export function PlanReview({plan,active,resolution,sessionId,onRespond}){
   const draftKey=useMemo(()=>active?planDraftKey(sessionId,plan?.id):'',[active,sessionId,plan?.id]);
-  const [annotations,setAnnotations]=useState(()=>{
-    if(!active||!draftKey)return [];
-    const saved=loadDraft(draftKey);
-    return Array.isArray(saved?.annotations)?saved.annotations:[];
-  });
-  const [globalFeedback,setGlobalFeedback]=useState(()=>{
-    if(!active||!draftKey)return '';
-    const saved=loadDraft(draftKey);
-    return typeof saved?.globalFeedback==='string'?saved.globalFeedback:'';
-  });
+  const [draftState,setDraftState]=useState(()=>loadPlanDraftState(active,draftKey));
+  const annotations=draftState.annotations;
+  const globalFeedback=draftState.globalFeedback;
+  const setAnnotations=updater=>setDraftState(current=>({
+    ...current,
+    key:draftKey,
+    annotations:typeof updater==='function'?updater(current.annotations):updater
+  }));
+  const setGlobalFeedback=value=>setDraftState(current=>({
+    ...current,
+    key:draftKey,
+    globalFeedback:typeof value==='function'?value(current.globalFeedback):value
+  }));
   const [sending,setSending]=useState('');
   const [error,setError]=useState('');
   const [expanded,setExpanded]=useState(false);
@@ -198,19 +228,15 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
   const [editText,setEditText]=useState('');
 
   const inFlight=useRef(false);
-  const loadedDraftKeyRef=useRef(draftKey);
   const inlineContentRef=useRef(null);
   const dialogContentRef=useRef(null);
   const popoverRef=useRef(null);
   const dialogRef=useRef(null);
+  const rootRef=useRef(null);
   const dialogTitleId=useId();
 
   useEffect(()=>{
-    if(!active||!draftKey)return;
-    const saved=loadDraft(draftKey);
-    loadedDraftKeyRef.current=draftKey;
-    setAnnotations(Array.isArray(saved?.annotations)?saved.annotations:[]);
-    setGlobalFeedback(typeof saved?.globalFeedback==='string'?saved.globalFeedback:'');
+    setDraftState(loadPlanDraftState(active,draftKey));
     setError('');
     setSelectionBar(null);
     setStepQuickComposer(null);
@@ -218,9 +244,20 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
   },[draftKey,active]);
 
   useEffect(()=>{
-    if(!active||!draftKey||loadedDraftKeyRef.current!==draftKey)return;
-    saveDraft(draftKey,{annotations,globalFeedback});
-  },[active,draftKey,annotations,globalFeedback]);
+    if(!active||!draftKey||draftState.key!==draftKey)return;
+    saveDraft(draftKey,{annotations:draftState.annotations,globalFeedback:draftState.globalFeedback});
+  },[active,draftKey,draftState]);
+
+  useEffect(()=>{
+    if(!selectionBar||typeof document==='undefined')return undefined;
+    const onPointerDown=event=>{
+      if(popoverRef.current?.contains(event.target))return;
+      if(inlineContentRef.current?.contains(event.target)||dialogContentRef.current?.contains(event.target))return;
+      setSelectionBar(null);
+    };
+    document.addEventListener('pointerdown',onPointerDown);
+    return()=>document.removeEventListener('pointerdown',onPointerDown);
+  },[Boolean(selectionBar)]);
 
   useEffect(()=>{
     const dialog=dialogRef.current;
@@ -283,7 +320,8 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
       if(draftKey)clearDraft(draftKey);
       setExpanded(false);
     }catch(failure){
-      setError(failure.message||'提交失败，请重试');
+      const msg=(failure?.message||'提交失败，请重试').replace(/^Error invoking remote method '[^']+': Error: /,'');
+      setError(msg||'提交失败，请重试');
       inFlight.current=false;setSending('');
     }
   };
@@ -394,6 +432,12 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
     if(found){
       setEditingId(found.id);
       setEditText(found.text||'');
+      if(typeof requestAnimationFrame==='function'){
+        requestAnimationFrame(()=>{
+          const scope=expanded?dialogRef.current:rootRef.current;
+          scope?.querySelector?.(`[data-ann-item-id="${found.id}"]`)?.scrollIntoView?.({block:'nearest'});
+        });
+      }
     }
   };
 
@@ -402,7 +446,7 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
     ref={containerRef}
     onClick={interactive?handlePlanMarkClick:undefined}
     onMouseUp={interactive?event=>handleTextSelection(containerRef,event):undefined}
-    onKeyUp={interactive?event=>{if(event.shiftKey&&event.key.startsWith('Arrow'))handleTextSelection(containerRef,event);}:undefined}>
+    onKeyUp={interactive?event=>{if(event.shiftKey&&(event.key.startsWith('Arrow')||event.key==='Home'||event.key==='End'))handleTextSelection(containerRef,event);}:undefined}>
     <div className="plan-goal markdown" data-plan-target="goal">
       <AnnotatedMarkdown text={plan?.goal||''} annotations={interactive||!active?goalAnnotations:[]}/>
     </div>
@@ -413,9 +457,9 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
       const stepNum=index+1;
       const stepAnns=annotationsByStep.get(stepNum)||[];
       const isQuickOpen=interactive&&stepQuickComposer?.stepIndex===stepNum;
-      return <li key={task.id} data-plan-target="step" data-step-index={stepNum} data-task-id={task.id}>
+      return <li key={task.id}>
         <div className="plan-step-row">
-          <div className="plan-step-body markdown">
+          <div className="plan-step-body markdown" data-plan-target="step" data-step-index={stepNum} data-task-id={task.id}>
             <AnnotatedMarkdown text={task.description||''} annotations={interactive?stepAnns:[]}/>
           </div>
           {interactive&&<button
@@ -449,7 +493,7 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
             onChange={event=>setStepQuickComposer(current=>current?{...current,text:event.target.value}:null)}
             onKeyDown={event=>{
               if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();saveStepQuickAnnotation();}
-              if(event.key==='Escape'){event.stopPropagation();setStepQuickComposer(null);}
+              if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setStepQuickComposer(null);}
             }}/>
           <div className="plan-inline-form-actions">
             <button type="button" onClick={()=>setStepQuickComposer(null)}>取消</button>
@@ -465,7 +509,7 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
       <strong>已批注 {annotations.length} 处</strong>
       <button type="button" className="plan-text-action" disabled={!!sending} onClick={()=>{setAnnotations([]);setEditingId(null);}}>清空批注</button>
     </div>
-    <ul>{annotations.map(item=><li key={item.id} className={'plan-ann-item '+(item.type==='DELETION'?'is-deletion':'is-comment')}>
+    <ul>{annotations.map(item=><li key={item.id} data-ann-item-id={item.id} className={'plan-ann-item '+(item.type==='DELETION'?'is-deletion':'is-comment')}>
       <div className="plan-ann-meta">
         <span className="plan-ann-badge">{item.type==='DELETION'?'建议删除':'批注'}</span>
         <span className="plan-ann-target">{targetLabel(item)}</span>
@@ -476,7 +520,17 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
       </div>
       <blockquote className="plan-ann-quote">{item.originalText}</blockquote>
       {editingId===item.id?<div className="plan-ann-edit">
-        <textarea rows={2} aria-label="编辑批注内容" value={editText} disabled={!!sending} onChange={event=>setEditText(event.target.value)}/>
+        <textarea
+          autoFocus
+          rows={2}
+          aria-label="编辑批注内容"
+          value={editText}
+          disabled={!!sending}
+          onChange={event=>setEditText(event.target.value)}
+          onKeyDown={event=>{
+            if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();commitEdit(item.id);}
+            if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setEditingId(null);}
+          }}/>
         <div className="plan-inline-form-actions">
           <button type="button" onClick={()=>setEditingId(null)}>取消</button>
           <button type="button" className="primary" disabled={item.type==='COMMENT'&&!editText.trim()} onClick={()=>commitEdit(item.id)}>保存</button>
@@ -485,15 +539,20 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
     </li>)}</ul>
   </div>;
 
+  const openPopoverInput=type=>{
+    const vh=typeof window!=='undefined'?(window.innerHeight||800):800;
+    setSelectionBar(current=>current?{...current,mode:'input',type,top:Math.max(12,Math.min(current.top,vh-260))}:null);
+  };
+
   const renderSelectionPopover=()=>selectionBar&&<div
     ref={popoverRef}
     className="plan-selection-popover"
     style={{top:`${selectionBar.top}px`,left:`${selectionBar.left}px`}}>
     {selectionBar.mode==='choose'?<div className="plan-popover-buttons">
-      <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>setSelectionBar(current=>current?{...current,mode:'input',type:'COMMENT'}:null)}>
+      <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>openPopoverInput('COMMENT')}>
         <Highlighter size={14}/><span>添加批注</span>
       </button>
-      <button type="button" className="is-danger" onMouseDown={e=>e.preventDefault()} onClick={()=>setSelectionBar(current=>current?{...current,mode:'input',type:'DELETION'}:null)}>
+      <button type="button" className="is-danger" onMouseDown={e=>e.preventDefault()} onClick={()=>openPopoverInput('DELETION')}>
         <Strikethrough size={14}/><span>红线删除</span>
       </button>
       <button type="button" className="icon-button" aria-label="关闭划词浮条" onClick={()=>setSelectionBar(null)}><X size={13}/></button>
@@ -512,7 +571,7 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
         onChange={event=>setSelectionBar(current=>current?{...current,text:event.target.value}:null)}
         onKeyDown={event=>{
           if(event.key==='Enter'&&!event.shiftKey&&!event.nativeEvent.isComposing){event.preventDefault();saveSelectionAnnotation();}
-          if(event.key==='Escape'){event.stopPropagation();setSelectionBar(null);}
+          if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setSelectionBar(null);}
         }}/>
       <div className="plan-inline-form-actions">
         <button type="button" onClick={()=>setSelectionBar(null)}>取消</button>
@@ -573,7 +632,7 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
     </details>;
   }
 
-  return <section className="plan-review" aria-label="确认执行计划" aria-busy={!!sending}>
+  return <section ref={rootRef} className="plan-review" aria-label="确认执行计划" aria-busy={!!sending}>
     <div className="plan-heading">
       <FileText size={20}/>
       <h2>执行计划</h2>
@@ -588,7 +647,20 @@ export function PlanReview({plan,active,resolution,sessionId,onRespond}){
     <p className="plan-boundary">确认前不会执行计划中的文件修改或命令。“帮我审批”不会代替这次确认。</p>
     {renderControls('-inline')}
 
-    {expanded&&<dialog ref={dialogRef} className="plan-review-dialog" closedby="any" aria-labelledby={dialogTitleId} onClose={()=>{if(dialogRef.current)dialogRef.current.returnValue='';setExpanded(false);setSelectionBar(null);}}>
+    {expanded&&<dialog
+      ref={dialogRef}
+      className="plan-review-dialog"
+      closedby="any"
+      aria-labelledby={dialogTitleId}
+      onCancel={event=>{
+        if(selectionBar||stepQuickComposer||editingId!==null){
+          event.preventDefault();
+          setSelectionBar(null);
+          setStepQuickComposer(null);
+          setEditingId(null);
+        }
+      }}
+      onClose={()=>{if(dialogRef.current)dialogRef.current.returnValue='';setExpanded(false);setSelectionBar(null);}}>
       <div className="plan-dialog-header">
         <div className="plan-dialog-title">
           <FileText size={19}/>

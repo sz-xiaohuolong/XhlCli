@@ -4,7 +4,7 @@
 
 桌面端 Plan 内联划词批注/双栏精审、备注执行及 Diff 行内评论回发闭环已完成实现与验证。范围涵盖 `ExecutionPlan`、`PlanExecuteAgent`、`DesktopService`（`execute + notes`、自动重规划透传备注、`32000` 字符上限与脱敏落盘）及桌面模块 `annotations.mjs`、`plan-review.jsx`、`diff-review.jsx`、`app.jsx`。需求：[REQ-PDA01～PDA04](prd/desktop-plan-diff-annotations.md)（`FROZEN`）；方案：[设计](specs/2026-11-17-desktop-plan-diff-annotations-design.md)（`APPROVED`）；计划：[实施计划](plans/2026-11-17-desktop-plan-diff-annotations.md)；验证与人工步骤：[验收记录](engineering/desktop-plan-diff-annotations-verification.md)。
 
-验证事实：Java 专项 26 项（`PlanExecuteAgentTest`、`DesktopPlanReviewTest`、`DesktopServiceTest`）及全量 `./mvnw -q test` 735/736 项通过（0 失败/0 错误，1 项既有 `HeadroomLiveTest` 因缺少外部服务环境变量跳过）；`cd desktop && npm test` 27 项通过、`npm run build` 通过；`impeccable detect` 返回 `[]`；基于隔离目录与本地模拟模型的真实 Electron 端到端界面测试与 `1360x900`/`900x620` 截图检查通过。未覆盖真实收费模型质量、物理鼠标长按行号拖拽、VoiceOver 语音测试及 macOS `.app` 安装包重打。工作区预置的 `.gitignore`、`AGENTS.md`、`docs/RESEARCH.md`、`GLOSSARY.md`、Phase 20 草稿及 `docs/PROJECT.md` 的 Phase 20 未提交修改均已保留，不混入本次提交。
+验证事实：Java 专项 26 项（`PlanExecuteAgentTest`、`DesktopPlanReviewTest`、`DesktopServiceTest`）及全量 `./mvnw -q test` 735/736 项通过（0 失败/0 错误，1 项既有 `HeadroomLiveTest` 因缺少外部服务环境变量跳过）；`cd desktop && npm test` 28 项通过、`npm run build` 通过；基于隔离目录与本地模拟模型的真实 Electron CDP 端到端界面测试通过（覆盖真实指针拖拽 `.diff-gutter` 多行选区、`mixed` 删除行锚定、`<dialog>` 内嵌表单 `Esc` 分层关闭、`.diff-header` 样式与 `1160px` 加宽态不挤压、全屏填入后收起遮罩并聚焦以及草稿恢复与直接发送）。未覆盖真实收费模型质量、VoiceOver 语音测试、物理触控板手势及 macOS `.app` 安装包重打；`impeccable detect` 为首次实现阶段通过结果，末次前端交互修复后以 CDP 边界断言校验。工作区预置的 `.gitignore`、`AGENTS.md`、`docs/RESEARCH.md`、`GLOSSARY.md`、Phase 20 草稿及 `docs/PROJECT.md` 的 Phase 20 未提交修改均已保留，不混入本次提交。
 
 ## 前次任务：Headroom 工具正文压缩（2026-11-15）
 

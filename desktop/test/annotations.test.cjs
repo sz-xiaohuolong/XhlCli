@@ -116,6 +116,27 @@ test('buildDiffSelectionAnchor 与 formatDiffFeedback 正确标注多行新行�
   assert.equal(appendDiffFeedbackToDraft('已有说明\n\n'+md,md),'已有说明\n\n'+md);
 });
 
+test('mixed 选区以删除行结尾时 resolveDiffCommentRowIndex 保持锚定在末行且不向上漂移',async()=>{
+  const {parseUnifiedDiff,buildDiffSelectionAnchor,resolveDiffCommentRowIndex}=await import('../src/annotations.mjs');
+  const diff=[
+    'diff --git a/c.js b/c.js',
+    '--- a/c.js',
+    '+++ b/c.js',
+    '@@ -10,3 +10,2 @@',
+    ' keep10',
+    '-del11',
+    ' keep12'
+  ].join('\n');
+  const lines=parseUnifiedDiff(diff);
+  const anchor=buildDiffSelectionAnchor('c.js',lines,4,5);
+  assert.equal(anchor.side,'mixed');
+  assert.equal(anchor.startLine,10);
+  assert.equal(anchor.endLine,10);
+  assert.equal(anchor.anchorRowIndex,5);
+  assert.equal(anchor.anchorLineType,'del');
+  assert.equal(resolveDiffCommentRowIndex({...anchor,id:'m1',text:'保留删除行提示'},lines),5);
+});
+
 test('formatPlanFeedback 按规范顺序拼装全局意见、行内批注与红线删除',async()=>{
   const {formatPlanFeedback}=await import('../src/annotations.mjs');
   assert.equal(formatPlanFeedback({annotations:[],globalFeedback:'   '}),'');

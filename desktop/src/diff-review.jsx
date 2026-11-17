@@ -13,6 +13,16 @@ function createCommentId(){
   return 'diffc_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
 }
 
+function loadDiffDraftState(key){
+  if(!key)return {key:'',comments:[],generalNote:''};
+  const saved=loadDraft(key);
+  return {
+    key,
+    comments:Array.isArray(saved?.comments)?saved.comments:[],
+    generalNote:typeof saved?.generalNote==='string'?saved.generalNote:''
+  };
+}
+
 export function DiffReviewPanel({
   diff,
   diffLoading=false,
@@ -27,44 +37,38 @@ export function DiffReviewPanel({
   const turnId=diff?.turn?.id||'';
   const draftKey=useMemo(()=>diffDraftKey(sessionId,turnId),[sessionId,turnId]);
   const [widthMode,setWidthMode]=useState(()=>loadDiffWidth());
-  const [comments,setComments]=useState(()=>{
-    if(!draftKey)return [];
-    const saved=loadDraft(draftKey);
-    return Array.isArray(saved?.comments)?saved.comments:[];
-  });
-  const [generalNote,setGeneralNote]=useState(()=>{
-    if(!draftKey)return '';
-    const saved=loadDraft(draftKey);
-    return typeof saved?.generalNote==='string'?saved.generalNote:'';
-  });
+  const [draftState,setDraftState]=useState(()=>loadDiffDraftState(draftKey));
+  const comments=draftState.comments;
+  const generalNote=draftState.generalNote;
   const [selection,setSelection]=useState(null);
+  const [isDragging,setIsDragging]=useState(false);
   const [composerText,setComposerText]=useState('');
   const [editingId,setEditingId]=useState(null);
   const [editText,setEditText]=useState('');
   const [sendingDirect,setSendingDirect]=useState(false);
 
-  const loadedKeyRef=useRef(draftKey);
   const dragState=useRef({active:false,filePath:null,anchorIdx:-1});
 
   useEffect(()=>{
-    if(!draftKey)return;
-    const saved=loadDraft(draftKey);
-    loadedKeyRef.current=draftKey;
-    setComments(Array.isArray(saved?.comments)?saved.comments:[]);
-    setGeneralNote(typeof saved?.generalNote==='string'?saved.generalNote:'');
+    setDraftState(loadDiffDraftState(draftKey));
     setSelection(null);
+    setIsDragging(false);
     setComposerText('');
     setEditingId(null);
   },[draftKey]);
 
   useEffect(()=>{
-    if(!draftKey||loadedKeyRef.current!==draftKey)return;
-    saveDraft(draftKey,{comments,generalNote});
-  },[draftKey,comments,generalNote]);
+    if(!draftKey||draftState.key!==draftKey)return;
+    saveDraft(draftKey,{comments:draftState.comments,generalNote:draftState.generalNote});
+  },[draftKey,draftState]);
 
   useEffect(()=>{
     if(typeof window==='undefined')return undefined;
-    const stopDrag=()=>{dragState.current={active:false,filePath:null,anchorIdx:-1};};
+    const stopDrag=()=>{
+      if(!dragState.current.active)return;
+      dragState.current={active:false,filePath:null,anchorIdx:-1};
+      setIsDragging(false);
+    };
     window.addEventListener('pointerup',stopDrag);
     window.addEventListener('pointercancel',stopDrag);
     return()=>{
@@ -108,6 +112,17 @@ export function DiffReviewPanel({
     setEditingId(null);
   };
 
+  const setComments=updater=>setDraftState(current=>({
+    ...current,
+    key:draftKey,
+    comments:typeof updater==='function'?updater(current.comments):updater
+  }));
+  const setGeneralNote=value=>setDraftState(current=>({
+    ...current,
+    key:draftKey,
+    generalNote:typeof value==='function'?value(current.generalNote):value
+  }));
+
   const handleGutterPointerDown=(event,filePath,rowIndex)=>{
     if(event.button!==0)return;
     event.preventDefault();
@@ -116,6 +131,7 @@ export function DiffReviewPanel({
       return;
     }
     dragState.current={active:true,filePath,anchorIdx:rowIndex};
+    setIsDragging(true);
     selectLine(filePath,rowIndex,false);
   };
 
@@ -173,6 +189,13 @@ export function DiffReviewPanel({
   const changeWidth=mode=>{
     setWidthMode(mode);
     saveDiffWidth(mode);
+  };
+
+  const handleInsert=()=>{
+    if(!hasFeedback||diffLoading)return;
+    onInsertFeedback(compiledFeedback);
+    const isOverlay=widthMode==='full'||(typeof window!=='undefined'&&window.innerWidth<=1150);
+    if(isOverlay&&onClose)onClose();
   };
 
   const handleSendDirect=async()=>{
@@ -281,7 +304,7 @@ export function DiffReviewPanel({
                 <div
                   className={rowClass}
                   role="row"
-                  onPointerEnter={()=>line.commentable&&handleRowPointerEnter(file.path,line.index)}>
+                  onPointerEnter={()=>handleRowPointerEnter(file.path,line.index)}>
                   <div
                     className="diff-gutter"
                     onPointerDown={event=>line.commentable&&handleGutterPointerDown(event,file.path,line.index)}>
@@ -316,7 +339,7 @@ export function DiffReviewPanel({
                     onDelete={()=>removeComment(item.id)}/>)}
                 </div>}
 
-                {isComposerAnchor&&<div className="diff-inline-composer">
+                {isComposerAnchor&&!isDragging&&<div className="diff-inline-composer">
                   <div className="diff-composer-head">
                     <span>评论 <code>{file.path}</code> · <strong>{formatDiffLineLabel(selectionAnchor)}</strong></span>
                     <button type="button" className="icon-button" aria-label="取消行内评论" onClick={()=>setSelection(null)}><X size={13}/></button>
@@ -330,7 +353,7 @@ export function DiffReviewPanel({
                     onChange={event=>setComposerText(event.target.value)}
                     onKeyDown={event=>{
                       if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();addComment();}
-                      if(event.key==='Escape'){event.stopPropagation();setSelection(null);}
+                      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setSelection(null);}
                     }}/>
                   <div className="diff-composer-actions">
                     <button type="button" onClick={()=>setSelection(null)}>取消</button>
@@ -362,7 +385,7 @@ export function DiffReviewPanel({
           type="button"
           className="primary"
           disabled={!hasFeedback||diffLoading}
-          onClick={()=>onInsertFeedback(compiledFeedback)}>
+          onClick={handleInsert}>
           汇总填入输入框
         </button>
         <button
@@ -387,7 +410,16 @@ function DiffCommentCard({comment,editing,editText,onChangeEdit,onStartEdit,onSa
       </div>
     </div>
     {editing?<div className="diff-comment-edit">
-      <textarea rows={2} aria-label="编辑行内评论" value={editText} onChange={event=>onChangeEdit(event.target.value)}/>
+      <textarea
+        autoFocus
+        rows={2}
+        aria-label="编辑行内评论"
+        value={editText}
+        onChange={event=>onChangeEdit(event.target.value)}
+        onKeyDown={event=>{
+          if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();onSaveEdit();}
+          if(event.key==='Escape'){event.preventDefault();event.stopPropagation();onCancelEdit();}
+        }}/>
       <div className="diff-composer-actions">
         <button type="button" onClick={onCancelEdit}>取消</button>
         <button type="button" className="primary" disabled={!editText.trim()} onClick={onSaveEdit}>保存</button>
