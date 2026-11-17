@@ -40,6 +40,11 @@ public class PlanExecuteAgent implements AgentRunner {
             return new PlanReviewDecision(PlanReviewAction.EXECUTE, null);
         }
 
+        public static PlanReviewDecision execute(String notes) {
+            String normalized = (notes == null || notes.isBlank()) ? null : notes.trim();
+            return new PlanReviewDecision(PlanReviewAction.EXECUTE, normalized);
+        }
+
         public static PlanReviewDecision supplement(String feedback) {
             return new PlanReviewDecision(PlanReviewAction.SUPPLEMENT, feedback);
         }
@@ -217,6 +222,9 @@ public class PlanExecuteAgent implements AgentRunner {
                 return PlanRunOutcome.canceled("⏹️ 未确认执行，计划已停止。");
             }
             if (decision.action() == PlanReviewAction.EXECUTE) {
+                if (decision.feedback() != null && !decision.feedback().isBlank()) {
+                    plan.setExecutionNotes(decision.feedback().trim());
+                }
                 return executePlan(plan, events, cancellationToken, replanCount);
             }
 
@@ -276,6 +284,9 @@ public class PlanExecuteAgent implements AgentRunner {
                 if (plan.getProgress() < 0.5 && replanCount < MAX_REPLAN_ATTEMPTS) {
                     out.println("🔄 尝试重新规划...\n");
                     ExecutionPlan replanned = planner.replan(plan, error.getMessage(), cancellationToken);
+                    if (plan.getExecutionNotes() != null && !plan.getExecutionNotes().isBlank()) {
+                        replanned.setExecutionNotes(plan.getExecutionNotes());
+                    }
                     return reviewAndExecutePlan(replanned, events, cancellationToken, replanCount + 1);
                 }
 
@@ -509,6 +520,12 @@ public class PlanExecuteAgent implements AgentRunner {
                     }
                 }
             }
+        }
+
+        if (plan.getExecutionNotes() != null && !plan.getExecutionNotes().isBlank()) {
+            context.append("用户批准执行附带备注（请在执行中一并落实）：\n")
+                    .append(plan.getExecutionNotes())
+                    .append("\n");
         }
 
         context.append("请执行此任务。如果是 ANALYSIS 或 VERIFICATION 类型，请基于以上上下文直接给出结果。");

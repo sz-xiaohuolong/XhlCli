@@ -3,6 +3,7 @@ package com.xhlcli.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xhlcli.llm.CancellationToken;
 import com.xhlcli.llm.LlmClient;
+import com.xhlcli.llm.LlmErrorType;
 import com.xhlcli.llm.LlmException;
 import com.xhlcli.llm.StreamListener;
 import com.xhlcli.memory.MemoryManager;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.*;
@@ -208,6 +210,117 @@ class PlanExecuteAgentTest {
         assertEquals(1, client.responses.size(), "上限后的下一步不应发送模型请求");
     }
 
+    @Test
+    void shouldInjectExecutionNotesIntoTaskContextsWithoutReplanning() {
+        var client = new StubLlmClient(List.of("步骤一完成", "步骤二完成"));
+        var planner = new Planner(client) {
+            int createCount = 0;
+            int replanCount = 0;
+
+            @Override
+            public ExecutionPlan createPlan(String goal, CancellationToken token) {
+                createCount++;
+                var plan = new ExecutionPlan("plan-notes", goal);
+                plan.addTask(new Task("task_1", "分析配置", Task.TaskType.ANALYSIS));
+                Task second = new Task("task_2", "总结建议", Task.TaskType.ANALYSIS);
+                second.addDependency("task_1");
+                plan.addTask(second);
+                plan.computeExecutionOrder();
+                return plan;
+            }
+
+            @Override
+            public ExecutionPlan replan(ExecutionPlan failedPlan, String failureReason, CancellationToken token) throws IOException {
+                replanCount++;
+                return super.replan(failedPlan, failureReason, token);
+            }
+        };
+        final int[] reviewCalls = {0};
+        var agent = new PlanExecuteAgent(
+                client,
+                null,
+                List.of(),
+                planner,
+                null,
+                (goal, plan) -> {
+                    reviewCalls[0]++;
+                    return PlanExecuteAgent.PlanReviewDecision.execute("请仅检查 desktop 目录，不要改后端");
+                },
+                new PrintStream(new ByteArrayOutputStream())
+        );
+
+        var result = agent.run("审查模块", event -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.COMPLETED, result.status());
+        assertEquals(1, planner.createCount);
+        assertEquals(0, planner.replanCount);
+        assertEquals(1, reviewCalls[0]);
+        assertEquals(2, client.recordedMessages.size());
+        for (List<ChatMessage> sent : client.recordedMessages) {
+            String userPrompt = sent.get(sent.size() - 1).content();
+            assertTrue(userPrompt.contains("用户批准执行附带备注"));
+            assertTrue(userPrompt.contains("请仅检查 desktop 目录，不要改后端"));
+        }
+    }
+
+    @Test
+    void shouldPreserveExecutionNotesAcrossAutomaticReplan() {
+        var client = new LlmClient() {
+            int calls = 0;
+            final List<String> prompts = new ArrayList<>();
+
+            @Override
+            public ChatResponse stream(List<ChatMessage> messages, List<ToolDefinition> tools,
+                                       StreamListener listener, CancellationToken cancellationToken) throws LlmException {
+                calls++;
+                prompts.add(messages.get(messages.size() - 1).content());
+                if (calls == 1) {
+                    throw new LlmException(LlmErrorType.NETWORK, "模拟步骤一网络失败", true, false);
+                }
+                return new ChatResponse("重规划步骤完成", List.of(), new TokenUsage(5, 5, true));
+            }
+        };
+        var planner = new Planner(client) {
+            @Override
+            public ExecutionPlan createPlan(String goal, CancellationToken token) {
+                var plan = new ExecutionPlan("plan-init", goal);
+                plan.addTask(new Task("t1", "第一步", Task.TaskType.ANALYSIS));
+                plan.computeExecutionOrder();
+                return plan;
+            }
+
+            @Override
+            public ExecutionPlan replan(ExecutionPlan failedPlan, String failureReason, CancellationToken token) {
+                var next = new ExecutionPlan("plan-replan", failedPlan.getGoal());
+                next.addTask(new Task("t1_retry", "重试步骤", Task.TaskType.ANALYSIS));
+                next.computeExecutionOrder();
+                return next;
+            }
+        };
+        final int[] reviews = {0};
+        var agent = new PlanExecuteAgent(
+                client,
+                null,
+                List.of(),
+                planner,
+                null,
+                (goal, plan) -> {
+                    reviews[0]++;
+                    return reviews[0] == 1
+                            ? PlanExecuteAgent.PlanReviewDecision.execute("保留原有约束说明")
+                            : PlanExecuteAgent.PlanReviewDecision.execute();
+                },
+                new PrintStream(new ByteArrayOutputStream())
+        );
+
+        var result = agent.run("测试失败重规划透传备注", event -> {}, new CancellationToken());
+
+        assertEquals(RunStatus.COMPLETED, result.status());
+        assertEquals(2, reviews[0]);
+        assertEquals(2, client.prompts.size());
+        assertTrue(client.prompts.get(1).contains("保留原有约束说明"));
+    }
+
     private static final class StubPlanner extends Planner {
         private String lastGoal = "";
 
@@ -227,6 +340,7 @@ class PlanExecuteAgentTest {
 
     private static final class StubLlmClient implements LlmClient {
         private final Queue<ChatResponse> responses = new ArrayDeque<>();
+        private final List<List<ChatMessage>> recordedMessages = new ArrayList<>();
 
         private StubLlmClient(List<String> textResponses) {
             for (String text : textResponses) {
@@ -241,6 +355,7 @@ class PlanExecuteAgentTest {
         @Override
         public ChatResponse stream(List<ChatMessage> messages, List<ToolDefinition> tools,
                                    StreamListener listener, CancellationToken cancellationToken) throws LlmException {
+            recordedMessages.add(List.copyOf(messages));
             ChatResponse next = responses.poll();
             if (next == null) {
                 return new ChatResponse("默认完成回答", List.of(), new TokenUsage(5, 5, true));

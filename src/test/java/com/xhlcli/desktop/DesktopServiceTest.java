@@ -224,6 +224,28 @@ class DesktopServiceTest {
             }
         }
     }
+    @Test void planExecuteNotesAreRedactedBeforePersistingResolvedEvent() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();
+            server.enqueue(new MockResponse().setHeader("Content-Type","text/event-stream").setBody(
+                    "data: "+DesktopJson.MAPPER.writeValueAsString(Map.of("choices",List.of(Map.of("delta",Map.of("content",
+                            DesktopJson.MAPPER.writeValueAsString(Map.of("summary","方案","tasks",List.of(Map.of("id","t1","description","分析","type","ANALYSIS","dependencies",List.of()))))),"finish_reason","stop"))))+"\n\ndata: [DONE]\n\n"));
+            server.enqueue(response("执行完成"));
+            var events=new LinkedBlockingQueue<ObjectNode>();Path project=Files.createDirectory(temp.resolve("project"));Path home=temp.resolve("home");
+            try(var service=new DesktopService(home,Map.of("DEEPSEEK_API_KEY","desktop-secret-example","DEEPSEEK_BASE_URL",server.url("/").toString()),events::add)) {
+                var projectId=service.handle("project.add",params("path",project.toString())).path("id").asText();
+                var sessionId=service.handle("session.create",params("projectId",projectId)).path("id").asText();
+                service.handle("turn.start",params("sessionId",sessionId,"input","/plan 检查脱敏计划"));
+                var ready=await(events,"plan.ready").path("data");
+                String notes="执行备注含密钥 desktop-secret-example 和普通说明";
+                service.handle("plan.respond",params("sessionId",sessionId,"planId",ready.path("id").asText(),"action","execute","feedback",notes));
+                var finished=await(events,"turn.finished");assertEquals("completed",finished.path("data").path("status").asText());
+                assertFalse(finished.toString().contains("desktop-secret-example"));
+                assertTrue(finished.toString().contains("普通说明"));
+                assertFalse(Files.readString(home.resolve(".xhlcli/desktop/state.json")).contains("desktop-secret-example"));
+            }
+        }
+    }
     private MockResponse tool(String file,String content) throws Exception {
         var call=Map.of("index",0,"id","call-1","type","function","function",Map.of("name","write_file","arguments",DesktopJson.MAPPER.writeValueAsString(Map.of("path",file,"content",content))));
         String event=DesktopJson.MAPPER.writeValueAsString(Map.of("choices",List.of(Map.of("delta",Map.of("tool_calls",List.of(call)),"finish_reason","tool_calls"))));

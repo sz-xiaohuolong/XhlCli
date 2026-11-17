@@ -1,6 +1,12 @@
 # XhlCLI 项目全局进度 (Progress)
 
-## 当前任务：Headroom 工具正文压缩（2026-11-15）
+## 当前任务：桌面端 Plan 划线批注与 Diff 行内评论回发（2026-11-17）
+
+桌面端 Plan 内联划词批注/双栏精审、备注执行及 Diff 行内评论回发闭环已完成实现与验证。范围涵盖 `ExecutionPlan`、`PlanExecuteAgent`、`DesktopService`（`execute + notes`、自动重规划透传备注、`32000` 字符上限与脱敏落盘）及桌面模块 `annotations.mjs`、`plan-review.jsx`、`diff-review.jsx`、`app.jsx`。需求：[REQ-PDA01～PDA04](prd/desktop-plan-diff-annotations.md)（`FROZEN`）；方案：[设计](specs/2026-11-17-desktop-plan-diff-annotations-design.md)（`APPROVED`）；计划：[实施计划](plans/2026-11-17-desktop-plan-diff-annotations.md)；验证与人工步骤：[验收记录](engineering/desktop-plan-diff-annotations-verification.md)。
+
+验证事实：Java 专项 26 项（`PlanExecuteAgentTest`、`DesktopPlanReviewTest`、`DesktopServiceTest`）及全量 `./mvnw -q test` 735/736 项通过（0 失败/0 错误，1 项既有 `HeadroomLiveTest` 因缺少外部服务环境变量跳过）；`cd desktop && npm test` 27 项通过、`npm run build` 通过；`impeccable detect` 返回 `[]`；基于隔离目录与本地模拟模型的真实 Electron 端到端界面测试与 `1360x900`/`900x620` 截图检查通过。未覆盖真实收费模型质量、物理鼠标长按行号拖拽、VoiceOver 语音测试及 macOS `.app` 安装包重打。工作区预置的 `.gitignore`、`AGENTS.md`、`docs/RESEARCH.md`、`GLOSSARY.md`、Phase 20 草稿及 `docs/PROJECT.md` 的 Phase 20 未提交修改均已保留，不混入本次提交。
+
+## 前次任务：Headroom 工具正文压缩（2026-11-15）
 
 2026-11-15 追加配置与真实 API 验证完成：当前项目 `.env` 已开启，原配置已备份；Headroom 0.44.0 由 macOS LaunchAgent 托管在 `127.0.0.1:8787`，当前健康，配置登录启动与异常重启。真实 `deepseek-flash` 三组对照输入 Token 为 1321 / 814 / 190（关闭 / 开启 / 空正文），减少 507 Token；扣除空正文对照后的工具正文增量减少 44.83%，两组均正确核对全部 40 条证据。真实 CLI 已显示开启。原始用量、请求、可重跑脚本及关闭方式见[追加验收](engineering/headroom-context-optimization-verification.md#8-本机自动配置与真实-deepseek-api-对照2026-11-15)。本次未改生产代码、未重装或替换桌面应用；未核对实际扣款金额。
 

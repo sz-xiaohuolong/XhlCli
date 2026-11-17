@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 
 /** 桌面命令入口：状态修改串行化，Agent 在独立任务中运行，取消和审批可随时到达。 */
 public final class DesktopService implements AutoCloseable {
+    private static final int MAX_PLAN_FEEDBACK_CHARS = 32_000;
     private final Path home;
     private final DesktopStore store;
     private final DesktopConfig config;
@@ -261,12 +262,15 @@ public final class DesktopService implements AutoCloseable {
                 ||!Objects.equals(current.planId,p.path("planId").asText()))
             throw new IllegalStateException("计划确认已失效，请查看当前计划");
         String action=p.path("action").asText();
+        String feedback=p.hasNonNull("feedback")?p.get("feedback").asText("").strip():"";
         var decision=switch(action) {
-            case "execute" -> PlanExecuteAgent.PlanReviewDecision.execute();
+            case "execute" -> {
+                if(feedback.length()>MAX_PLAN_FEEDBACK_CHARS)throw new IllegalArgumentException("执行备注需要不超过 "+MAX_PLAN_FEEDBACK_CHARS+" 个字符");
+                yield feedback.isEmpty()?PlanExecuteAgent.PlanReviewDecision.execute():PlanExecuteAgent.PlanReviewDecision.execute(feedback);
+            }
             case "cancel" -> PlanExecuteAgent.PlanReviewDecision.cancel();
             case "supplement" -> {
-                String feedback=p.path("feedback").asText().strip();
-                if(feedback.isEmpty()||feedback.length()>8000)throw new IllegalArgumentException("修改意见需要 1～8000 个字符");
+                if(feedback.isEmpty()||feedback.length()>MAX_PLAN_FEEDBACK_CHARS)throw new IllegalArgumentException("修改意见需要 1～"+MAX_PLAN_FEEDBACK_CHARS+" 个字符");
                 yield PlanExecuteAgent.PlanReviewDecision.supplement(feedback);
             }
             default -> throw new IllegalArgumentException("请选择执行、修改或取消计划");

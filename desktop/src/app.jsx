@@ -2,12 +2,14 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Turn} from './turn-view.jsx';
 import {applyTurnEvent} from './conversation-events.mjs';
-import {Blocks,Home,Clock3,Settings,Folder,FolderOpen,SquarePen,Search,PanelLeft,ArrowUp,Plus,X,ChevronRight,ChevronDown,ChevronLeft,ShieldCheck,Terminal,FileText,Image,Check,Square,LoaderCircle,Copy,Archive,Pin,MoreHorizontal,Undo2,Files,ExternalLink,SlidersHorizontal,ArrowLeft,AlertCircle,RefreshCw,MessageSquare} from 'lucide-react';
+import {Blocks,Home,Clock3,Settings,Folder,FolderOpen,SquarePen,Search,PanelLeft,ArrowUp,Plus,X,ChevronRight,ChevronDown,ChevronLeft,ShieldCheck,Terminal,FileText,Image,Check,Square,LoaderCircle,Copy,Archive,Pin,MoreHorizontal,ExternalLink,SlidersHorizontal,ArrowLeft,AlertCircle,RefreshCw,MessageSquare} from 'lucide-react';
 import './style.css';
 import ScheduledTasks from './ScheduledTasks.jsx';
 import {SkillsPage} from './skills.jsx';
 import {commandSuggestions,needsModel} from './commands.mjs';
 import {ComposerControls} from './composer-controls.jsx';
+import {DiffReviewPanel} from './diff-review.jsx';
+import {appendDiffFeedbackToDraft,clearDraft,diffDraftKey} from './annotations.mjs';
 
 const api=window.xhl;
 const running=turn=>['running','approval','plan_review','canceling'].includes(turn?.status);
@@ -44,7 +46,7 @@ function App(){
   useEffect(()=>{let current=true;request('commands.list',session?{sessionId:session.id}:project?{projectId:project.id}:{}).then(items=>{if(current)setCommands(items);}).catch(failure=>{if(current)setError(failure.message);});return()=>{current=false;};},[selected,project?.id,session?.turns?.at(-1)?.status]);
   useEffect(()=>{if(nearBottom.current&&viewport.current)viewport.current.scrollTop=viewport.current.scrollHeight;},[session?.turns]);
   useEffect(()=>{setAttachments([]);setDiff(null);setMenu(false);nearBottom.current=true;},[selected]);
-  useEffect(()=>{const handler=event=>{if((event.metaKey||event.ctrlKey)&&event.key==='n'){event.preventDefault();newChat();}if(event.key==='Escape'){setDiff(null);setMenu(false);setRename(null);}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[project]);
+  useEffect(()=>{const handler=event=>{if((event.metaKey||event.ctrlKey)&&event.key==='n'){event.preventDefault();newChat();}if(event.key==='Escape'){if(typeof document!=='undefined'&&document.querySelector('dialog[open]'))return;setDiff(null);setMenu(false);setRename(null);}};window.addEventListener('keydown',handler);return()=>window.removeEventListener('keydown',handler);},[project]);
   const addProject=()=>act(async()=>{const path=await api.chooseProject();if(!path)return;const item=await request('project.add',{path});await refresh();setProjectId(item.id);setNewApprovalMode('on-request');setNewModel('');setNewEffort('default');setSelected(null);setPage('chat');});
   const newChat=()=>{setNewApprovalMode('on-request');setNewModel('');setNewEffort('default');setSelected(null);setPage('chat');setArchives(false);setProjectId(project?.id||null);setTimeout(()=>inputRef.current?.focus(),0);};
   const create=async(approvalMode=newApprovalMode)=>{if(!project)throw new Error('请先添加一个项目');const created=await request('session.create',{projectId:project.id,model:selectedModel,approvalMode,reasoningEffort:session?.reasoningEffort||newEffort});await refresh();setSelected(created.id);return created;};
@@ -88,6 +90,8 @@ function App(){
   const update=(values)=>act(async()=>{await request('session.update',{sessionId:session.id,...values});await refresh();});
   const viewChanges=turn=>act(async()=>{setDiffLoading(true);setDiff({turn,files:[]});try{const files=await request('changes',{sessionId:session.id,turnId:turn.id});setDiff({turn,files});}finally{setDiffLoading(false);}});
   const undo=()=>act(async()=>{const result=await request('undo',{sessionId:session.id,turnId:diff.turn.id});if(!result.canceled){await refresh();setDiff(current=>({...current,turn:{...current.turn,undone:true}}));notify('本轮改动已撤销');}});
+  const insertDiffFeedback=text=>{setDrafts(current=>({...current,[draftKey]:appendDiffFeedbackToDraft(current[draftKey],text)}));notify('已将代码批注填入输入框');setTimeout(()=>inputRef.current?.focus(),0);};
+  const sendDiffFeedback=text=>act(async()=>{if(!session||!diff?.turn?.id||directoryBusy)return;const trimmed=String(text||'').trim();if(!trimmed)return;if(trimmed.length>200000)throw new Error('批注内容不能超过 200000 字符');if(!selectedModel)throw new Error(models.length?'请选择已配置的模型':'请先在设置中配置模型');await request('turn.start',{sessionId:session.id,input:trimmed,attachments:[]});clearDraft(diffDraftKey(session.id,diff.turn.id));setDiff(null);await refresh();nearBottom.current=true;});
   const select=item=>{setSelected(item.id);setProjectId(item.projectId);setPage('chat');setError('');};
   const filtered=state.sessions.filter(item=>item.archived===archives&&item.title.toLowerCase().includes(query.toLowerCase()));
   const sessionRow=item=><button key={item.id} className={'session-row'+(selected===item.id?' selected':'')} onClick={()=>select(item)} title={item.title}><span>{item.title}</span>{item.turns.some(running)?<span className="activity-dot"/>:item.pinned?<Pin size={12}/>:null}</button>;
@@ -116,7 +120,7 @@ function App(){
               <div className="composer-toolbar"><IconButton icon={Plus} label="添加文件或图片" onClick={chooseFiles}/><ComposerControls key={draftKey+':'+project?.id} models={models} model={selectedModel} effort={reasoningEffort} onModel={model=>changeModelSettings({model})} onEffort={reasoningEffort=>changeModelSettings({reasoningEffort})} approvalMode={approvalMode} onApproval={changeApprovalMode} approvalDisabled={!project||loading||sending||!!approvalSaving||activeTurn?.status==='canceling'} modelDisabled={loading||sending||modelSaving} approvalSaving={!!approvalSaving} modelSaving={modelSaving} onSettings={()=>setPage('settings')}/>{activeTurn?<button className="send-button stop" aria-label="停止执行" title="停止执行" disabled={activeTurn.status==='canceling'} onClick={()=>act(async()=>{await request('turn.cancel',{sessionId:session.id});await refresh();})}><Square size={15} fill="currentColor"/></button>:<button className="send-button" aria-label="发送任务" title="发送任务" disabled={!draft.trim()||!project||sending||!!approvalSaving||modelSaving||directoryBusy} onClick={send}>{sending?<LoaderCircle size={19} className="spin"/>:<ArrowUp size={21}/>}</button>}</div>
             </div><p className="composer-footnote">{directoryBusy&&!activeTurn?'当前项目已有任务运行，输入已保留':'Enter 发送 · Shift + Enter 换行'}<span>{project?.name||'本地优先'}</span></p></div>
           </div>
-          {diff&&<aside className="diff-panel"><header><div><Files size={17}/><strong>本轮变更</strong></div><IconButton icon={X} label="关闭变更面板" onClick={()=>setDiff(null)}/></header><div className="diff-toolbar"><span>{diff.files.length} 个文件</span><button disabled={diff.turn.undone||diffLoading||directoryBusy||!diff.files.length} onClick={undo}><Undo2 size={14}/>{diff.turn.undone?'已撤销':'撤销本轮'}</button></div><div className="diff-scroll">{diffLoading?<p className="muted">正在读取差异…</p>:!diff.files.length?<div className="diff-empty"><Check size={24}/><p>本轮没有文件变化</p></div>:diff.files.map(file=><details className="diff-file" key={file.path} open><summary><FileText size={14}/><span>{file.path}</span><small>{file.type}</small></summary><button className="open-file" onClick={()=>act(()=>api.openFile(session.id,file.path))}>打开文件<ExternalLink size={12}/></button><pre>{file.diff.split('\n').map((line,index)=><span key={index} className={line.startsWith('+')?'added':line.startsWith('-')?'removed':line.startsWith('@@')?'hunk':''}>{line||' '}{'\n'}</span>)}</pre></details>)}</div></aside>}
+          {diff&&<DiffReviewPanel key={(session?.id||'anon')+':'+(diff.turn?.id||'none')} diff={diff} diffLoading={diffLoading} sessionId={session?.id} directoryBusy={directoryBusy} onClose={()=>setDiff(null)} onUndo={undo} onOpenFile={filePath=>act(()=>api.openFile(session.id,filePath))} onInsertFeedback={insertDiffFeedback} onSendFeedback={sendDiffFeedback}/>}
           </div></>}
       </main>
       </>}

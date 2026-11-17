@@ -50,6 +50,11 @@ Apple 芯片 Mac 分发包内置 Temurin Java 21 JRE，主进程在打包模式�
 
 `PlanExecuteAgent` 的最终正文保留 Markdown 块边界，不在标题前拼任务编号，不把工具摘要兜底为回答。步骤达到五轮工具调用上限返回 `LIMIT_REACHED`，停止后续串行批次；已执行的工具可能已产生变更，用户应检查记录与差异。前端 `turn-view.jsx` 分别呈现计划、工具、助手文本，保留原文交给 `react-markdown` 与 GFM（GitHub 风格 Markdown 扩展，提供表格等结构）解析；完成态回答不会被中间流式消息吞掉。旧版已保存的污染正文不会被猜测性重写。证据与人工步骤见[桌面验收](engineering/desktop-mvp-verification.md#计划确认与-markdown-修复2026-11-06)。
 
+### 桌面端 Plan 划线批注与 Diff 行内评论回发（2026-11-17）
+
+- **Plan 批注与带备注直接执行**：`PlanReview`（独立抽入 `desktop/src/plan-review.jsx` + `plan-review.css`，`turn-view.jsx` 仅透传 `sessionId` 与完整 `plan.resolved` 决议记录）支持在计划目标、摘要和步骤内划词创建 `COMMENT` / `DELETION`、步骤快捷批注及原生 `<dialog showModal()>` 双栏精审（含 `closedby="any"` 与 pointer 边界轻退回退、顶部图层滚动隔离）。采用 `react-markdown` 同步 HAST 插件包裹 `<mark class="plan-mark-comment">` / `<del class="plan-mark-deletion">`，不直接修改 React 托管 DOM 节点，兼容 SSR 与跨标签选区并在无法精确匹配时自动降级保留在批注列表。`ExecutionPlan.executionNotes` 与 `PlanExecuteAgent.PlanReviewDecision.execute(notes)` 允许 `execute` 动作携带可选执行备注而不触发 `Planner` 重规划，并将备注注入所有任务提示上下文及自动 `replan` 后的新计划；`DesktopService.respondToPlan` 将结构化反馈字符上限从 `8000` 放宽至 `32000` 并经 `config.redactNode` 脱敏保存。
+- **Diff 真实行号与评论回发**：`desktop/src/annotations.mjs` 提供无依赖 ES2022 实现，包括 `parseUnifiedDiff`（按 `@@ -old,+new @@` 跟踪 `oldRemaining`/`newRemaining` 与行游标，隔离头部、`\ No newline`、二进制及 `200,000` 字符截断尾部提示）、`buildDiffSelectionAnchor`（新/上下文行优先 `L..`，纯删行输出 `old L.. (已删除)`）、Plan/Diff 结构化 Markdown 格式化及带 100 条 LRU 淘汰的异常安全 `localStorage` 草稿读写。`desktop/src/diff-review.jsx`（+ `diff-review.css`）实现双行号槽、点击/`Shift` 连选/行号槽指针拖拽多选评论、`标准 / 加宽 / 全屏` 宽度切换、「汇总填入输入框」（防覆盖拼接并聚焦输入）及空闲目录校验下的「直接发送给 Agent」；`app.jsx` 仅委托面板渲染并提供 `dialog[open]` 对全局 `Esc` 的让位保护。验证记录见[批注验收文档](engineering/desktop-plan-diff-annotations-verification.md)。
+
 ### 桌面每日定时任务
 
 `DesktopSchedules` 校验已绑定项目与配置模型，`ScheduledTaskService` 只负责持久计划和到点入队，实际执行复用 `DurableTaskManager` 与只读 `BackgroundTaskRunner`。数据位于 `~/.xhlcli/desktop/schedules.db`，沿用 `runtime_tasks`，增加计划表和执行关联表；不接管 CLI 队列，也不写入聊天历史。计划推进与 task 插入同一事务提交，自动执行的计划/时间组合有唯一索引。

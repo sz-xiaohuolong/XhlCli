@@ -114,4 +114,52 @@ class DesktopPlanReviewTest {
         }
     }
 
+    @Test void executeWithNotesSkipsReplanningInjectsTaskContextAndPersistsFeedback() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();server.enqueue(plan("按原步骤执行"));server.enqueue(write());
+            server.enqueue(response(Map.of("content","已按备注完成执行")));
+            var events=new LinkedBlockingQueue<ObjectNode>();
+            String notes="仅写入 result.md，不要修改现有源码文件";
+            try(var service=new DesktopService(temp.resolve("home"),env(server),events::add)) {
+                String id=session(service,"auto");service.handle("turn.start",p("sessionId",id,"input",GOAL));
+                var ready=await(events,"plan.ready");
+                var decision=p("sessionId",id,"planId",ready.path("id").asText(),"action","execute","feedback",notes);
+                service.handle("plan.respond",decision);
+                var finished=await(events,"turn.finished");assertEquals("completed",finished.path("status").asText());
+                assertEquals(3,server.getRequestCount());
+                server.takeRequest();
+                String executeBody=server.takeRequest().getBody().readUtf8();
+                assertTrue(executeBody.contains(notes));
+                assertTrue(finished.path("events").toString().contains(notes));
+            }
+            try(var service=new DesktopService(temp.resolve("home"),env(server),events::add)) {
+                assertTrue(turn(service).path("events").toString().contains(notes));
+            }
+        }
+    }
+
+    @Test void planFeedbackAllowsUpTo32000CharsAndRejectsOverflowOrNullSafely() throws Exception {
+        try(var server=new MockWebServer()) {
+            server.start();server.enqueue(plan("初次方案"));server.enqueue(plan("调整后方案"));server.enqueue(response(Map.of("content","执行完成")));
+            var events=new LinkedBlockingQueue<ObjectNode>();
+            String longFeedback="备".repeat(16_000);
+            String tooLongFeedback="超".repeat(32_001);
+            try(var service=new DesktopService(temp.resolve("home"),env(server),events::add)) {
+                String id=session(service,"auto");service.handle("turn.start",p("sessionId",id,"input",GOAL));
+                var ready=await(events,"plan.ready");String firstId=ready.path("id").asText();
+                var overflowSupplement=assertThrows(IllegalArgumentException.class,()->service.handle("plan.respond",p("sessionId",id,"planId",firstId,"action","supplement","feedback",tooLongFeedback)));
+                assertTrue(overflowSupplement.getMessage().contains("32000"));
+                var overflowExecute=assertThrows(IllegalArgumentException.class,()->service.handle("plan.respond",p("sessionId",id,"planId",firstId,"action","execute","feedback",tooLongFeedback)));
+                assertTrue(overflowExecute.getMessage().contains("32000"));
+                service.handle("plan.respond",p("sessionId",id,"planId",firstId,"action","supplement","feedback",longFeedback));
+                var revised=await(events,"plan.ready");String secondId=revised.path("id").asText();
+                var nullFeedback=p("sessionId",id,"planId",secondId,"action","execute");nullFeedback.putNull("feedback");
+                service.handle("plan.respond",nullFeedback);
+                var finished=await(events,"turn.finished");assertEquals("completed",finished.path("status").asText());
+                String resolvedJson=finished.path("events").toString();
+                assertFalse(resolvedJson.contains("\"feedback\":\"null\""));
+            }
+        }
+    }
+
 }

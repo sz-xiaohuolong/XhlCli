@@ -52,3 +52,97 @@ test('Markdown 正文正确渲染标题、列表、引用、代码、表格，�
   const html=renderToStaticMarkup(React.createElement(RichText,{text}));
   for(const pattern of [/<h1>RAG<\/h1>/,/<h2>步骤<\/h2>/,/<ol>/,/<blockquote>/,/<pre><code class="language-js">/,/<table>/,/<strong>重点<\/strong>/,/1 \| 普通文本/])assert.match(html,pattern);
 });
+
+test('PlanReview 恢复 localStorage 批注草稿并渲染高亮、红线与含备注执行按钮',async()=>{
+  const {planDraftKey,saveDraft}=await import('../src/annotations.mjs');
+  const store=new Map();
+  global.localStorage={
+    getItem:k=>store.has(k)?store.get(k):null,
+    setItem:(k,v)=>store.set(k,String(v)),
+    removeItem:k=>store.delete(k)
+  };
+  try{
+    saveDraft(planDraftKey('sess-1','plan-1'),{
+      annotations:[
+        {id:'a1',type:'COMMENT',targetKind:'step',stepIndex:1,taskId:'task_1',originalText:'列出 技术范围',text:'补充缓存边界'},
+        {id:'a2',type:'DELETION',targetKind:'summary',originalText:'再撰写正文',text:'先给提纲'}
+      ],
+      globalFeedback:'不要改后端'
+    });
+    const html=renderToStaticMarkup(React.createElement(Turn,{turn,session:{id:'sess-1'},onPlan:async()=>{},onApproval:()=>{},notify:()=>{}}));
+    assert.match(html,/<mark[^>]*class="plan-mark-comment"[^>]*>列出 <\/mark>/);
+    assert.match(html,/<mark[^>]*class="plan-mark-comment"[^>]*>技术范围<\/mark>/);
+    assert.match(html,/<del[^>]*class="plan-mark-deletion"[^>]*>再撰写正文<\/del>/);
+    assert.match(html,/同意执行（含备注）/);
+    assert.match(html,/展开精审/);
+    assert.match(html,/批注步骤 1/);
+    assert.match(html,/补充缓存边界/);
+  }finally{
+    delete global.localStorage;
+  }
+});
+
+test('PlanReview 历史状态区分含备注执行并向后兼容旧版无 feedback 事件',()=>{
+  const withNotesHtml=render({
+    ...turn,
+    status:'completed',
+    events:[...turn.events,{type:'plan.resolved',data:{id:'plan-1',action:'execute',feedback:'仅更新文档目录'}}]
+  });
+  assert.match(withNotesHtml,/你已同意执行（含备注）/);
+  assert.match(withNotesHtml,/仅更新文档目录/);
+
+  const legacyHtml=render({
+    ...turn,
+    status:'completed',
+    events:[...turn.events,{type:'plan.resolved',data:{id:'plan-1',action:'execute'}}]
+  });
+  assert.match(legacyHtml,/你已同意执行</);
+});
+
+test('DiffReviewPanel 渲染双行号、草稿评论并在忙碌或已撤销时禁用直接发送',async()=>{
+  const diffFilename=path.resolve(__dirname,'../src/diff-review.jsx');
+  const built=buildSync({entryPoints:[diffFilename],bundle:true,write:false,platform:'node',format:'cjs',external:['react','react-dom','lucide-react'],loader:{'.css':'empty'}});
+  const diffMod=new Module(diffFilename,module);diffMod.filename=diffFilename;diffMod.paths=Module._nodeModulePaths(path.dirname(diffFilename));diffMod._compile(built.outputFiles[0].text,diffFilename);
+  const {DiffReviewPanel}=diffMod.exports;
+
+  const {diffDraftKey,saveDraft}=await import('../src/annotations.mjs');
+  const store=new Map();
+  global.localStorage={
+    getItem:k=>store.has(k)?store.get(k):null,
+    setItem:(k,v)=>store.set(k,String(v)),
+    removeItem:k=>store.delete(k)
+  };
+  try{
+    saveDraft(diffDraftKey('sess-1','turn-9'),{
+      comments:[{id:'c1',filePath:'src/a.js',side:'new',startLine:2,endLine:2,anchorRowIndex:5,snippet:'+const x = 2;',text:'改用 const'}],
+      generalNote:''
+    });
+    const diffProp={
+      turn:{id:'turn-9',undone:false},
+      files:[{path:'src/a.js',type:'MODIFY',diff:'diff --git a/src/a.js b/src/a.js\n--- a/src/a.js\n+++ b/src/a.js\n@@ -1,2 +1,2 @@\n const a = 1;\n-var x = 1;\n+const x = 2;\n'}]
+    };
+    const normalHtml=renderToStaticMarkup(React.createElement(DiffReviewPanel,{
+      diff:diffProp,sessionId:'sess-1',directoryBusy:false,
+      onClose:()=>{},onUndo:()=>{},onOpenFile:()=>{},onInsertFeedback:()=>{},onSendFeedback:async()=>{}
+    }));
+    assert.match(normalHtml,/L2/);
+    assert.match(normalHtml,/改用 const/);
+    assert.match(normalHtml,/标准/);assert.match(normalHtml,/加宽/);assert.match(normalHtml,/全屏/);
+    assert.doesNotMatch(normalHtml,/<button[^>]*disabled[^>]*>.*直接发送给 Agent/);
+
+    const busyHtml=renderToStaticMarkup(React.createElement(DiffReviewPanel,{
+      diff:diffProp,sessionId:'sess-1',directoryBusy:true,
+      onClose:()=>{},onUndo:()=>{},onOpenFile:()=>{},onInsertFeedback:()=>{},onSendFeedback:async()=>{}
+    }));
+    assert.match(busyHtml,/<button[^>]*disabled=""[^>]*>.*直接发送给 Agent/);
+
+    const undoneHtml=renderToStaticMarkup(React.createElement(DiffReviewPanel,{
+      diff:{...diffProp,turn:{id:'turn-9',undone:true}},sessionId:'sess-1',directoryBusy:false,
+      onClose:()=>{},onUndo:()=>{},onOpenFile:()=>{},onInsertFeedback:()=>{},onSendFeedback:async()=>{}
+    }));
+    assert.match(undoneHtml,/本轮改动已撤销/);
+    assert.match(undoneHtml,/<button[^>]*disabled=""[^>]*>.*直接发送给 Agent/);
+  }finally{
+    delete global.localStorage;
+  }
+});
